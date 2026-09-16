@@ -6,6 +6,7 @@ const pylonFm = {
   WeaponSlots: {
     maxloadMass: 3730,
     maxloadMassLeftConsoles: 1865,
+    maxloadMassRightConsoles: 1865,
     maxDisbalance: 1200,
     WeaponSlot: [
       // Slot zero is the fixed cannon armament, not something you choose.
@@ -45,12 +46,70 @@ describe("parseArmament", () => {
 
     expect(armament.style).toBe("pylons");
     // Slot zero is excluded: two hardpoints can actually be loaded.
-    expect(armament.slots).toBe(2);
+    expect(armament.slots.map((s) => s.index)).toEqual([1, 2]);
+    expect(armament.slots[0].presets).toEqual(["hvar", "500lbs_slot1"]);
     expect(armament.maxLoadKg).toBe(3730);
-    expect(armament.maxPerConsoleKg).toBe(1865);
+    expect(armament.maxLeftKg).toBe(1865);
+    expect(armament.maxRightKg).toBe(1865);
     expect(armament.maxDisbalanceKg).toBe(1200);
     expect(armament.bans).toEqual([
-      { slot: 1, preset: "500lbs_slot1", bansSlot: 2, bansPreset: "250lbs_slot2" },
+      { slot: 1, preset: "500lbs_slot1", otherSlot: 2, otherPreset: "250lbs_slot2" },
+    ]);
+  });
+
+  it("keeps hardpoint numbering as the game gives it, gaps and all", () => {
+    // The Hunter F58A numbers ten hardpoints 1-5 and 8-12. Treating the count as
+    // the highest index would put half of them out of range.
+    const sparse = {
+      WeaponSlots: {
+        WeaponSlot: [
+          { index: 0, WeaponPreset: { name: "guns" } },
+          { index: 1, WeaponPreset: { name: "a" } },
+          { index: 8, WeaponPreset: { name: "b" } },
+          { index: 12, WeaponPreset: { name: "c" } },
+        ],
+      },
+    };
+    expect(parseArmament(sparse, new Map()).slots.map((s) => s.index)).toEqual([1, 8, 12]);
+  });
+
+  it("separates choices the loadout menu hides from the ones it offers", () => {
+    const withHidden = {
+      WeaponSlots: {
+        WeaponSlot: [
+          {
+            index: 1,
+            WeaponPreset: [
+              { name: "shown" },
+              { name: "internal_only", showInWeaponMenu: false },
+            ],
+          },
+        ],
+      },
+    };
+    const slot = parseArmament(withHidden, new Map()).slots[0];
+    expect(slot.presets).toEqual(["shown", "internal_only"]);
+    expect(slot.hidden).toEqual(["internal_only"]);
+  });
+
+  it("reads dependencies alongside exclusions", () => {
+    const withDependency = {
+      WeaponSlots: {
+        WeaponSlot: [
+          {
+            index: 3,
+            WeaponPreset: {
+              name: "pod",
+              DependentWeaponPreset: { slot: 4, preset: "pylon_adapter" },
+            },
+          },
+        ],
+      },
+    };
+    const armament = parseArmament(withDependency, new Map());
+    expect(armament.bans).toEqual([]);
+    expect(armament.requires).toEqual([
+      { slot: 3, preset: "pod", otherSlot: 4, otherPreset: "pylon_adapter" },
     ]);
   });
 
@@ -58,7 +117,7 @@ describe("parseArmament", () => {
     const armament = parseArmament(setupFm, new Map());
 
     expect(armament.style).toBe("setups");
-    expect(armament.slots).toBe(0);
+    expect(armament.slots).toEqual([]);
     expect(armament.bans).toEqual([]);
     expect(armament.presets.map((p) => p.name)).toEqual(["pe-8_default", "pe-8_32xfab100"]);
   });
