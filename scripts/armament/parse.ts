@@ -12,13 +12,20 @@ export type Preset = {
   weapons: PresetWeapon[];
 };
 
+/** One thing a hardpoint can be given, as the loadout menu offers it. */
+export type SlotOption = {
+  name: string;
+  /** The stores it hangs, by weapon file and how many. A rack counts as one. */
+  stores: { file: string; count: number }[];
+  /** True for choices the game keeps out of the loadout menu. */
+  hidden: boolean;
+};
+
 /** What one hardpoint will take. */
 export type Slot = {
   index: number;
-  /** Named choices offered for this hardpoint, in the order the game lists them. */
-  presets: string[];
-  /** Choices the game does not put in the loadout menu. */
-  hidden: string[];
+  /** The choices offered, in the order the game lists them. */
+  options: SlotOption[];
 };
 
 /** A rule tying one hardpoint's choice to another's. */
@@ -88,6 +95,13 @@ function weaponsOf(entries: Blk[]): PresetWeapon[] {
   return [...totals].map(([weapon, count]) => ({ weapon, count }));
 }
 
+/** One entry per distinct store, keeping the order the game lists them in. */
+function collapseStores(stores: { file: string; count: number }[]) {
+  const totals = new Map<string, number>();
+  for (const store of stores) totals.set(store.file, (totals.get(store.file) ?? 0) + store.count);
+  return [...totals].map(([file, count]) => ({ file, count }));
+}
+
 function rulesFrom(slots: Blk[], key: "BannedWeaponPreset" | "DependentWeaponPreset"): Rule[] {
   const rules: Rule[] = [];
   for (const slot of slots) {
@@ -121,14 +135,23 @@ export function parseArmament(fm: Blk, presetFiles: Map<string, Blk>): Armament 
   // Slot zero is the fixed armament — cannons that are part of the aircraft.
   const suspended = many<Blk>(slotsBlock?.WeaponSlot).filter((slot) => Number(slot.index) > 0);
 
-  const slots: Slot[] = suspended.map((slot) => {
-    const presets = many<Blk>(slot.WeaponPreset);
-    return {
-      index: Number(slot.index),
-      presets: presets.map((p) => String(p.name)),
-      hidden: presets.filter((p) => p.showInWeaponMenu === false).map((p) => String(p.name)),
-    };
-  });
+  const slots: Slot[] = suspended.map((slot) => ({
+    index: Number(slot.index),
+    options: many<Blk>(slot.WeaponPreset).map((preset) => ({
+      name: String(preset.name),
+      hidden: preset.showInWeaponMenu === false,
+      // Four of a kind are written as four entries; one entry counted four is
+      // the same load and the same thing to show.
+      stores: collapseStores(
+        many<Blk>(preset.Weapon)
+          .filter((weapon) => typeof weapon.blk === "string")
+          .map((weapon) => ({
+            file: basename(weapon.blk as string),
+            count: typeof weapon.bullets === "number" ? weapon.bullets : 1,
+          })),
+      ),
+    })),
+  }));
 
   const presets: Preset[] = many<{ name: unknown }>(
     (fm.weapon_presets as Blk | undefined)?.preset,

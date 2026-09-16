@@ -19,6 +19,19 @@ const OUT_MOUNTS = path.join(DATA_DIR, "mounts.json");
 const RAW_DIR = path.join(process.cwd(), ".cache", "armament", "raw");
 /** Reference material for auditing, deliberately out of the bundle. */
 const OUT_FULL = path.join(process.cwd(), ".cache", "armament", "armament.json");
+/** The store catalogue `npm run stores` builds, which this joins against. */
+const STORES_FILE = path.join(process.cwd(), ".cache", "armament", "stores.json");
+/** Shipped: what the loadout creator reads, one aircraft at a time. */
+const OUT_ARMAMENT = path.join(DATA_DIR, "armament.json");
+
+type StoreRecord = {
+  file: string;
+  name: string | null;
+  short: string | null;
+  massKg: number | null;
+  kind: string;
+  bomb: { id: string; count: number } | null;
+};
 
 const CONCURRENCY = 8;
 
@@ -110,7 +123,80 @@ async function main() {
   await writeFile(OUT_MOUNTS, JSON.stringify(mounts), "utf8");
 
   const bombs = JSON.parse(await readFile(path.join(DATA_DIR, "bombs.json"), "utf8")) as Bomb[];
+  await writePayload(byUnit);
   report(aircraft, unitIds, byUnit, missing, bombs);
+}
+
+/**
+ * Writes what the loadout creator needs, for the aircraft that can use it.
+ *
+ * Only aircraft with hardpoints get an entry — there is nothing to build on a
+ * Pe-8. It ships as one file but is never handed to the browser whole: the
+ * aircraft page picks out its own unit and passes that slice down as props.
+ *
+ * Stores are listed once in `files` and referred to by index everywhere else.
+ * Twenty-three thousand hardpoint options naming `us_500lb_anm64a1` in full is
+ * most of a megabyte spent writing the same eighteen characters over and over.
+ */
+async function writePayload(byUnit: Record<string, Armament>) {
+  const catalogue = JSON.parse(await readFile(STORES_FILE, "utf8")) as StoreRecord[];
+  const byFile = new Map(catalogue.map((s) => [s.file, s]));
+
+  const files: string[] = [];
+  const indexOf = new Map<string, number>();
+  const intern = (file: string) => {
+    const known = indexOf.get(file);
+    if (known !== undefined) return known;
+    indexOf.set(file, files.length);
+    files.push(file);
+    return files.length - 1;
+  };
+
+  const units: Record<string, unknown> = {};
+  for (const [unitId, armament] of Object.entries(byUnit)) {
+    if (armament.style !== "pylons") continue;
+
+    units[unitId] = {
+      max: armament.maxLoadKg,
+      left: armament.maxLeftKg,
+      right: armament.maxRightKg,
+      diff: armament.maxDisbalanceKg,
+      slots: armament.slots.map((slot) => ({
+        i: slot.index,
+        o: slot.options
+          .filter((option) => !option.hidden)
+          .map((option) => ({
+            n: option.name,
+            // One store carried once is the ordinary case, and writes as a bare index.
+            w:
+              option.stores.length === 1 && option.stores[0].count === 1
+                ? intern(option.stores[0].file)
+                : option.stores.map((store) => [intern(store.file), store.count]),
+          })),
+      })),
+      bans: armament.bans.map((r) => [r.slot, r.preset, r.otherSlot, r.otherPreset]),
+    };
+  }
+
+  const stores = files.map((file) => {
+    const store = byFile.get(file);
+    if (!store) return { n: file, s: null, kg: null, k: "other" };
+    return {
+      n: store.name,
+      s: store.short,
+      // The game's own figures carry float noise; nothing needs it to the microgram.
+      kg: store.massKg === null ? null : Math.round(store.massKg * 100) / 100,
+      k: store.kind,
+      ...(store.bomb ? { b: [store.bomb.id, store.bomb.count] } : {}),
+    };
+  });
+
+  const payload = { files, stores, units };
+  await writeFile(OUT_ARMAMENT, JSON.stringify(payload), "utf8");
+  console.log(
+    `      wrote ${Object.keys(units).length} buildable aircraft and ${files.length} stores ` +
+      `to src/data/armament.json (${Math.round(Buffer.byteLength(JSON.stringify(payload)) / 1024)} KB)`,
+  );
 }
 
 function report(
@@ -139,7 +225,7 @@ function report(
   ).length;
   console.log(`      ${lopsided} state different limits for the left and right wing`);
 
-  const hidden = sum((u) => u.slots.reduce((n, s) => n + s.hidden.length, 0));
+  const hidden = sum((u) => u.slots.reduce((n, s) => n + s.options.filter((o) => o.hidden).length, 0));
   console.log(`      ${hidden} hardpoint choice(s) the loadout menu does not show`);
 
   audit(byUnit);
@@ -237,7 +323,7 @@ function audit(byUnit: Record<string, Armament>) {
   let requiresBroken = 0;
 
   for (const [, armament] of units) {
-    const offered = new Map(armament.slots.map((s) => [s.index, new Set(s.presets)]));
+    const offered = new Map(armament.slots.map((s) => [s.index, new Set(s.options.map((o) => o.name))]));
     const resolves = (slot: number, preset: string) => offered.get(slot)?.has(preset) ?? false;
 
     const stated = new Set(

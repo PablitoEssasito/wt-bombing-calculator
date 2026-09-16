@@ -47,7 +47,7 @@ describe("parseArmament", () => {
     expect(armament.style).toBe("pylons");
     // Slot zero is excluded: two hardpoints can actually be loaded.
     expect(armament.slots.map((s) => s.index)).toEqual([1, 2]);
-    expect(armament.slots[0].presets).toEqual(["hvar", "500lbs_slot1"]);
+    expect(armament.slots[0].options.map((o) => o.name)).toEqual(["hvar", "500lbs_slot1"]);
     expect(armament.maxLoadKg).toBe(3730);
     expect(armament.maxLeftKg).toBe(1865);
     expect(armament.maxRightKg).toBe(1865);
@@ -73,7 +73,7 @@ describe("parseArmament", () => {
     expect(parseArmament(sparse, new Map()).slots.map((s) => s.index)).toEqual([1, 8, 12]);
   });
 
-  it("separates choices the loadout menu hides from the ones it offers", () => {
+  it("marks the choices the loadout menu hides", () => {
     const withHidden = {
       WeaponSlots: {
         WeaponSlot: [
@@ -88,8 +88,31 @@ describe("parseArmament", () => {
       },
     };
     const slot = parseArmament(withHidden, new Map()).slots[0];
-    expect(slot.presets).toEqual(["shown", "internal_only"]);
-    expect(slot.hidden).toEqual(["internal_only"]);
+    expect(slot.options.map((o) => o.name)).toEqual(["shown", "internal_only"]);
+    expect(slot.options.map((o) => o.hidden)).toEqual([false, true]);
+  });
+
+  it("records what each hardpoint choice actually hangs", () => {
+    const withStores = {
+      WeaponSlots: {
+        WeaponSlot: [
+          {
+            index: 1,
+            WeaponPreset: [
+              {
+                name: "500lb_x1",
+                Weapon: { blk: "gameData/Weapons/BombGuns/us_500lb_mk_82_ldgp.blk", bullets: 1 },
+              },
+              // A pair is a rack file, not two entries — the rack knows it holds two.
+              { name: "500lb_x2", Weapon: { blk: "gameData/Weapons/BombGuns/ter_us_500lb_mk_82.blk" } },
+            ],
+          },
+        ],
+      },
+    };
+    const options = parseArmament(withStores, new Map()).slots[0].options;
+    expect(options[0].stores).toEqual([{ file: "us_500lb_mk_82_ldgp", count: 1 }]);
+    expect(options[1].stores).toEqual([{ file: "ter_us_500lb_mk_82", count: 1 }]);
   });
 
   it("reads dependencies alongside exclusions", () => {
