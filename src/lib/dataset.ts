@@ -1,6 +1,5 @@
 import aircraftData from "@/data/aircraft.json";
 import bombData from "@/data/bombs.json";
-import bombIconData from "@/data/bomb-icons.json";
 import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
@@ -26,17 +25,7 @@ const mountsByAircraft = mountData as Record<string, "pylons" | "setups">;
 export const carriesPartialLoad = (aircraftId: string) =>
   mountsByAircraft[aircraftId] === "pylons";
 
-/** Full-size aircraft render, for the vehicle page. Matches the wiki's own art. */
-export const renderUrl = (unitId: string) => `/aircraft/renders/${unitId}.webp`;
-
-/** Small tech-tree slot icon, the style the source spreadsheet itself used. */
-export const iconUrl = (unitId: string) => `/aircraft/icons/${unitId}.webp`;
-
-/** Bomb id to the game's own UI icon key for it — e.g. "bombs_small", "napalm_middle". */
-export const bombIconsById = bombIconData as Record<string, string>;
-
-/** The game's own weapon-selector icon for a bomb, the same art the source sheet uses. */
-export const bombIconUrl = (iconType: string) => `/bombs/icons/${iconType}.webp`;
+export { bombIconUrl, bombIconsById, iconUrl, renderUrl } from "./assets";
 
 export const bombsById: Map<string, Bomb> = new Map(bombs.map((b) => [b.id, b]));
 

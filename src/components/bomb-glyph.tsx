@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { bombIconsById, bombIconUrl } from "@/lib/dataset";
+import { bombIconsById, bombIconUrl } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 
 type BombLike = { id: string; chartName: string; fullName: string };
