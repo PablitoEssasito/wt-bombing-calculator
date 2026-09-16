@@ -6,21 +6,39 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "etl": "tsx scripts/etl/index.ts",
+    "etl:cache": "tsx scripts/etl/index.ts --cache",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "images": "tsx scripts/images/index.ts",
+    "images:cache": "tsx scripts/images/index.ts --cache",
+    "bomb-icons": "tsx scripts/bomb-icons/index.ts",
+    "bomb-icons:cache": "tsx scripts/bomb-icons/index.ts --cache"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "fuse.js": "^7.5.0",
+    "lucide-react": "^1.46.0",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^26.6.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.13",
+    "typescript": "^5",
+    "vitest": "^5.0.1"
   }
 }

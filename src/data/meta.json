@@ -1,0 +1,20 @@
+{
+  "sourceUrl": "https://docs.google.com/spreadsheets/d/1oNwp_MXszU5J2dcaz5IoCtSAQ-infPdOWhwtJXqtrwU/edit",
+  "nationNotes": {
+    "usa": "Nothing really noteworthy here, US-bombing is pretty straight forward.\n\nMight be interesting to mention that the Americans also have a bunch of fighters and attackers capable of bombing a base.",
+    "germany": "For the later tiers, keep in mind that you will find almost exclusively modern American (NATO) and Russian (GDR) bombs. If you wan't to check them out in the detailed chart, you will find them in the USA and Russia section.",
+    "ussr": "For the Russian bombers it's important that you watch out for the plethra of different bombs. The Russians are notorious for having several different versions for bombs of the same weight, many of which share the same icons in the loadouts.\n\nFor example, there are NINETEEN different 500 kg variants and FOURTEEN 250 kg variants. Most of them have different TNT equivalents. You need to watch out for the precise nomenclature of the bombs.",
+    "britain": "For the British bombers it's important that you watch out for the plethra of different bombs. The British have several different versions for bombs of the same weight, all of which share the same icons in the loadouts.\n\nFor example there are six different 1000 lb bombs, each with different filler TNT equivalents and all of which are in use over the entire length of the tech tree.",
+    "japan": "If you're trying to find the bombs in the Bomb Chart, keep in mind, nearly all aircraft starting at Rank V use American bombs.",
+    "china": "Almost all of the low- and midtier aircraft in the Chinese are imported vehicles from the United States or Russia, so you might already be familiar with most of the planes if you play USA or Russia.",
+    "italy": "Italy has a very small selection of bombers. The choice pretty much ends at 3.7. Beyond that you'll find bombers again in the shape of NATO imported jets at high- and toptier.",
+    "france": "Nothing really noteworthy here. France has some good bombers, many of them are imported American and British bombers.\n\nAt top tier you will find the SAMP series of bombs, which are the French versions of the American LDGP series of bombs (Mk 81 - Mk 84) and are slightly different than their American counterparts.",
+    "sweden": "There are some jets which won't allow you to bring ANY offensive weaponry or very little (Look out for the jets with the exclamation mark).",
+    "israel": "Israel has almost no base capable vehicles below rank VI, which means almost all aircraft are high tier jets.\n\nAll of those high tier jets are imported French or American jets. some of which are modified and most of which carry American or more precisely standardized NATO bombs."
+  },
+  "hasNotes": true,
+  "sheetVersion": "2.25",
+  "generatedAt": "2026-09-15T20:19:00.940Z",
+  "aircraftCount": 635,
+  "bombCount": 292
+}
