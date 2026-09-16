@@ -90,8 +90,12 @@ export function contained(body: Record<string, unknown>): { blk: string; count: 
  *
  * A third of the stores state no mass of their own because they are not stores at
  * all: `aero_3b_aim9b` is a rail that holds two AIM-9Bs and says so by pointing at
- * the missile's file. What the wing carries is the missiles, so that is what gets
- * counted — the rail's own weight is not in the data anywhere.
+ * the missile's file, which need not be hung anywhere itself.
+ *
+ * Where a rack does state a weight it is the rack's own, and counts on top of what
+ * it carries rather than instead of it — read as the whole story it puts the
+ * triple adapter `auf_1_tri_us_gbu_12_x2` at 80 kg while it holds two 277 kg
+ * Paveways.
  */
 function massOfStore(
   file: string,
@@ -103,12 +107,11 @@ function massOfStore(
   seen.add(file);
 
   const own = ownMass(body);
-  if (own !== null) return own;
-
   const inner = contained(body);
-  if (!inner) return null;
+  if (!inner) return own;
   const innerMass = massOfStore(storeFile(inner.blk), bodies, seen);
-  return innerMass === null ? null : innerMass * inner.count;
+  if (innerMass === null) return own;
+  return (own ?? 0) + innerMass * inner.count;
 }
 
 /** Every distinct weapon file the hardpoints of any aircraft can hang. */
