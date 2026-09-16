@@ -48,6 +48,31 @@ const DEFAULT_DIR: Record<Sort, SortDir> = {
   kind: "asc",
 };
 
+/**
+ * How the Mass column reads. "Original" is whatever the source itself printed —
+ * nations mix lb and kg depending on which one they historically used — the
+ * other two force everything to one unit so a whole column can be compared
+ * directly, or converted at a glance without doing the maths by hand.
+ */
+const MASS_UNITS = ["original", "kg", "lb"] as const;
+type MassUnit = (typeof MASS_UNITS)[number];
+
+const MASS_UNIT_LABELS: Record<MassUnit, string> = {
+  original: "Original",
+  kg: "kg",
+  lb: "lb",
+};
+
+const LB_PER_KG = 1 / 0.45359237;
+
+function formatMass(bomb: Bomb, unit: MassUnit): string {
+  if (unit === "original") return bomb.massLabel || "—";
+  if (bomb.massKg === null) return "—";
+  return unit === "kg"
+    ? `${Math.round(bomb.massKg)} kg`
+    : `${Math.round(bomb.massKg * LB_PER_KG)} lb`;
+}
+
 /** Every kind that can actually reach this table — rockets carry no damage value, so never do. */
 const PRICED_KINDS = [
   "GP",
@@ -68,6 +93,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
   const [mapSize, setMapSize] = useUrlState("map", urlInteger(4));
   const [sort, setSort] = useUrlState("sort", urlLiteral(SORTS, "needed"));
+  const [massUnit, setMassUnit] = useUrlState("massUnit", urlLiteral(MASS_UNITS, "original"));
   const [dir, setDir] = useUrlState("dir", urlLiteral<SortDir>(["asc", "desc"], DEFAULT_DIR.needed));
   const [nation, setNation] = useUrlState("nation", urlLiteral(["all", ...NATIONS] as const, "all"));
   const [kinds, setKinds] = useUrlState("kinds", urlStringSet<BombKind>(PRICED_KINDS));
@@ -258,7 +284,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
         ) : null}
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-3">
         <input
           type="search"
           value={query}
@@ -267,9 +293,22 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           aria-label="Filter bombs"
           className="card px-3 py-2 outline-none placeholder:text-ink-faint focus:border-accent transition-colors w-full sm:w-72"
         />
-        <p className="nums text-sm text-ink-dim">
-          {rows.length} bombs against {formatCount(effectiveHp)} HP bases
-        </p>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs uppercase tracking-wider text-ink-faint">Mass shown in</span>
+            <div role="group" aria-label="Mass unit" className="flex gap-1">
+              {MASS_UNITS.map((u) => (
+                <FilterChip key={u} active={massUnit === u} onClick={() => setMassUnit(u)}>
+                  {MASS_UNIT_LABELS[u]}
+                </FilterChip>
+              ))}
+            </div>
+          </div>
+          <p className="nums text-sm text-ink-dim">
+            {rows.length} bombs against {formatCount(effectiveHp)} HP bases
+          </p>
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -340,7 +379,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                     {formatCount(bomb.damageValue!)}
                   </td>
                   <td className="nums px-3 py-2 text-right text-ink-dim hidden sm:table-cell">
-                    {bomb.massLabel || "—"}
+                    {formatMass(bomb, massUnit)}
                   </td>
                   <td className="nums px-3 py-2 text-right text-ink-dim hidden md:table-cell">
                     {bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : "—"}
