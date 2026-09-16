@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { useDeferredValue, useMemo } from "react";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
 import {
@@ -26,15 +26,25 @@ import {
 } from "@/lib/use-url-state";
 import { cn, formatCount } from "@/lib/utils";
 
-const SORTS = ["needed", "damage", "efficiency", "mass", "name"] as const;
+const SORTS = ["name", "needed", "damage", "mass", "tnt", "efficiency", "kind"] as const;
 type Sort = (typeof SORTS)[number];
+type SortDir = "asc" | "desc";
 
-const SORT_LABELS: Record<Sort, string> = {
-  needed: "Bombs per base",
-  damage: "Damage",
-  efficiency: "Damage per kg",
-  mass: "Mass",
-  name: "Name",
+/**
+ * Which direction a column starts in on its first click.
+ *
+ * Text columns start A-Z; for numbers, whichever end is more interesting to see
+ * first — cheapest bombs-per-base, heaviest hitters by damage/mass/TNT — rather
+ * than defaulting every column to the same direction.
+ */
+const DEFAULT_DIR: Record<Sort, SortDir> = {
+  name: "asc",
+  needed: "asc",
+  damage: "desc",
+  mass: "desc",
+  tnt: "desc",
+  efficiency: "desc",
+  kind: "asc",
 };
 
 /** Every kind that can actually reach this table — rockets carry no damage value, so never do. */
@@ -57,6 +67,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
   const [mapSize, setMapSize] = useUrlState("map", urlInteger(4));
   const [sort, setSort] = useUrlState("sort", urlLiteral(SORTS, "needed"));
+  const [dir, setDir] = useUrlState("dir", urlLiteral<SortDir>(["asc", "desc"], DEFAULT_DIR.needed));
   const [nation, setNation] = useUrlState("nation", urlLiteral(["all", ...NATIONS] as const, "all"));
   const [kinds, setKinds] = useUrlState("kinds", urlStringSet<BombKind>(PRICED_KINDS));
   const [massMin, setMassMin] = useUrlState("massMin", urlOptionalInteger());
@@ -106,23 +117,30 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
 
     return filtered
       .map((bomb) => ({ bomb, needed: bombsNeeded(effectiveHp, bomb.damageValue!) }))
-      .sort((a, b) => {
-        switch (sort) {
-          case "needed":
-            return a.needed - b.needed || b.bomb.damageValue! - a.bomb.damageValue!;
-          case "damage":
-            return b.bomb.damageValue! - a.bomb.damageValue!;
-          case "efficiency":
-            return (b.bomb.efficiency ?? 0) - (a.bomb.efficiency ?? 0);
-          case "mass":
-            return (a.bomb.massKg ?? 0) - (b.bomb.massKg ?? 0);
-          default:
-            return (a.bomb.chartName || a.bomb.fullName).localeCompare(
-              b.bomb.chartName || b.bomb.fullName,
-            );
-        }
-      });
-  }, [bombs, deferred, effectiveHp, sort, nation, kinds, massMin, massMax, tntMin, tntMax, dmgMin, dmgMax]);
+      .sort((a, b) => compareRows(a, b, sort, dir));
+  }, [
+    bombs,
+    deferred,
+    effectiveHp,
+    sort,
+    dir,
+    nation,
+    kinds,
+    massMin,
+    massMax,
+    tntMin,
+    tntMax,
+    dmgMin,
+    dmgMax,
+  ]);
+
+  const handleSort = (column: Sort) => {
+    if (column === sort) setDir(dir === "asc" ? "desc" : "asc");
+    else {
+      setSort(column);
+      setDir(DEFAULT_DIR[column]);
+    }
+  };
 
   const toggleKind = (kind: BombKind) => {
     const next = new Set(kinds);
@@ -144,7 +162,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
 
   return (
     <div className="space-y-6">
-      <section className="card p-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="card p-4 grid gap-5 sm:grid-cols-3">
         <Segmented
           label="Match BR"
           value={String(baseHp)}
@@ -172,12 +190,6 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
             { value: "4", label: "Four" },
             { value: "3", label: "Three", hint: "half payload" },
           ]}
-        />
-        <Segmented
-          label="Sort by"
-          value={sort}
-          onChange={(v) => setSort(v as Sort)}
-          options={SORTS.map((s) => ({ value: s, label: SORT_LABELS[s] }))}
         />
       </section>
 
@@ -268,13 +280,44 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           <table className="w-full text-sm">
             <thead className="text-ink-faint">
               <tr className="hairline">
-                <Th className="text-left">Bomb</Th>
-                <Th className="text-right">Per base</Th>
-                <Th className="text-right">Damage</Th>
-                <Th className="text-right hidden sm:table-cell">Mass</Th>
-                <Th className="text-right hidden md:table-cell">TNT</Th>
-                <Th className="text-right hidden md:table-cell">Dmg / kg</Th>
-                <Th className="text-left hidden lg:table-cell">Type</Th>
+                <SortTh column="name" label="Bomb" sort={sort} dir={dir} onSort={handleSort} />
+                <SortTh column="needed" label="Per base" align="right" sort={sort} dir={dir} onSort={handleSort} />
+                <SortTh column="damage" label="Damage" align="right" sort={sort} dir={dir} onSort={handleSort} />
+                <SortTh
+                  column="mass"
+                  label="Mass"
+                  align="right"
+                  className="hidden sm:table-cell"
+                  sort={sort}
+                  dir={dir}
+                  onSort={handleSort}
+                />
+                <SortTh
+                  column="tnt"
+                  label="TNT"
+                  align="right"
+                  className="hidden md:table-cell"
+                  sort={sort}
+                  dir={dir}
+                  onSort={handleSort}
+                />
+                <SortTh
+                  column="efficiency"
+                  label="Dmg / kg"
+                  align="right"
+                  className="hidden md:table-cell"
+                  sort={sort}
+                  dir={dir}
+                  onSort={handleSort}
+                />
+                <SortTh
+                  column="kind"
+                  label="Type"
+                  className="hidden lg:table-cell"
+                  sort={sort}
+                  dir={dir}
+                  onSort={handleSort}
+                />
               </tr>
             </thead>
             <tbody>
@@ -323,8 +366,99 @@ const BR_RANGE_LABELS: Record<BaseHp, string> = {
   25900: "8.0 and up",
 };
 
-function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={cn("font-normal px-3 py-2", className)}>{children}</th>;
+type SortableRow = { bomb: Bomb; needed: number };
+
+function sortKeyOf(row: SortableRow, column: Sort): number | string | null {
+  switch (column) {
+    case "name":
+      return row.bomb.chartName || row.bomb.fullName;
+    case "needed":
+      return row.needed;
+    case "damage":
+      return row.bomb.damageValue;
+    case "mass":
+      return row.bomb.massKg;
+    case "tnt":
+      return row.bomb.tntKg;
+    case "efficiency":
+      return row.bomb.efficiency;
+    case "kind":
+      return BOMB_KIND_LABELS[row.bomb.kind];
+  }
+}
+
+/**
+ * Orders two rows by one column, nulls always last regardless of direction —
+ * a bomb missing a TNT figure (incendiaries have none) shouldn't jump to the
+ * top just because you flipped to "smallest first".
+ *
+ * Ties fall back to name, so equal values still land in a stable, readable
+ * order rather than whatever the previous sort happened to leave them in.
+ */
+function compareRows(a: SortableRow, b: SortableRow, column: Sort, dir: SortDir): number {
+  const av = sortKeyOf(a, column);
+  const bv = sortKeyOf(b, column);
+
+  let cmp: number;
+  if (av === null || bv === null) {
+    if (av === null && bv === null) cmp = 0;
+    else return av === null ? 1 : -1;
+  } else if (typeof av === "string" || typeof bv === "string") {
+    cmp = String(av).localeCompare(String(bv));
+  } else {
+    cmp = av - bv;
+  }
+
+  const directed = dir === "asc" ? cmp : -cmp;
+  if (directed !== 0 || column === "name") return directed;
+  return compareRows(a, b, "name", "asc");
+}
+
+function SortTh({
+  column,
+  label,
+  sort,
+  dir,
+  onSort,
+  align = "left",
+  className,
+}: {
+  column: Sort;
+  label: string;
+  sort: Sort;
+  dir: SortDir;
+  onSort: (column: Sort) => void;
+  align?: "left" | "right";
+  className?: string;
+}) {
+  const active = sort === column;
+  return (
+    <th
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={cn("font-normal px-3 py-2", align === "right" && "text-right", className)}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={cn(
+          "group inline-flex items-center gap-1 transition-colors hover:text-ink",
+          align === "right" && "flex-row-reverse",
+          active && "text-ink",
+        )}
+      >
+        {label}
+        {active ? (
+          dir === "asc" ? (
+            <ChevronUp size={13} className="text-accent" />
+          ) : (
+            <ChevronDown size={13} className="text-accent" />
+          )
+        ) : (
+          <ChevronsUpDown size={13} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+        )}
+      </button>
+    </th>
+  );
 }
 
 function FilterChip({
