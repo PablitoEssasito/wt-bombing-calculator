@@ -37,7 +37,7 @@ export function SourceNote({ option, sourceUrl }: { option: LoadoutOption; sourc
           discouraged ? "text-danger" : "text-ink-faint",
         )}
       >
-        {discouraged ? "The source advises against this loadout" : NOTE_HEADINGS[marker ?? "none"]}
+        {discouraged ? "Not recommended" : NOTE_HEADINGS[marker ?? "none"]}
       </p>
       {option.note ? (
         <p className="text-ink-dim whitespace-pre-line leading-relaxed">{option.note}</p>
