@@ -18,12 +18,28 @@ export type Candidate = {
   bombCount: number;
 };
 
-const RANK: Record<Stance, number> = { recommended: 0, neutral: 1, discouraged: 2 };
+/** How far a loadout's reach sits from the number of bases asked for. */
+const overshoot = (c: Candidate, wanted: number) => Math.abs(c.basesDestroyed - wanted);
 
-/** Positive when a is the better loadout to show. */
-function compare(a: Candidate, b: Candidate): number {
+const refused = (c: Candidate) => Number(stanceOf(c.option) === "discouraged");
+const starred = (c: Candidate) => Number(stanceOf(c.option) === "recommended");
+
+/**
+ * Positive when a is the better loadout to show for this target.
+ *
+ * The two halves of the source's opinion sit on either side of fit, which is why
+ * they are weighed separately. A loadout the author refuses is last whatever it
+ * reaches. The star, though, answers "what should I take?" — the very question
+ * the default target is set from, so where the player has left the target alone
+ * the starred loadout fits exactly and wins here anyway. Once they ask for fewer
+ * bases they are asking something else, and answering that with a loadout built
+ * for twice the work would leave the control doing nothing at all.
+ */
+function compare(a: Candidate, b: Candidate, wanted: number): number {
   return (
-    RANK[stanceOf(b.option)] - RANK[stanceOf(a.option)] ||
+    refused(b) - refused(a) ||
+    overshoot(b, wanted) - overshoot(a, wanted) ||
+    starred(a) - starred(b) ||
     (a.option.rewardMultiplier ?? 0) - (b.option.rewardMultiplier ?? 0) ||
     b.bombCount - a.bombCount
   );
@@ -63,5 +79,5 @@ export function defaultTarget(candidates: Candidate[], baseCount: number): numbe
 export function pickLoadout<T extends Candidate>(candidates: T[], wanted: number): T {
   const capable = candidates.filter((c) => c.basesDestroyed >= wanted);
   const pool = capable.length > 0 ? capable : candidates;
-  return pool.reduce((best, c) => (compare(c, best) > 0 ? c : best));
+  return pool.reduce((best, c) => (compare(c, best, wanted) > 0 ? c : best));
 }

@@ -37,8 +37,13 @@ export type PlanBase = {
 
 export type Plan = {
   bases: PlanBase[];
-  /** Ordnance left over once no further base can be flattened. */
+  /** Ordnance beyond what the plan drops: unusable, or simply not needed. */
   leftover: PlanItem[];
+  /**
+   * The plan was cut down to fewer bases than the loadout covers, so `leftover`
+   * is ordnance to leave on the ground rather than carry.
+   */
+  trimmed: boolean;
   basesDestroyed: number;
   /**
    * "sheet" means these are the source's own hand-tuned numbers. "recomputed"
@@ -72,6 +77,56 @@ export function payloadOf(schedule: Schedule, lookup: Map<string, Bomb>): PlanIt
       return bomb ? [{ bomb, count }] : [];
     })
     .sort((a, b) => (b.bomb.damageValue ?? 0) - (a.bomb.damageValue ?? 0));
+}
+
+/** One entry per bomb type, heaviest hitter first. */
+function collapse(items: PlanItem[]): PlanItem[] {
+  const totals = new Map<string, PlanItem>();
+  for (const item of items) {
+    const running = totals.get(item.bomb.id);
+    if (running) running.count += item.count;
+    else totals.set(item.bomb.id, { ...item });
+  }
+  return [...totals.values()].sort((a, b) => (b.bomb.damageValue ?? 0) - (a.bomb.damageValue ?? 0));
+}
+
+/** What the aircraft actually takes off with under this plan. */
+export function mountedIn(plan: Plan): PlanItem[] {
+  const dropped = plan.bases.flatMap((base) => base.items);
+  // Untrimmed leftovers are carried and simply never used; trimmed ones are the
+  // point of trimming and stay on the ground.
+  return collapse(plan.trimmed ? dropped : [...dropped, ...plan.leftover]);
+}
+
+/**
+ * The same loadout flown at a smaller target than it covers.
+ *
+ * Carrying a full bomb bay to hit one base is a waste twice over: the reward
+ * multiplier is priced against what is mounted, and the weight is dead. So where
+ * the player asks for fewer bases than the schedule covers, the bases past that
+ * point become ordnance to leave behind rather than a plan to fly.
+ *
+ * Whether it can be left behind at all is per aircraft and not something anything
+ * here knows — the sheet's loadouts are the game's own presets, and plenty of them
+ * mount as one indivisible block. That is why this runs only when the player asks
+ * for a smaller target, and why the surplus is offered rather than instructed.
+ *
+ * The sheet's own base order is kept: it is written in the order the author
+ * means them to be bombed.
+ */
+export function trimToTarget(plan: Plan, wanted: number): Plan {
+  if (wanted >= plan.basesDestroyed) return plan;
+
+  const kept = plan.bases.slice(0, wanted);
+  const spare = plan.bases.slice(wanted).flatMap((base) => base.items);
+
+  return {
+    ...plan,
+    bases: kept,
+    basesDestroyed: kept.length,
+    leftover: collapse([...spare, ...plan.leftover]),
+    trimmed: true,
+  };
 }
 
 function measure(items: PlanItem[], threshold: number): PlanBase {
@@ -172,6 +227,7 @@ export function buildPlan(
     return {
       bases,
       leftover: [],
+      trimmed: false,
       basesDestroyed: destroyed,
       source: "sheet",
       effectiveHp,
@@ -197,6 +253,7 @@ export function buildPlan(
   return {
     bases,
     leftover,
+    trimmed: false,
     basesDestroyed: bases.length,
     source: "recomputed",
     effectiveHp,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import aircraftData from "../../data/aircraft.json";
 import bombData from "../../data/bombs.json";
 import { BASE_HP_TIERS } from "../constants";
-import { buildPlan, payloadOf } from "../schedule";
+import { buildPlan, mountedIn, payloadOf, trimToTarget } from "../schedule";
 import type { Aircraft, Bomb } from "../types";
 
 const bombs = new Map((bombData as Bomb[]).map((b) => [b.id, b]));
@@ -135,5 +135,48 @@ describe("buildPlan when conditions differ", () => {
         }
       }
     }
+  });
+});
+
+describe("trimToTarget", () => {
+  /** The AU-1 has a single loadout the sheet spreads over three bases. */
+  const au1 = () => find("usa-au-1");
+
+  it("cuts the payload down to the bases asked for", () => {
+    const schedule = au1().options[0].schedules[0];
+    const full = buildPlan(schedule, bombs, { baseHp: 16000, mode: "rb", baseCount: 4 });
+    const trimmed = trimToTarget(full, 1);
+
+    expect(full.bases).toHaveLength(3);
+    expect(trimmed.bases).toHaveLength(1);
+    expect(trimmed.basesDestroyed).toBe(1);
+    expect(trimmed.trimmed).toBe(true);
+
+    // Nothing is conjured or lost: what is dropped plus what stays behind is
+    // still the whole loadout.
+    const before = mountedIn(full).reduce((n, i) => n + i.count, 0);
+    const after =
+      mountedIn(trimmed).reduce((n, i) => n + i.count, 0) +
+      trimmed.leftover.reduce((n, i) => n + i.count, 0);
+    expect(after).toBe(before);
+  });
+
+  it("leaves a plan that already fits alone", () => {
+    const schedule = au1().options[0].schedules[0];
+    const full = buildPlan(schedule, bombs, { baseHp: 16000, mode: "rb", baseCount: 4 });
+
+    expect(trimToTarget(full, 2)).toBe(full);
+    expect(trimToTarget(full, 9)).toBe(full);
+  });
+
+  it("counts untrimmed leftovers as carried, trimmed ones as left behind", () => {
+    const schedule = pe8().options[0].schedules[0];
+    const arcade = buildPlan(schedule, bombs, { baseHp: 10000, mode: "ab", baseCount: 4 });
+
+    const carried = mountedIn(arcade).reduce((n, i) => n + i.count, 0);
+    expect(carried).toBe(40);
+
+    const trimmed = trimToTarget(arcade, 1);
+    expect(mountedIn(trimmed).reduce((n, i) => n + i.count, 0)).toBeLessThan(40);
   });
 });

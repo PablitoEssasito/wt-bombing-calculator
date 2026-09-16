@@ -93,6 +93,26 @@ describe("pickLoadout", () => {
     const heavy = candidate({ option: option({ rewardMultiplier: 6 }) });
     expect(pickLoadout([heavy, lean], 1)).toBe(lean);
   });
+
+  it("answers a smaller target with a loadout built for it, star or no star", () => {
+    // Asking for one base and being handed the four-base loadout leaves the
+    // control doing nothing, which is what the star used to cause here.
+    const star = candidate({
+      option: option({ noteMarker: "star", rewardMultiplier: 5.4 }),
+      basesDestroyed: 4,
+    });
+    const light = candidate({ option: option({ rewardMultiplier: 8.5 }), basesDestroyed: 2 });
+
+    expect(pickLoadout([star, light], 1)).toBe(light);
+    expect(pickLoadout([star, light], 2)).toBe(light);
+    expect(pickLoadout([star, light], 4)).toBe(star);
+  });
+
+  it("still prefers the star among loadouts that reach just as far", () => {
+    const star = candidate({ option: option({ noteMarker: "star", rewardMultiplier: 7.6 }) });
+    const richer = candidate({ option: option({ rewardMultiplier: 9.2 }) });
+    expect(pickLoadout([richer, star], 1)).toBe(star);
+  });
 });
 
 describe("defaultTarget", () => {
@@ -160,6 +180,20 @@ describe("what the planner offers first, against the real sheet", () => {
     const pick = defaultPick(find("F-5E"), 25900);
     expect(pick.option.discouraged).toBe(false);
     expect(pick.basesDestroyed).toBe(1);
+  });
+
+  it("drops to a lighter loadout when the player asks for fewer bases", () => {
+    // The A-1H's starred loadout is the default answer, but the sheet also writes
+    // a much leaner one at 8.5x — the answer to "I only want one base".
+    const candidates = evaluate(find("A-1H"), 22000);
+
+    expect(stanceOf(pickLoadout(candidates, defaultTarget(candidates, 4)).option)).toBe(
+      "recommended",
+    );
+
+    const lighter = pickLoadout(candidates, 1);
+    expect(stanceOf(lighter.option)).not.toBe("recommended");
+    expect(lighter.option.rewardMultiplier).toBe(8.5);
   });
 
   it("leaves an aircraft the source never comments on alone", () => {

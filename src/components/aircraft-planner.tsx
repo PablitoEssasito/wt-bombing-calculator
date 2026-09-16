@@ -4,7 +4,14 @@ import { useMemo } from "react";
 import { reachableBaseHps } from "@/domain/base-hp";
 import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
 import { defaultTarget, pickLoadout, stanceOf, type Stance } from "@/domain/recommend";
-import { buildPlan, payloadOf, scheduleFor, type Plan } from "@/domain/schedule";
+import {
+  buildPlan,
+  mountedIn,
+  payloadOf,
+  scheduleFor,
+  trimToTarget,
+  type Plan,
+} from "@/domain/schedule";
 import type { Aircraft, Bomb, LoadoutOption, Schedule } from "@/domain/types";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
 import { Segmented } from "@/components/segmented";
@@ -68,6 +75,20 @@ export function AircraftPlanner({
 
   const active = picked === RECOMMENDED ? recommended : (evaluated[picked] ?? recommended);
   const stance = stanceOf(active.option);
+
+  /**
+   * What to actually mount.
+   *
+   * Cutting the payload down only happens once the player asks for a smaller
+   * target themselves. Left alone, the schedule stays exactly as the source wrote
+   * it: the sheet's numbers already account for the loadouts the game offers, and
+   * plenty of aircraft cannot split theirs — the Pe-8 carries forty FAB-100s as
+   * one block, so advising it to leave eight behind would be advice it cannot take.
+   */
+  const shown = useMemo(
+    () => (target === AUTO_TARGET ? active.plan : trimToTarget(active.plan, wanted)),
+    [active.plan, target, wanted],
+  );
 
   return (
     <div className="space-y-8">
@@ -141,12 +162,13 @@ export function AircraftPlanner({
           </h2>
           <StanceTag stance={stance} />
           <p className="text-sm text-ink-dim">
-            {active.plan.basesDestroyed} base{active.plan.basesDestroyed === 1 ? "" : "s"} ·{" "}
-            <ItemList items={payloadOf(active.schedule, bombsById)} />
+            {shown.basesDestroyed} base{shown.basesDestroyed === 1 ? "" : "s"} ·{" "}
+            <ItemList items={mountedIn(shown)} />
             {active.option.rewardMultiplier !== null ? (
               <>
                 {" "}
                 · <span className="text-ink">{active.option.rewardMultiplier}×</span> reward
+                {shown.trimmed ? " on the full load" : ""}
               </>
             ) : null}
           </p>
@@ -165,10 +187,10 @@ export function AircraftPlanner({
           <SourceNote option={active.option} sourceUrl={sourceUrl} />
         ) : null}
 
-        {active.plan.source === "recomputed" ? (
+        {shown.source === "recomputed" ? (
           <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
             Recalculated for {mode === "ab" ? "arcade" : "these"} conditions:{" "}
-            {formatCount(active.plan.effectiveHp)} HP bases
+            {formatCount(shown.effectiveHp)} HP bases
             {baseCount === 3 ? " on a three-base map" : ""}. The same payload, redistributed —
             the source only spells out realistic battles on four-base maps.
           </p>
@@ -178,7 +200,7 @@ export function AircraftPlanner({
           <p className="text-sm text-ink-faint">{active.schedule.bracketNote}</p>
         ) : null}
 
-        <DropSchedule plan={active.plan} />
+        <DropSchedule plan={shown} />
       </section>
 
       {evaluated.length > 1 ? (

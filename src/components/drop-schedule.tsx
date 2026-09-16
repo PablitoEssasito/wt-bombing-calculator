@@ -26,12 +26,12 @@ export function DropSchedule({ plan }: { plan: Plan }) {
 
       {plan.leftover.length > 0 ? (
         <p className="text-sm text-ink-dim">
-          <span className="text-ink-faint">Left over: </span>
+          <span className="text-ink-faint">{plan.trimmed ? "Leave behind: " : "Left over: "}</span>
           <ItemList items={plan.leftover} />
           <span className="text-ink-faint">
-            {" "}
-            — not enough for another base
-            {plan.respawns ? "." : " on a map where bases do not come back."}
+            {plan.trimmed
+              ? ` — surplus for ${plan.bases.length} base${plan.bases.length === 1 ? "" : "s"}. Some aircraft only offer the whole block; where yours can be split, mounting less earns a higher multiplier.`
+              : ` — not enough for another base${plan.respawns ? "." : " on a map where bases do not come back."}`}
           </span>
         </p>
       ) : null}
