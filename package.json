@@ -14,7 +14,9 @@
     "images": "tsx scripts/images/index.ts",
     "images:cache": "tsx scripts/images/index.ts --cache",
     "bomb-icons": "tsx scripts/bomb-icons/index.ts",
-    "bomb-icons:cache": "tsx scripts/bomb-icons/index.ts --cache"
+    "bomb-icons:cache": "tsx scripts/bomb-icons/index.ts --cache",
+    "mounts": "tsx scripts/mounts/index.ts",
+    "mounts:cache": "tsx scripts/mounts/index.ts --cache"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

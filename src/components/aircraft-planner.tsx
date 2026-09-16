@@ -37,10 +37,13 @@ export function AircraftPlanner({
   plane,
   bombs,
   sourceUrl,
+  splittable,
 }: {
   plane: Aircraft;
   bombs: Bomb[];
   sourceUrl: string;
+  /** The game mounts this aircraft's ordnance per pylon, so part of a load can be left off. */
+  splittable: boolean;
 }) {
   const bombsById = useMemo(() => new Map(bombs.map((b) => [b.id, b])), [bombs]);
   const tiers = useMemo(() => reachableBaseHps(plane.br), [plane.br]);
@@ -79,16 +82,19 @@ export function AircraftPlanner({
   /**
    * What to actually mount.
    *
-   * Cutting the payload down only happens once the player asks for a smaller
-   * target themselves. Left alone, the schedule stays exactly as the source wrote
-   * it: the sheet's numbers already account for the loadouts the game offers, and
-   * plenty of aircraft cannot split theirs — the Pe-8 carries forty FAB-100s as
-   * one block, so advising it to leave eight behind would be advice it cannot take.
+   * Cutting the payload down needs two things to be true. The player has to have
+   * asked for a smaller target themselves — left alone, the schedule stays exactly
+   * as the source wrote it, and the sheet's numbers already account for what the
+   * game offers. And the aircraft has to mount its ordnance per pylon: the Pe-8
+   * carries forty FAB-100s as one fixed setup, so telling it to leave eight behind
+   * would be advice nobody can act on.
    */
+  const canTrim = splittable && target !== AUTO_TARGET;
   const shown = useMemo(
-    () => (target === AUTO_TARGET ? active.plan : trimToTarget(active.plan, wanted)),
-    [active.plan, target, wanted],
+    () => (canTrim ? trimToTarget(active.plan, wanted) : active.plan),
+    [active.plan, canTrim, wanted],
   );
+  const wantedFewer = target !== AUTO_TARGET && wanted < active.plan.basesDestroyed;
 
   return (
     <div className="space-y-8">
@@ -193,6 +199,13 @@ export function AircraftPlanner({
             {formatCount(shown.effectiveHp)} HP bases
             {baseCount === 3 ? " on a three-base map" : ""}. The same payload, redistributed —
             the source only spells out realistic battles on four-base maps.
+          </p>
+        ) : null}
+
+        {!splittable && wantedFewer ? (
+          <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
+            The {plane.name} offers this as a fixed setup rather than pylon by pylon, so there is
+            no way to carry part of it. The whole load comes along whether you drop it or not.
           </p>
         ) : null}
 

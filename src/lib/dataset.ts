@@ -3,6 +3,7 @@ import bombData from "@/data/bombs.json";
 import bombIconData from "@/data/bomb-icons.json";
 import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
+import mountData from "@/data/mounts.json";
 import type { Aircraft, Bomb, Meta } from "@/domain/types";
 
 export const aircraft = aircraftData as Aircraft[];
@@ -11,6 +12,19 @@ export const meta = metaData as Meta;
 
 /** Aircraft id to the wiki unit whose render illustrates it. */
 export const imagesByAircraft = imageData as Record<string, string>;
+
+/**
+ * How each aircraft mounts its ordnance, read off the wiki's suspended armament
+ * block: per pylon, or as fixed whole setups.
+ *
+ * Only "pylons" aircraft can leave part of a load at home. Anything missing here
+ * is treated as fixed, so an aircraft we could not read about is never told to do
+ * something the game may not allow.
+ */
+const mountsByAircraft = mountData as Record<string, "pylons" | "setups">;
+
+export const carriesPartialLoad = (aircraftId: string) =>
+  mountsByAircraft[aircraftId] === "pylons";
 
 /** Full-size aircraft render, for the vehicle page. Matches the wiki's own art. */
 export const renderUrl = (unitId: string) => `/aircraft/renders/${unitId}.webp`;

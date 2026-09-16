@@ -5,7 +5,15 @@ import { notFound } from "next/navigation";
 import { AircraftPlanner } from "@/components/aircraft-planner";
 import { Flag } from "@/components/flag";
 import { CATEGORY_LABELS, NATION_LABELS } from "@/domain/constants";
-import { aircraft, aircraftById, bombsById, imagesByAircraft, meta, renderUrl } from "@/lib/dataset";
+import {
+  aircraft,
+  aircraftById,
+  bombsById,
+  carriesPartialLoad,
+  imagesByAircraft,
+  meta,
+  renderUrl,
+} from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
 
 export function generateStaticParams() {
@@ -83,7 +91,12 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
           The source sheet lists this aircraft but gives it no bombing loadout.
         </p>
       ) : (
-        <AircraftPlanner plane={plane} bombs={bombs} sourceUrl={meta.sourceUrl} />
+        <AircraftPlanner
+          plane={plane}
+          bombs={bombs}
+          sourceUrl={meta.sourceUrl}
+          splittable={carriesPartialLoad(plane.id)}
+        />
       )}
     </div>
   );

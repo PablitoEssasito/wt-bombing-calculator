@@ -106,10 +106,10 @@ export function mountedIn(plan: Plan): PlanItem[] {
  * the player asks for fewer bases than the schedule covers, the bases past that
  * point become ordnance to leave behind rather than a plan to fly.
  *
- * Whether it can be left behind at all is per aircraft and not something anything
- * here knows — the sheet's loadouts are the game's own presets, and plenty of them
- * mount as one indivisible block. That is why this runs only when the player asks
- * for a smaller target, and why the surplus is offered rather than instructed.
+ * Whether it can be left behind at all is per aircraft: heavy bombers carry a
+ * bomb bay as one fixed setup, while anything hung on pylons can be mounted a
+ * hardpoint at a time. The caller decides which this is — see mounts.json — and
+ * only calls this for aircraft that can actually split a load.
  *
  * The sheet's own base order is kept: it is written in the order the author
  * means them to be bombed.

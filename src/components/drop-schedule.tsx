@@ -30,7 +30,7 @@ export function DropSchedule({ plan }: { plan: Plan }) {
           <ItemList items={plan.leftover} />
           <span className="text-ink-faint">
             {plan.trimmed
-              ? ` — surplus for ${plan.bases.length} base${plan.bases.length === 1 ? "" : "s"}. Some aircraft only offer the whole block; where yours can be split, mounting less earns a higher multiplier.`
+              ? ` — surplus for ${plan.bases.length} base${plan.bases.length === 1 ? "" : "s"}. This aircraft mounts pylon by pylon, so leaving it off is worth a higher multiplier.`
               : ` — not enough for another base${plan.respawns ? "." : " on a map where bases do not come back."}`}
           </span>
         </p>
