@@ -1,8 +1,10 @@
 import aircraftData from "@/data/aircraft.json";
+import armamentData from "@/data/armament.json";
 import bombData from "@/data/bombs.json";
 import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
+import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
 import type { Aircraft, Bomb, Meta } from "@/domain/types";
 
 export const aircraft = aircraftData as Aircraft[];
@@ -24,6 +26,76 @@ const mountsByAircraft = mountData as Record<string, "pylons" | "setups">;
 
 export const carriesPartialLoad = (aircraftId: string) =>
   mountsByAircraft[aircraftId] === "pylons";
+
+/**
+ * The shipped hardpoint data, written short because it is the largest file here.
+ *
+ * `files` names each store once and everything else points at it by index; a
+ * choice hanging one store once is written as a bare index rather than a pair.
+ */
+type CompactArmament = {
+  files: string[];
+  stores: { n: string | null; s: string | null; kg: number | null; k: string; b?: [string, number] }[];
+  units: Record<
+    string,
+    {
+      max: number | null;
+      left: number | null;
+      right: number | null;
+      diff: number | null;
+      slots: { i: number; o: { n: string; w: number | [number, number][] }[] }[];
+      bans: [number, string, number, string][];
+    }
+  >;
+};
+
+// TypeScript reads the literal shape of a JSON import, which cannot line up with
+// the tuples above on its own.
+const armamentSource = armamentData as unknown as CompactArmament;
+
+/**
+ * What an aircraft can be armed with, expanded for the loadout creator.
+ *
+ * Read at build time and handed to the page as props, so the browser is given
+ * one aircraft's hardpoints rather than all 461. Null for anything that mounts
+ * fixed setups instead — there is nothing to build on a Pe-8.
+ */
+export function armamentFor(aircraftId: string): Armament | null {
+  const unit = armamentSource.units[imagesByAircraft[aircraftId] ?? ""];
+  if (!unit) return null;
+
+  const storeAt = (index: number): Store => {
+    const raw = armamentSource.stores[index];
+    return {
+      name: raw.n ?? armamentSource.files[index],
+      short: raw.s,
+      massKg: raw.kg,
+      kind: raw.k as StoreKind,
+      bomb: raw.b ? { id: raw.b[0], count: raw.b[1] } : null,
+    };
+  };
+
+  const optionOf = (option: { n: string; w: number | [number, number][] }): SlotOption => ({
+    name: option.n,
+    stores:
+      typeof option.w === "number"
+        ? [{ store: storeAt(option.w), count: 1 }]
+        : option.w.map(([index, count]) => ({ store: storeAt(index), count })),
+  });
+
+  return {
+    maxLoadKg: unit.max,
+    perWingKg: unit.left,
+    disbalanceKg: unit.diff,
+    hardpoints: unit.slots.map((slot) => ({ index: slot.i, options: slot.o.map(optionOf) })),
+    exclusions: unit.bans.map(([slot, option, otherSlot, otherOption]) => ({
+      slot,
+      option,
+      otherSlot,
+      otherOption,
+    })),
+  };
+}
 
 export { bombIconUrl, bombIconsById, iconUrl, renderUrl } from "./assets";
 

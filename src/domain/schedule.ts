@@ -236,16 +236,31 @@ export function buildPlan(
     };
   }
 
-  const pool: Pool = payloadOf(schedule, bombs).map((item) => ({ ...item }));
+  return planPayload(payloadOf(schedule, bombs), conditions);
+}
+
+/**
+ * Lays a payload out over as many bases as it will flatten.
+ *
+ * The same arithmetic the recomputed path above uses, given the bombs directly
+ * rather than a schedule to read them from — which is what a loadout built by
+ * hand needs, since nothing wrote a schedule for it.
+ */
+export function planPayload(items: PlanItem[], conditions: Conditions): Plan {
+  const effectiveHp = effectiveBaseHp(conditions.baseHp, conditions.mode, conditions.baseCount);
+  const threshold = effectiveHp * BASE_BLEED;
+  const respawns = basesRespawn(conditions.mode, conditions.baseCount);
+
+  const pool: Pool = items.map((item) => ({ ...item }));
   // Where bases come back, the only real limit is the payload. The cap is a
   // guard rail — the heaviest bomber in the source reaches eleven bases.
   const maxBases = respawns ? MAX_RESPAWN_BASES : conditions.baseCount;
   const bases: PlanBase[] = [];
 
   while (bases.length < maxBases) {
-    const items = drawOneBase(pool, threshold);
-    if (!items) break;
-    bases.push(measure(items, threshold));
+    const drawn = drawOneBase(pool, threshold);
+    if (!drawn) break;
+    bases.push(measure(drawn, threshold));
   }
 
   const leftover = pool.filter((entry) => entry.count > 0).map((entry) => ({ ...entry }));
