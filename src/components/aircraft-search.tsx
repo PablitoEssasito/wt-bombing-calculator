@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useDeferredValue, useMemo } from "react";
 import { BombRow } from "@/components/bomb-glyph";
 import { BrRange } from "@/components/br-range";
+import { Flag } from "@/components/flag";
 import { NATION_LABELS, NATIONS } from "@/domain/constants";
 import { iconUrl, type AircraftSummary, type BombGlyphData } from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
@@ -75,11 +76,11 @@ export function AircraftSearch({
       <div className="card p-4 space-y-4">
         <div className="flex flex-wrap gap-1.5">
           <Chip active={nation === "all"} onClick={() => setNation("all")}>
-            All nations
+            <span aria-hidden>🌐</span> All nations
           </Chip>
           {NATIONS.map((n) => (
             <Chip key={n} active={nation === n} onClick={() => setNation(n)}>
-              {NATION_LABELS[n]}
+              <Flag nation={n} /> {NATION_LABELS[n]}
             </Chip>
           ))}
         </div>
@@ -107,7 +108,7 @@ export function AircraftSearch({
       {nation !== "all" && nationNotes[nation] ? (
         <aside className="card px-3 py-2.5 text-sm space-y-1">
           <p className="text-xs uppercase tracking-wider text-ink-faint">
-            {NATION_LABELS[nation]} — from the source
+            <Flag nation={nation} /> {NATION_LABELS[nation]} — from the source
           </p>
           <p className="text-ink-dim whitespace-pre-line leading-relaxed">{nationNotes[nation]}</p>
         </aside>
@@ -140,7 +141,9 @@ export function AircraftSearch({
                 <span className="font-medium truncate">{plane.name}</span>
                 <span className="nums text-sm text-accent shrink-0">{plane.br.toFixed(1)}</span>
                 <span className="ml-auto flex items-center gap-3 shrink-0 text-sm text-ink-faint">
-                  <span className="hidden sm:inline">{NATION_LABELS[plane.nation]}</span>
+                  <span className="hidden sm:inline">
+                    <Flag nation={plane.nation} /> {NATION_LABELS[plane.nation]}
+                  </span>
                   <span className="hidden sm:inline">Rank {RANK_LABELS[plane.rank]}</span>
                   <span className="nums text-ink-dim">{plane.maxBases} bases</span>
                 </span>
@@ -167,7 +170,8 @@ function Tile({ plane, bomb }: { plane: AircraftSummary; bomb?: BombGlyphData })
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-wider text-ink-faint">
+          <p className="flex items-center gap-1 text-xs uppercase tracking-wider text-ink-faint">
+            <Flag nation={plane.nation} size={13} />
             {NATION_LABELS[plane.nation]} · Rank {RANK_LABELS[plane.rank]}
           </p>
           <h3 className="font-medium truncate">{plane.name}</h3>

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AircraftPlanner } from "@/components/aircraft-planner";
+import { Flag } from "@/components/flag";
 import { CATEGORY_LABELS, NATION_LABELS } from "@/domain/constants";
 import { aircraft, aircraftById, bombsById, imagesByAircraft, meta, renderUrl } from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
@@ -54,7 +55,10 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
           ← All aircraft
         </Link>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">{plane.name}</h1>
+          <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight">
+            <Flag nation={plane.nation} size={26} />
+            {plane.name}
+          </h1>
           <span className="nums text-2xl text-accent">{plane.br.toFixed(1)}</span>
         </div>
         <p className="text-sm text-ink-dim">

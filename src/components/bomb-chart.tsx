@@ -14,6 +14,7 @@ import {
   type Nation,
 } from "@/domain/constants";
 import type { Bomb, BombKind } from "@/domain/types";
+import { Flag } from "@/components/flag";
 import { Segmented } from "@/components/segmented";
 import { BOMB_KIND_LABELS } from "@/lib/labels";
 import {
@@ -198,11 +199,11 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           <div className="text-xs uppercase tracking-wider text-ink-faint">Nation</div>
           <div className="flex flex-wrap gap-1.5">
             <FilterChip active={nation === "all"} onClick={() => setNation("all")}>
-              All nations
+              <span aria-hidden>🌐</span> All nations
             </FilterChip>
             {NATIONS.map((n: Nation) => (
               <FilterChip key={n} active={nation === n} onClick={() => setNation(n)}>
-                {NATION_LABELS[n]}
+                <Flag nation={n} /> {NATION_LABELS[n]}
               </FilterChip>
             ))}
           </div>
@@ -324,7 +325,10 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
               {rows.map(({ bomb, needed }) => (
                 <tr key={bomb.id} className="border-t border-line hover:bg-surface-2">
                   <td className="px-3 py-2">
-                    <div className="font-medium">{bomb.chartName || bomb.fullName}</div>
+                    <div className="flex items-center gap-1.5 font-medium">
+                      {bomb.nation ? <Flag nation={bomb.nation} size={13} /> : null}
+                      {bomb.chartName || bomb.fullName}
+                    </div>
                     <div className="text-xs text-ink-faint truncate max-w-[22rem]">
                       {bomb.fullName}
                     </div>
