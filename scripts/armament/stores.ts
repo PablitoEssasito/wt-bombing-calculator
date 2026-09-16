@@ -28,12 +28,63 @@ export type StoreKind =
 export type Store = {
   /** File basename, the key hardpoint options refer to. */
   file: string;
+  /** The game's own name for it, as the loadout menu shows it. */
+  name: string | null;
+  /** The shorter name the game uses where space is tight. */
+  short: string | null;
   massKg: number | null;
   kind: StoreKind;
+  /**
+   * What this delivers in bomb-chart terms, so a build can be priced.
+   *
+   * A rack resolves to its contents with a count: `bru_3a_us_750lb_m117_x6` is
+   * six M117s, and pricing it as one store would understate it sixfold. Null for
+   * anything the chart does not cover — missiles, tanks, and the handful of
+   * glide bombs it never catalogued.
+   */
+  bomb: { id: string; count: number } | null;
 };
 
 const many = <T,>(value: unknown): T[] =>
   value === undefined || value === null ? [] : ((Array.isArray(value) ? value : [value]) as T[]);
+
+const LANG_CSV =
+  "https://raw.githubusercontent.com/gszabi99/War-Thunder-Datamine/master/lang.vromfs.bin_u/lang/units_weaponry.csv";
+const LANG_CACHE = path.join(ARMAMENT_DIR, "units_weaponry.csv");
+
+/**
+ * The game's own names for its weapons, English column.
+ *
+ * Rows are keyed `weapons/<file>`, with a `/short` variant beside each — the two
+ * forms the loadout menu itself picks between, which is why both are kept rather
+ * than prettifying a file name into something the player has never seen.
+ */
+async function weaponNames(
+  useCache: boolean,
+): Promise<{ full: Map<string, string>; short: Map<string, string> }> {
+  let csv: string;
+  if (useCache && existsSync(LANG_CACHE)) {
+    csv = await readFile(LANG_CACHE, "utf8");
+  } else {
+    const response = await fetch(LANG_CSV);
+    if (!response.ok) throw new Error(`weapon names: HTTP ${response.status}`);
+    csv = await response.text();
+    await writeFile(LANG_CACHE, csv, "utf8");
+  }
+
+  const full = new Map<string, string>();
+  const short = new Map<string, string>();
+  for (const line of csv.split("\n")) {
+    const match = /^"([^"]+)";"([^"]*)"/.exec(line);
+    if (!match) continue;
+    const [, key, english] = match;
+    if (!key.startsWith("weapons/") || !english) continue;
+    const isShort = key.endsWith("/short");
+    const file = key.slice("weapons/".length).replace(/\/short$/, "").toLowerCase();
+    (isShort ? short : full).set(file, english);
+  }
+  return { full, short };
+}
 
 export const storeFile = (blkReference: string) =>
   blkReference.split("/").pop()!.replace(/\.blkx?$/i, "").toLowerCase();
@@ -114,6 +165,91 @@ function massOfStore(
   return (own ?? 0) + innerMass * inner.count;
 }
 
+/**
+ * The innermost weapon a store delivers, and how many of it.
+ *
+ * Racks nest: a pylon adapter holds a rack which holds the bombs. Walking to the
+ * bottom is what makes a rack priceable, since only the bomb at the end of the
+ * chain appears in the bomb chart.
+ */
+function innermost(
+  file: string,
+  bodies: Map<string, Record<string, unknown>>,
+  seen = new Set<string>(),
+): { file: string; count: number } {
+  const body = bodies.get(file);
+  const inner = body ? contained(body) : null;
+  if (!inner || seen.has(file)) return { file, count: 1 };
+  seen.add(file);
+
+  const deeper = innermost(storeFile(inner.blk), bodies, seen);
+  return { file: deeper.file, count: deeper.count * inner.count };
+}
+
+const normalizeName = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/\(.*?\)/g, " ")
+    .replace(/\b(bomb|bombs|mine|torpedo)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, "");
+
+/**
+ * Ties a weapon file to the bomb chart entry that prices it.
+ *
+ * The chart's name sits at the front of the game's, which finishes the sentence:
+ * "250 kg BRP 250" against "250 kg BRP 250 high-drag tail fin retarded bomb". So
+ * the test is a prefix, longest first — otherwise "Mk 82" would claim the Mk 82
+ * AIR before the AIR entry got a look.
+ *
+ * A short prefix is not enough to trust: the chart's "BAFG 230" also leads the
+ * game's "BA-FG-230-Lizard-2", a different weapon 29 kg heavier. So a short name
+ * has to be backed by the weight agreeing, while a long one stands on its own —
+ * which it has to, because the two sources weigh retarded bombs differently. The
+ * chart gives the SAMP Type 25 200 as 247 kg and the game as 264, the difference
+ * being the parachute assembly, and demanding agreement there loses a bomb both
+ * sources plainly describe.
+ *
+ * Nothing is matched on weight alone. Falling back to it tied exactly three
+ * stores and got all three wrong, the worst pricing a Mk.13 torpedo as a BGL-1000
+ * guided bomb — a weight that happens to be unique in the chart says only that,
+ * and the chart is not a complete catalogue of what the game hangs.
+ */
+/** Normalised characters beyond which a leading match is too specific to be chance. */
+const TRUSTED_PREFIX = 10;
+function matchBomb(
+  store: { file: string; massKg: number | null },
+  names: { full: string | null; short: string | null },
+  chart: { id: string; chartName: string; fullName: string; massKg: number | null }[],
+): string | null {
+  const agrees = (bombMass: number | null) =>
+    store.massKg === null ||
+    bombMass === null ||
+    Math.abs(store.massKg - bombMass) <= Math.max(1, store.massKg * 0.02);
+
+  const keyed = chart
+    .flatMap((bomb) =>
+      [bomb.fullName, bomb.chartName]
+        .filter(Boolean)
+        .map((name) => ({ bomb, key: normalizeName(name) })),
+    )
+    .filter((entry) => entry.key.length >= 4)
+    .sort((a, b) => b.key.length - a.key.length);
+
+  for (const candidate of [names.full, names.short]) {
+    if (!candidate) continue;
+    const key = normalizeName(candidate);
+    if (!key) continue;
+    const hit = keyed.find(
+      (entry) =>
+        key.startsWith(entry.key) &&
+        (entry.key.length >= TRUSTED_PREFIX || agrees(entry.bomb.massKg)),
+    );
+    if (hit) return hit.bomb.id;
+  }
+
+  return null;
+}
+
 /** Every distinct weapon file the hardpoints of any aircraft can hang. */
 async function referenced(): Promise<Map<string, string>> {
   const byFile = new Map<string, string>();
@@ -184,18 +320,37 @@ async function main() {
     }
   }
 
+  const names = await weaponNames(useCache);
+  const chart = JSON.parse(
+    await readFile(path.join(process.cwd(), "src", "data", "bombs.json"), "utf8"),
+  ) as { id: string; chartName: string; fullName: string; massKg: number | null }[];
+
   const stores: Store[] = [];
   for (const [file, reference] of hung) {
     const body = bodies.get(file);
     if (!body) continue;
-    const inner = contained(body);
-    // A rail is filed under what it holds, the way the loadout menu lists it.
-    const kindSource = inner ? bodies.get(storeFile(inner.blk)) : null;
-    const kindRef = inner && kindSource ? storePath(inner.blk) : storePath(reference);
+
+    const core = innermost(file, bodies);
+    // The directory is what says whether a file is a bomb or a missile, so the
+    // core's own reference has to be used rather than a path rebuilt from its name.
+    const coreRef = storePath(references.get(core.file) ?? reference);
+    const coreBody = bodies.get(core.file) ?? body;
+    const coreNames = { full: names.full.get(core.file) ?? null, short: names.short.get(core.file) ?? null };
+    const coreMass = massOfStore(core.file, bodies);
+
+    const bombId = ["bomb", "mine", "torpedo"].includes(classify(coreRef, coreBody))
+      ? matchBomb({ file: core.file, massKg: coreMass }, coreNames, chart)
+      : null;
+
     stores.push({
       file,
+      // A rail takes the name of what it holds when it has none of its own.
+      name: names.full.get(file) ?? coreNames.full,
+      short: names.short.get(file) ?? coreNames.short,
       massKg: massOfStore(file, bodies),
-      kind: classify(kindRef, kindSource ?? body),
+      // ...and is filed under it too, the way the loadout menu lists it.
+      kind: classify(coreRef, coreBody),
+      bomb: bombId ? { id: bombId, count: core.count } : null,
     });
   }
 
@@ -210,6 +365,21 @@ async function main() {
   console.log(
     "  " + [...byKind].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}: ${n}`).join(", "),
   );
+
+  const named = stores.filter((s) => s.name !== null).length;
+  const ordnance = stores.filter((s) => ["bomb", "mine", "torpedo"].includes(s.kind));
+  const priced = ordnance.filter((s) => s.bomb !== null);
+  console.log(`  ${named} carry the game's own name`);
+  console.log(
+    `  ${priced.length}/${ordnance.length} pieces of ordnance tie to a bomb chart entry`,
+  );
+  const unpriced = ordnance.filter((s) => s.bomb === null);
+  if (unpriced.length > 0) {
+    console.log(
+      `note  ${unpriced.length} the chart does not price, e.g. ` +
+        unpriced.slice(0, 6).map((s) => s.name ?? s.file).join("; "),
+    );
+  }
   const noMass = stores.filter((s) => s.massKg === null);
   if (noMass.length > 0) {
     console.log(
