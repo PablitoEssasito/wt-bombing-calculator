@@ -120,7 +120,7 @@ export function AircraftSearch({
           can carry bombs — pure interceptors are not in it.
         </p>
       ) : view === "tiles" ? (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(270px,1fr))]">
           {shown.map((plane) => (
             <li key={plane.id}>
               <Tile
@@ -166,47 +166,54 @@ function Tile({ plane, bomb }: { plane: AircraftSummary; bomb?: BombGlyphData })
   return (
     <Link
       href={`/aircraft/${plane.id}`}
-      className="card h-full p-4 flex flex-col gap-3 hover:border-line-bright hover:bg-surface-2 transition-colors"
+      className="card p-2.5 flex gap-3 hover:border-line-bright hover:bg-surface-2 transition-colors"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1 text-xs uppercase tracking-wider text-ink-faint">
-            <Flag nation={plane.nation} size={13} />
-            {NATION_LABELS[plane.nation]} · Rank {RANK_LABELS[plane.rank]}
-          </p>
-          <h3 className="font-medium truncate">{plane.name}</h3>
-        </div>
-        <span className="nums text-lg text-accent shrink-0">{plane.br.toFixed(1)}</span>
-      </div>
-
-      {/* Tech-tree style icon, at its own aspect ratio -- widths vary, height does not. */}
-      <div className="relative h-16">
+      {/* Tech-tree style icon in a fixed box, so row height never depends on image shape. */}
+      <div className="relative w-20 h-14 shrink-0 rounded-md bg-surface-2 overflow-hidden">
         {plane.imageId ? (
           <Image
             src={iconUrl(plane.imageId)}
             alt=""
             fill
-            sizes="200px"
+            sizes="120px"
             loading="lazy"
-            className="object-contain object-left"
+            className="object-contain"
           />
         ) : null}
       </div>
 
-      {/* What it mostly drops — the shape of the payload at a glance. */}
-      <div className="flex-1 flex items-end min-h-[34px]">
-        {bomb && plane.preview ? <BombRow bomb={bomb} count={plane.preview.count} max={8} /> : null}
-      </div>
+      <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-ink-faint">
+              <Flag nation={plane.nation} size={11} />
+              <span className="truncate">
+                {NATION_LABELS[plane.nation]} · Rank {RANK_LABELS[plane.rank]}
+              </span>
+            </p>
+            <h3 className="font-medium text-sm truncate">{plane.name}</h3>
+          </div>
+          <span className="nums text-accent shrink-0">{plane.br.toFixed(1)}</span>
+        </div>
 
-      <p className="text-sm text-ink-dim nums">
-        {plane.preview && bomb ? (
-          <>
-            {plane.preview.count} × {bomb.chartName || bomb.fullName}
-            <span className="text-ink-faint"> · </span>
-          </>
-        ) : null}
-        {plane.maxBases} base{plane.maxBases === 1 ? "" : "s"}
-      </p>
+        {/* What it mostly drops — the shape of the payload at a glance. Height is
+            fixed and overflow hidden so a wide icon row can never stretch the card. */}
+        <div className="h-5 overflow-hidden">
+          {bomb && plane.preview ? (
+            <BombRow bomb={bomb} count={plane.preview.count} size={16} max={6} />
+          ) : null}
+        </div>
+
+        <p className="text-xs text-ink-dim nums truncate">
+          {plane.preview && bomb ? (
+            <>
+              {plane.preview.count} × {bomb.chartName || bomb.fullName}
+              <span className="text-ink-faint"> · </span>
+            </>
+          ) : null}
+          {plane.maxBases} base{plane.maxBases === 1 ? "" : "s"}
+        </p>
+      </div>
     </Link>
   );
 }
