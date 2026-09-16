@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Aircraft } from "../../src/domain/types";
+import type { Aircraft, Bomb } from "../../src/domain/types";
 import { parseArmament, presetPath, type Armament } from "./parse";
 
 const RAW =
@@ -109,7 +109,8 @@ async function main() {
   await writeFile(OUT_FULL, JSON.stringify(byUnit), "utf8");
   await writeFile(OUT_MOUNTS, JSON.stringify(mounts), "utf8");
 
-  report(aircraft, unitIds, byUnit, missing);
+  const bombs = JSON.parse(await readFile(path.join(DATA_DIR, "bombs.json"), "utf8")) as Bomb[];
+  report(aircraft, unitIds, byUnit, missing, bombs);
 }
 
 function report(
@@ -117,6 +118,7 @@ function report(
   unitIds: Record<string, string>,
   byUnit: Record<string, Armament>,
   missing: string[],
+  bombs: Bomb[],
 ) {
   const units = Object.values(byUnit);
   const read = aircraft.filter((p) => byUnit[unitIds[p.id]]).length;
@@ -141,6 +143,7 @@ function report(
   console.log(`      ${hidden} hardpoint choice(s) the loadout menu does not show`);
 
   audit(byUnit);
+  weighLoadouts(aircraft, unitIds, byUnit, bombs);
 
   if (missing.length > 0) {
     console.log(`warn  ${missing.length} unit(s) had no flight model: ${missing.slice(0, 6).join(", ")}`);
@@ -148,6 +151,70 @@ function report(
   const unmatched = aircraft.filter((p) => !unitIds[p.id]).map((p) => p.name);
   if (unmatched.length > 0) {
     console.log(`warn  ${unmatched.length} aircraft have no unit to look up: ${unmatched.join(", ")}`);
+  }
+}
+
+/**
+ * Weighs each loadout the spreadsheet prescribes against what the airframe lifts.
+ *
+ * This is the one place two independent sources describe the same thing: the
+ * sheet says how many of each bomb to hang, and the game's own files say what
+ * each bomb weighs and how much the aircraft may carry. A loadout heavier than
+ * the limit is not a loadout anyone can take, whatever the sheet says — the
+ * ready-made presets all stay under it, the heaviest reaching 96%, so the ceiling
+ * is real and enforced.
+ *
+ * Bomb masses agree with the game's to the gram, which is why the tolerance here
+ * is small: it exists for rounding in the sheet's own figures, where twelve
+ * FAB-100s come to 1,248 kg against a 1,245 kg limit.
+ */
+function weighLoadouts(
+  aircraft: Aircraft[],
+  unitIds: Record<string, string>,
+  byUnit: Record<string, Armament>,
+  bombs: Bomb[],
+) {
+  const TOLERANCE = 1.01;
+  const massOf = new Map(bombs.map((b) => [b.id, b.massKg]));
+
+  let checked = 0;
+  const over: { plane: Aircraft; option: number; mass: number; limit: number }[] = [];
+
+  for (const plane of aircraft) {
+    const limit = byUnit[unitIds[plane.id]]?.maxLoadKg;
+    if (!limit) continue;
+
+    plane.options.forEach((option, index) => {
+      let heaviest = 0;
+      for (const schedule of option.schedules) {
+        let mass = 0;
+        for (const base of schedule.bases) {
+          for (const item of base.items) {
+            const kg = massOf.get(item.bombId);
+            // Rockets carry no mass in the sheet, so the total would understate.
+            if (kg === null || kg === undefined) return;
+            mass += kg * item.count;
+          }
+        }
+        heaviest = Math.max(heaviest, mass);
+      }
+      if (heaviest === 0) return;
+      checked++;
+      if (heaviest > limit * TOLERANCE) {
+        over.push({ plane, option: index + 1, mass: heaviest, limit });
+      }
+    });
+  }
+
+  console.log(
+    `${over.length === 0 ? "ok   " : "warn "} ${over.length}/${checked} loadout(s) weigh more ` +
+      "than the aircraft can carry:",
+  );
+  for (const o of over.sort((a, b) => b.mass / b.limit - a.mass / a.limit)) {
+    console.log(
+      `        ${o.plane.nation}/${o.plane.name} loadout ${o.option}: ${Math.round(o.mass)} kg ` +
+        `against a ${o.limit} kg limit (${Math.round((100 * o.mass) / o.limit)}%)`,
+    );
   }
 }
 
