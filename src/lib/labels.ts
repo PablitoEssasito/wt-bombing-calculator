@@ -23,6 +23,8 @@ export const NOTE_HEADINGS = {
   "?": "Worth knowing",
   "!": "Heads up",
   star: "Recommended by the source",
+  /** The author left a note but reached for no marker at all. */
+  none: "From the source",
 } as const;
 
 /** Shown in place of a note when the import had no API key to read cell comments. */

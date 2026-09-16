@@ -46,9 +46,22 @@ export type AircraftSummary = {
 /** Just enough of a bomb to show it; the full records are far heavier. */
 export type BombGlyphData = Pick<Bomb, "id" | "chartName" | "fullName">;
 
+/**
+ * The loadouts the overview should describe this aircraft by.
+ *
+ * Loadouts the source argues against are left out: they are listed first, being
+ * the heaviest, so an aircraft like the F-5E would otherwise be advertised by the
+ * very payload its note tells you not to take. Aircraft whose every loadout
+ * carries that warning keep them, since something has to be shown.
+ */
+function shownOptions(plane: Aircraft) {
+  const sensible = plane.options.filter((option) => !option.discouraged);
+  return sensible.length > 0 ? sensible : plane.options;
+}
+
 /** The bomb a loadout leans on hardest, by count. */
 function headlineBomb(plane: Aircraft): { bombId: string; count: number } | null {
-  const schedule = plane.options[0]?.schedules[0];
+  const schedule = shownOptions(plane)[0]?.schedules[0];
   if (!schedule) return null;
 
   const totals = new Map<string, number>();
@@ -70,7 +83,7 @@ export const aircraftIndex: AircraftSummary[] = aircraft
     br: plane.br,
     maxBases: Math.max(
       0,
-      ...plane.options.map(
+      ...shownOptions(plane).map(
         (o) => o.schedules[0]?.basesDestroyed ?? o.schedules[0]?.bases.length ?? 0,
       ),
     ),

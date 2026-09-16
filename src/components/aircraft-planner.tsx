@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { reachableBaseHps } from "@/domain/base-hp";
 import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
-import { buildPlan, payloadOf, type Plan } from "@/domain/schedule";
+import { defaultTarget, pickLoadout, stanceOf, type Stance } from "@/domain/recommend";
+import { buildPlan, payloadOf, scheduleFor, type Plan } from "@/domain/schedule";
 import type { Aircraft, Bomb, LoadoutOption, Schedule } from "@/domain/types";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
 import { Segmented } from "@/components/segmented";
@@ -21,22 +22,9 @@ type Evaluated = {
   index: number;
   schedule: Schedule;
   plan: Plan;
+  basesDestroyed: number;
   bombCount: number;
 };
-
-/**
- * Picks the schedule written for this base health, or the closest one below it.
- *
- * The source describes a loadout once per BR bracket it was written for, so an
- * exact match is the normal case; the fallback covers a player deliberately
- * looking at a bracket the sheet did not spell out.
- */
-function scheduleFor(option: LoadoutOption, baseHp: BaseHp): Schedule {
-  const exact = option.schedules.find((s) => s.baseHp === baseHp);
-  if (exact) return exact;
-  const below = [...option.schedules].reverse().find((s) => s.baseHp <= baseHp);
-  return below ?? option.schedules[0];
-}
 
 export function AircraftPlanner({
   plane,
@@ -67,39 +55,19 @@ export function AircraftPlanner({
         const schedule = scheduleFor(option, baseHp);
         const plan = buildPlan(schedule, bombsById, { baseHp, mode: mode as GameMode, baseCount });
         const bombCount = payloadOf(schedule, bombsById).reduce((n, i) => n + i.count, 0);
-        return { option, index, schedule, plan, bombCount };
+        return { option, index, schedule, plan, basesDestroyed: plan.basesDestroyed, bombCount };
       }),
     [plane.options, baseHp, bombsById, mode, baseCount],
   );
 
-  const reach = Math.max(1, ...evaluated.map((e) => e.plan.basesDestroyed));
-  /**
-   * Default to clearing the map once, not to the aircraft's ceiling.
-   *
-   * Reaching the ceiling means the heaviest loadout, which carries the worst
-   * reward multiplier — the opposite of what the source recommends. Anyone
-   * farming respawned bases can raise it with one click.
-   */
-  const wanted = Math.min(target === AUTO_TARGET ? baseCount : Math.max(target, 1), reach);
+  const reach = Math.max(1, ...evaluated.map((e) => e.basesDestroyed));
+  const auto = useMemo(() => defaultTarget(evaluated, baseCount), [evaluated, baseCount]);
+  const wanted = Math.min(target === AUTO_TARGET ? auto : Math.max(target, 1), reach);
 
-  /**
-   * The lightest loadout that still hits the number of bases asked for.
-   *
-   * Reward multipliers fall as payload grows, so carrying more than the job needs
-   * costs you research — the source makes the same point in its FAQ.
-   */
-  const recommended = useMemo(() => {
-    const capable = evaluated.filter((e) => e.plan.basesDestroyed >= wanted);
-    const pool = capable.length > 0 ? capable : evaluated;
-    return pool.reduce((best, e) => {
-      const better =
-        (e.option.rewardMultiplier ?? 0) - (best.option.rewardMultiplier ?? 0) ||
-        best.bombCount - e.bombCount;
-      return better > 0 ? e : best;
-    });
-  }, [evaluated, wanted]);
+  const recommended = useMemo(() => pickLoadout(evaluated, wanted), [evaluated, wanted]);
 
   const active = picked === RECOMMENDED ? recommended : (evaluated[picked] ?? recommended);
+  const stance = stanceOf(active.option);
 
   return (
     <div className="space-y-8">
@@ -169,8 +137,9 @@ export function AircraftPlanner({
       <section className="space-y-4">
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-lg font-semibold">
-            {active === recommended ? "Recommended loadout" : `Loadout ${active.index + 1}`}
+            {headingFor(stance, active === recommended, wanted, evaluated.length)}
           </h2>
+          <StanceTag stance={stance} />
           <p className="text-sm text-ink-dim">
             {active.plan.basesDestroyed} base{active.plan.basesDestroyed === 1 ? "" : "s"} ·{" "}
             <ItemList items={payloadOf(active.schedule, bombsById)} />
@@ -187,17 +156,13 @@ export function AircraftPlanner({
               onClick={() => setPicked(RECOMMENDED)}
               className="text-sm text-accent underline underline-offset-4"
             >
-              back to recommended
+              back to the default
             </button>
           ) : null}
         </header>
 
-        {active.option.noteMarker ? (
-          <SourceNote
-            marker={active.option.noteMarker}
-            note={active.option.note}
-            sourceUrl={sourceUrl}
-          />
+        {active.option.note || active.option.noteMarker ? (
+          <SourceNote option={active.option} sourceUrl={sourceUrl} />
         ) : null}
 
         {active.plan.source === "recomputed" ? (
@@ -228,6 +193,7 @@ export function AircraftPlanner({
                 <tr className="hairline">
                   <th className="text-left font-normal px-3 py-2">Bases</th>
                   <th className="text-left font-normal px-3 py-2">Reward</th>
+                  <th className="text-left font-normal px-3 py-2">The source</th>
                   <th className="text-left font-normal px-3 py-2">Payload</th>
                   <th className="px-3 py-2" />
                 </tr>
@@ -241,11 +207,14 @@ export function AircraftPlanner({
                       entry === active && "bg-accent-dim",
                     )}
                   >
-                    <td className="nums px-3 py-2 font-medium">{entry.plan.basesDestroyed}</td>
+                    <td className="nums px-3 py-2 font-medium">{entry.basesDestroyed}</td>
                     <td className="nums px-3 py-2 text-ink-dim">
                       {entry.option.rewardMultiplier !== null
                         ? `${entry.option.rewardMultiplier}×`
                         : "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <StanceTag stance={stanceOf(entry.option)} />
                     </td>
                     <td className="px-3 py-2 text-ink-dim">
                       <ItemList items={payloadOf(entry.schedule, bombsById)} />
@@ -271,6 +240,36 @@ export function AircraftPlanner({
         </section>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Names the loadout on screen for what it actually is.
+ *
+ * Only the source's own star earns the word "recommended". Calling our own pick
+ * that put the label on loadouts whose note directly underneath argued against
+ * taking them, which is exactly backwards.
+ */
+function headingFor(stance: Stance, isPick: boolean, wanted: number, choices: number): string {
+  if (stance === "recommended") return "Recommended loadout";
+  if (!isPick) return "This loadout";
+  if (choices === 1) return "What to take";
+  return `Best for ${wanted} base${wanted === 1 ? "" : "s"}`;
+}
+
+function StanceTag({ stance }: { stance: Stance }) {
+  if (stance === "neutral") return null;
+  return (
+    <span
+      className={cn(
+        "text-xs px-2 py-0.5 rounded-full border whitespace-nowrap",
+        stance === "recommended"
+          ? "border-accent/40 text-accent bg-accent-dim"
+          : "border-danger/40 text-danger bg-danger/5",
+      )}
+    >
+      {stance === "recommended" ? "★ Source's pick" : "Advised against"}
+    </span>
   );
 }
 

@@ -19,6 +19,9 @@
   --color-accent-dim: #b8703014;
   --color-live: #4ade80;
   --color-warn: #fbbf24;
+  /* Reserved for the source telling you not to take something — amber is too
+     close to the accent to carry that against a page full of accent. */
+  --color-danger: #f87171;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

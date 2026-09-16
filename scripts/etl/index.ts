@@ -221,6 +221,26 @@ function validate(
     console.log("ok    every loadout states a reward multiplier");
   }
 
+  /**
+   * How much of the author's own judgement we managed to read.
+   *
+   * Both figures drive which loadout the planner offers first, and both come from
+   * prose rather than a column, so a reworded sheet could quietly drop to zero
+   * without anything else failing. Printing them makes that obvious at import.
+   */
+  const starred = aircraft.filter((p) => p.options.some((o) => o.noteMarker === "star")).length;
+  const discouraged = aircraft.flatMap((plane) =>
+    plane.options.flatMap((option, i) =>
+      option.discouraged ? [`${plane.nation}/${plane.name} loadout ${i + 1}`] : [],
+    ),
+  );
+  console.log(
+    `note  the source stars a loadout on ${starred} aircraft and argues against ` +
+      `${discouraged.length} loadout(s) in its notes`,
+  );
+  for (const p of discouraged.slice(0, 8)) console.log(`        ${p}`);
+  if (discouraged.length > 8) console.log(`        ... and ${discouraged.length - 8} more`);
+
   // A continuation schedule describes the same bombs in a higher-BR match, so it
   // must not restate a target count of its own.
   const restated = aircraft.flatMap((plane) =>

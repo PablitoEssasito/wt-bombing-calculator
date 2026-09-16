@@ -112,6 +112,30 @@ function parseNoteMarker(raw: string): LoadoutOption["noteMarker"] {
   return null;
 }
 
+/**
+ * Whether the note tells the reader not to take this loadout.
+ *
+ * The markers cannot answer this. A star is always an endorsement, but "!" is a
+ * general read-this-first flag that covers plain tradeoffs — "leaves you with
+ * zero weaponry", "your maximum release speed will be Mach 1" — as often as it
+ * covers a refusal, and one outright refusal is filed under "?" instead. So the
+ * sentence has to be read.
+ *
+ * Both patterns are deliberately narrow, because the author uses the same verb
+ * for the opposite meaning nearby: "I don't recommend trying that" rejects an
+ * alternative described inside the note rather than the loadout shown, and "I do
+ * recommend taking them" argues for gun pods. Matching on the loadout being the
+ * object of the refusal keeps those out.
+ */
+const ARGUES_AGAINST = [
+  /\b(?:would\s?n[o']?t|would not|do\s?n[o']?t|do not)\s+recommend\s+(?:using\s+)?th(?:is|e)\s+(?:loadout|plane)/i,
+  /\brecommend\s+(?:using\s+)?the\s+(?:loadout|options?)\s+below/i,
+];
+
+function readsAsDiscouraged(note: string | null): boolean {
+  return note !== null && ARGUES_AGAINST.some((pattern) => pattern.test(note));
+}
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -246,10 +270,12 @@ export function parseNation(
         orphanRows.push(`${nation}: schedule row before any aircraft heading`);
         continue;
       }
+      const note = noteAt(rowIndex, NATION_COL.noteMarker);
       currentOption = {
         rewardMultiplier: multiplier,
         noteMarker: parseNoteMarker(cell(row, NATION_COL.noteMarker)),
-        note: noteAt(rowIndex, NATION_COL.noteMarker),
+        note,
+        discouraged: readsAsDiscouraged(note),
         schedules: [schedule],
       };
       current.options.push(currentOption);

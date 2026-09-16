@@ -81,6 +81,14 @@ export type LoadoutOption = {
   noteMarker: "?" | "!" | "star" | null;
   /** What that marker says, when the import had an API key to read cell notes with. */
   note: string | null;
+  /**
+   * The note tells the reader not to take this loadout — "I wouldn't recommend
+   * using this loadout", or a pointer at a different one.
+   *
+   * Read from the note's wording rather than its marker, which flags anything
+   * worth reading twice; false whenever the import could not read notes at all.
+   */
+  discouraged: boolean;
   /** One entry per BR bracket this loadout is described for, lowest first. */
   schedules: Schedule[];
 };

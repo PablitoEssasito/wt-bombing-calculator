@@ -1,6 +1,20 @@
 import { effectiveBaseHp } from "./base-hp";
 import { BASE_BLEED, type BaseCount, type BaseHp, type GameMode } from "./constants";
-import type { Bomb, Schedule } from "./types";
+import type { Bomb, LoadoutOption, Schedule } from "./types";
+
+/**
+ * Picks the schedule written for this base health, or the closest one below it.
+ *
+ * The source describes a loadout once per BR bracket it was written for, so an
+ * exact match is the normal case; the fallback covers a player deliberately
+ * looking at a bracket the sheet did not spell out.
+ */
+export function scheduleFor(option: LoadoutOption, baseHp: BaseHp): Schedule {
+  const exact = option.schedules.find((s) => s.baseHp === baseHp);
+  if (exact) return exact;
+  const below = [...option.schedules].reverse().find((s) => s.baseHp <= baseHp);
+  return below ?? option.schedules[0];
+}
 
 const MAX_RESPAWN_BASES = 16;
 
