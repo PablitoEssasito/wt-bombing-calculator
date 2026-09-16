@@ -44,6 +44,7 @@ export function unpricedBombs(): Bomb[] {
     chartName: o.chartName,
     fullName: o.fullName,
     kind: o.kind,
+    nation: null,
     massKg: null,
     massLabel: "",
     tntKg: null,

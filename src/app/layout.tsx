@@ -33,21 +33,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="font-sans min-h-full flex flex-col">
         <header className="border-b border-line sticky top-0 z-30 bg-ground/85 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 shrink-0">
+          <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-2 sm:gap-6">
+            <Link href="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <span aria-hidden className="text-accent text-lg leading-none">
                 ◆
               </span>
-              <span className="font-semibold tracking-tight">
+              <span className="font-semibold tracking-tight whitespace-nowrap">
                 Bombing<span className="text-ink-dim">Calc</span>
               </span>
             </Link>
-            <nav className="flex items-center gap-1 text-sm">
+            <nav className="flex items-center gap-0.5 sm:gap-1 text-sm min-w-0">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="px-3 py-1.5 rounded-md text-ink-dim hover:text-ink hover:bg-surface-2 transition-colors"
+                  className="px-2 sm:px-3 py-1.5 rounded-md text-ink-dim hover:text-ink hover:bg-surface-2 transition-colors whitespace-nowrap"
                 >
                   {item.label}
                 </Link>

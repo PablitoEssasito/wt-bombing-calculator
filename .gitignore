@@ -42,3 +42,5 @@ next-env.d.ts
 
 # raw spreadsheet pulls; regenerate with `npm run etl`
 /.cache
+
+TODOBYDEV

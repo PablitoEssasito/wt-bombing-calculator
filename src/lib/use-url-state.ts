@@ -87,3 +87,22 @@ export function urlText(fallback = ""): UrlCodec<string> {
     serialize: (value) => (value.trim() === "" ? null : value),
   };
 }
+
+/** A numeric bound that is simply absent — "no minimum" — rather than any particular number. */
+export function urlOptionalInteger(): UrlCodec<number | null> {
+  return {
+    fallback: null,
+    parse: (raw) => (raw.trim() !== "" && Number.isFinite(Number(raw)) ? Number(raw) : null),
+    serialize: (value) => (value === null ? null : String(value)),
+  };
+}
+
+/** A set of option values, comma-joined in the URL; an empty set means "no filter, show all". */
+export function urlStringSet<T extends string>(options: readonly T[]): UrlCodec<ReadonlySet<T>> {
+  const valid = new Set<string>(options);
+  return {
+    fallback: new Set(),
+    parse: (raw) => new Set(raw.split(",").filter((v) => valid.has(v)) as T[]),
+    serialize: (value) => (value.size === 0 ? null : [...value].join(",")),
+  };
+}

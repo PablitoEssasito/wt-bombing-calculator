@@ -100,13 +100,15 @@ export function parseBombs(csvText: string): BombIndex {
     for (let n = 2; usedIds.has(id); n++) id = `${base}-${n}`;
     usedIds.add(id);
 
+    const nation = BOMB_CHART_NATION_ORDER[nationIndex] ?? null;
     chartRows.push({
-      nation: BOMB_CHART_NATION_ORDER[nationIndex] ?? null,
+      nation,
       bomb: {
         id,
         chartName,
         fullName,
         kind: toKind(flatten(cell(row, BOMB_COL.kind))),
+        nation,
         massKg: mass.kg,
         massLabel: mass.label,
         tntKg: parseMass(cell(row, BOMB_COL.tnt)).kg,

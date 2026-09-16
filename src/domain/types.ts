@@ -20,6 +20,14 @@ export type Bomb = {
   chartName: string;
   fullName: string;
   kind: BombKind;
+  /**
+   * The nation block of the Bomb Chart tab this row was printed under. Null for
+   * unpriced ordnance (rockets), which has no chart row at all.
+   *
+   * Several nations reuse each other's bombs — the block says where it was
+   * first catalogued, not an exhaustive list of who can carry it.
+   */
+  nation: Nation | null;
   massKg: number | null;
   /** Mass as printed in the source, e.g. "110 lb" — nations use different units. */
   massLabel: string;
