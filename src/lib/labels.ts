@@ -18,18 +18,18 @@ export const BOMB_KIND_LABELS: Record<BombKind, string> = {
   OTHER: "Other",
 };
 
-/** Heading above a note the source left on a loadout. */
+/** Heading above a note attached to a loadout. */
 export const NOTE_HEADINGS = {
   "?": "Worth knowing",
   "!": "Heads up",
-  star: "Recommended by the source",
-  /** The author left a note but reached for no marker at all. */
-  none: "From the source",
+  star: "Recommended",
+  /** A note with no marker at all. */
+  none: "Note",
 } as const;
 
 /** Shown in place of a note when the import had no API key to read cell comments. */
 export const NOTE_FALLBACKS = {
-  "?": "The source attaches a caveat to this loadout.",
-  "!": "The source flags something important about this loadout.",
-  star: "The source marks this as a recommended loadout.",
+  "?": "This loadout carries a caveat.",
+  "!": "Something about this loadout is worth knowing before you take it.",
+  star: "This is the recommended loadout.",
 } as const;

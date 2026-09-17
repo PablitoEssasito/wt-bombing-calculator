@@ -65,7 +65,7 @@ export default function AboutPage() {
             they were written by hand; the recalculated ones assume you can take any mix.
           </li>
           <li>
-            Rocket damage. The source chart prices bombs only, so rockets appear in loadouts
+            Rocket damage. The bomb chart prices bombs only, so rockets appear in loadouts
             without a damage figure.
           </li>
         </ul>

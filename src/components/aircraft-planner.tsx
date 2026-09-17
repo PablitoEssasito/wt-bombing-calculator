@@ -14,8 +14,8 @@ import {
 } from "@/domain/schedule";
 import type { Aircraft, Bomb, LoadoutOption, Schedule } from "@/domain/types";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
+import { LoadoutNote } from "@/components/loadout-note";
 import { Segmented } from "@/components/segmented";
-import { SourceNote } from "@/components/source-note";
 
 import { urlInteger, urlLiteral, useUrlState } from "@/lib/use-url-state";
 import { cn, formatCount } from "@/lib/utils";
@@ -190,15 +190,15 @@ export function AircraftPlanner({
         </header>
 
         {active.option.note || active.option.noteMarker ? (
-          <SourceNote option={active.option} sourceUrl={sourceUrl} />
+          <LoadoutNote option={active.option} sourceUrl={sourceUrl} />
         ) : null}
 
         {shown.source === "recomputed" ? (
           <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
             Recalculated for {mode === "ab" ? "arcade" : "these"} conditions:{" "}
             {formatCount(shown.effectiveHp)} HP bases
-            {baseCount === 3 ? " on a three-base map" : ""}. The same payload, redistributed —
-            the source only spells out realistic battles on four-base maps.
+            {baseCount === 3 ? " on a three-base map" : ""}. Same payload, redistributed — only
+            realistic battles on four-base maps are spelled out directly above.
           </p>
         ) : null}
 
@@ -228,7 +228,7 @@ export function AircraftPlanner({
                 <tr className="hairline">
                   <th className="text-left font-normal px-3 py-2">Bases</th>
                   <th className="text-left font-normal px-3 py-2">Reward</th>
-                  <th className="text-left font-normal px-3 py-2">The source</th>
+                  <th className="text-left font-normal px-3 py-2">Status</th>
                   <th className="text-left font-normal px-3 py-2">Payload</th>
                   <th className="px-3 py-2" />
                 </tr>
@@ -281,7 +281,7 @@ export function AircraftPlanner({
 /**
  * Names the loadout on screen for what it actually is.
  *
- * Only the source's own star earns the word "recommended". Calling our own pick
+ * Only the sheet's own star earns the word "recommended". Calling our own pick
  * that put the label on loadouts whose note directly underneath argued against
  * taking them, which is exactly backwards.
  */
@@ -303,7 +303,7 @@ function StanceTag({ stance }: { stance: Stance }) {
           : "border-danger/40 text-danger bg-danger/5",
       )}
     >
-      {stance === "recommended" ? "★ Source's pick" : "Advised against"}
+      {stance === "recommended" ? "★ Recommended" : "Advised against"}
     </span>
   );
 }

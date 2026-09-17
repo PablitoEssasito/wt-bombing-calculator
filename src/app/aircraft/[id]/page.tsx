@@ -88,7 +88,7 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
 
       {plane.options.length === 0 ? (
         <p className="text-ink-dim">
-          The source sheet lists this aircraft but gives it no bombing loadout.
+          No bombing loadout is listed for this aircraft.
         </p>
       ) : (
         <AircraftPlanner

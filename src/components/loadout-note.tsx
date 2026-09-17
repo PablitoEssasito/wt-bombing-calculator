@@ -12,15 +12,15 @@ const TONE = {
 } as const;
 
 /**
- * A note the author of the source sheet left on a loadout.
+ * A note attached to a loadout — a caveat, a warning, or a recommendation.
  *
- * These live in Google Sheets cell comments, so an import without an API key has
- * the marker but not the text — hence the fallback. A note that argues against
- * the loadout is styled as a warning whatever marker it carries, because the
- * author does not always reach for the warning glyph when refusing one: the worst
- * of them are filed under "?" or under no marker at all.
+ * These live in the spreadsheet's cell comments, so an import without an API key
+ * has the marker but not the text — hence the fallback. A note that argues
+ * against the loadout is styled as a warning whatever marker it carries, because
+ * the marker is not a reliable signal of that on its own: the worst refusals are
+ * filed under "?" or under no marker at all.
  */
-export function SourceNote({ option, sourceUrl }: { option: LoadoutOption; sourceUrl: string }) {
+export function LoadoutNote({ option, sourceUrl }: { option: LoadoutOption; sourceUrl: string }) {
   const discouraged = stanceOf(option) === "discouraged";
   const marker = option.noteMarker;
 
@@ -50,7 +50,7 @@ export function SourceNote({ option, sourceUrl }: { option: LoadoutOption; sourc
             rel="noreferrer"
             className="underline underline-offset-4 hover:text-accent"
           >
-            Check the source sheet
+            See the sheet
           </a>{" "}
           for what it says.
         </p>

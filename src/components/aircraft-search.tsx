@@ -109,7 +109,7 @@ export function AircraftSearch({
       {nation !== "all" && nationNotes[nation] ? (
         <aside className="card px-3 py-2.5 text-sm space-y-1">
           <p className="text-xs uppercase tracking-wider text-ink-faint">
-            <Flag nation={nation} /> {NATION_LABELS[nation]} — from the source
+            <Flag nation={nation} /> {NATION_LABELS[nation]} notes
           </p>
           <p className="text-ink-dim whitespace-pre-line leading-relaxed">{nationNotes[nation]}</p>
         </aside>
@@ -117,8 +117,8 @@ export function AircraftSearch({
 
       {results.length === 0 ? (
         <p className="text-ink-dim py-12 text-center">
-          Nothing matches these filters. The source covers bombers, attackers and any fighter that
-          can carry bombs — pure interceptors are not in it.
+          Nothing matches these filters. Coverage includes bombers, attackers and any fighter that
+          can carry bombs — pure interceptors aren&apos;t included.
         </p>
       ) : view === "tiles" ? (
         <ul className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(270px,1fr))]">
