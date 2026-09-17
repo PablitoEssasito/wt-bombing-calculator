@@ -155,16 +155,22 @@ async function writePayload(byUnit: Record<string, Armament>) {
   };
 
   /**
-   * The flight model states a repeat count next to every weapon reference, but it
-   * means ammunition on a gun and physical quantity on a rack — see
-   * `isPhysicalCount`. This is where that gets sorted out, since it is the first
-   * point with the store catalogue in hand to tell the two apart.
+   * How many of a store a hardpoint choice actually hangs.
+   *
+   * The game states this two ways and only one of them is safe to read without
+   * knowing what is on the other end. Separate mounting points are always a
+   * physical count — a Tu-95M's bomb bay is six entries of one FAB-250 each. The
+   * `bullets` field beside a reference is a physical count only on a rack or a
+   * rail, and ammunition on anything else, which is why a BK-27 states 150 of
+   * itself. So repeats are counted for ordinary stores, and `bullets` is taken
+   * only where a container is doing the holding.
    */
-  let ammoMiscounted = 0;
-  const countOf = (file: string, count: number): number => {
-    const store = byFile.get(file);
-    if (store && !isPhysicalCount(store) && count > 1) ammoMiscounted++;
-    return store && !isPhysicalCount(store) ? 1 : count;
+  let ammoIgnored = 0;
+  const countOf = (store: { file: string; entries: number; bullets: number }): number => {
+    const known = byFile.get(store.file);
+    if (known && isPhysicalCount(known)) return store.bullets;
+    if (store.bullets > store.entries) ammoIgnored++;
+    return store.entries;
   };
 
   const units: Record<string, unknown> = {};
@@ -192,7 +198,7 @@ async function writePayload(byUnit: Record<string, Armament>) {
           .map((option) => {
             const resolved = option.stores.map((store) => ({
               file: store.file,
-              count: countOf(store.file, store.count),
+              count: countOf(store),
             }));
             return {
               n: option.name,
@@ -228,12 +234,13 @@ async function writePayload(byUnit: Record<string, Armament>) {
     `      wrote ${Object.keys(units).length} buildable aircraft and ${files.length} stores ` +
       `to src/data/armament.json (${Math.round(Buffer.byteLength(JSON.stringify(payload)) / 1024)} KB)`,
   );
-  if (ammoMiscounted > 0) {
+  if (ammoIgnored > 0) {
     console.log(
-      `      corrected ${ammoMiscounted} hardpoint choice(s) that stated ammunition as a physical ` +
-        `count — a cannon's magazine, not that many gun pods`,
+      `      ignored an ammunition figure on ${ammoIgnored} hardpoint choice(s) — a cannon's ` +
+        `magazine, not that many gun pods`,
     );
   }
+  namedCounts(units, stores);
 }
 
 function report(
@@ -339,6 +346,58 @@ function weighLoadouts(
         `against a ${o.limit} kg limit (${Math.round((100 * o.mass) / o.limit)}%)`,
     );
   }
+}
+
+/**
+ * Cross-checks how many a choice hangs against what its own name says.
+ *
+ * The game names a good half of its hardpoint choices after the count —
+ * `fab_250_x6`, `mer_mk82_x6` — which is an independent statement of the same
+ * fact and so worth reading back. A rack is named for the munitions it holds
+ * rather than for itself, so the comparison is against what the choice
+ * delivers, not how many objects hang off the pylon.
+ *
+ * The handful left over are genuinely ambiguous rather than wrong: options that
+ * come in `_left_x2`/`_right_x2` pairs, where the two may well be the pair
+ * across both wings rather than two on this one. Nothing in the files settles
+ * it, so they are reported rather than guessed at.
+ */
+function namedCounts(
+  units: Record<string, unknown>,
+  stores: { k: string; b?: (string | number)[] }[],
+) {
+  type Unit = { slots: { i: number; o: { n: string; w: number | [number, number][] }[] }[] };
+  let checked = 0;
+  let agreed = 0;
+  const unsettled: string[] = [];
+
+  for (const [unitId, unit] of Object.entries(units as Record<string, Unit>)) {
+    for (const slot of unit.slots) {
+      for (const option of slot.o) {
+        const stated = /_x(\d+)\b/.exec(option.n);
+        if (!stated) continue;
+        checked++;
+
+        const pairs = typeof option.w === "number" ? [[option.w, 1] as const] : option.w;
+        // A rack is named for what it holds, so read through to the munitions.
+        const delivered = pairs.reduce((n, [index, count]) => {
+          const held = stores[index]?.b?.[1];
+          return n + count * (typeof held === "number" ? held : 1);
+        }, 0);
+
+        if (delivered === Number(stated[1])) agreed++;
+        else if (delivered < Number(stated[1]) && stores[pairs[0][0]]?.k === "bomb") {
+          unsettled.push(`${unitId} slot ${slot.i} "${option.n}" carries ${delivered}`);
+        }
+      }
+    }
+  }
+
+  console.log(
+    `      ${agreed}/${checked} choice(s) named after a count carry exactly that many; ` +
+      `${unsettled.length} state one where the name says more`,
+  );
+  for (const one of unsettled.slice(0, 4)) console.log(`        ${one}`);
 }
 
 /**

@@ -92,7 +92,10 @@ describe("parseArmament", () => {
     expect(slot.options.map((o) => o.hidden)).toEqual([false, true]);
   });
 
-  it("records what each hardpoint choice actually hangs", () => {
+  it("counts repeated mounting points and the ammunition figure separately", () => {
+    // A Tu-95M's bomb bay is written as one entry per station; a gun is one
+    // entry stating its magazine. Both land here as a count, and only the store
+    // catalogue can say which is which — so both numbers have to survive.
     const withStores = {
       WeaponSlots: {
         WeaponSlot: [
@@ -100,19 +103,32 @@ describe("parseArmament", () => {
             index: 1,
             WeaponPreset: [
               {
-                name: "500lb_x1",
-                Weapon: { blk: "gameData/Weapons/BombGuns/us_500lb_mk_82_ldgp.blk", bullets: 1 },
+                name: "fab_250_x3",
+                Weapon: [
+                  { blk: "gameData/Weapons/BombGuns/su_fab_250m_46.blk", bullets: 1 },
+                  { blk: "gameData/Weapons/BombGuns/su_fab_250m_46.blk", bullets: 1 },
+                  { blk: "gameData/Weapons/BombGuns/su_fab_250m_46.blk", bullets: 1 },
+                ],
               },
-              // A pair is a rack file, not two entries — the rack knows it holds two.
-              { name: "500lb_x2", Weapon: { blk: "gameData/Weapons/BombGuns/ter_us_500lb_mk_82.blk" } },
+              {
+                name: "gun_pod",
+                Weapon: { blk: "gameData/Weapons/cannon_mauser_bk_27.blk", bullets: 150 },
+              },
+              // A rail states how many it holds beside the reference.
+              {
+                name: "aim9_x2",
+                Weapon: { blk: "gameData/Weapons/rocketGuns/aero_3b_aim9b.blk", bullets: 2 },
+              },
             ],
           },
         ],
       },
     };
     const options = parseArmament(withStores, new Map()).slots[0].options;
-    expect(options[0].stores).toEqual([{ file: "us_500lb_mk_82_ldgp", count: 1 }]);
-    expect(options[1].stores).toEqual([{ file: "ter_us_500lb_mk_82", count: 1 }]);
+
+    expect(options[0].stores).toEqual([{ file: "su_fab_250m_46", entries: 3, bullets: 3 }]);
+    expect(options[1].stores).toEqual([{ file: "cannon_mauser_bk_27", entries: 1, bullets: 150 }]);
+    expect(options[2].stores).toEqual([{ file: "aero_3b_aim9b", entries: 1, bullets: 2 }]);
   });
 
   it("reads dependencies alongside exclusions", () => {

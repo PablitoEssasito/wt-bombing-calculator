@@ -12,11 +12,27 @@ export type Preset = {
   weapons: PresetWeapon[];
 };
 
+/**
+ * One store a hardpoint choice hangs, counted the two ways the game states it.
+ *
+ * The distinction has to survive to the point where the store catalogue can be
+ * consulted, because only one of these numbers is trustworthy without it. A
+ * Tu-95M's six-bomb bay is written as six separate entries of one bomb each;
+ * a BK-27 gun pod is one entry stating 150 rounds. Collapsing both into a single
+ * count first loses which is which, and reads the gun as 150 gun pods.
+ */
+export type SlotStore = {
+  file: string;
+  /** Separate mounting points hanging it — always a physical count. */
+  entries: number;
+  /** Summed `bullets`: quantity on a rack, ammunition on a gun. */
+  bullets: number;
+};
+
 /** One thing a hardpoint can be given, as the loadout menu offers it. */
 export type SlotOption = {
   name: string;
-  /** The stores it hangs, by weapon file and how many. A rack counts as one. */
-  stores: { file: string; count: number }[];
+  stores: SlotStore[];
   /** True for choices the game keeps out of the loadout menu. */
   hidden: boolean;
 };
@@ -96,10 +112,18 @@ function weaponsOf(entries: Blk[]): PresetWeapon[] {
 }
 
 /** One entry per distinct store, keeping the order the game lists them in. */
-function collapseStores(stores: { file: string; count: number }[]) {
-  const totals = new Map<string, number>();
-  for (const store of stores) totals.set(store.file, (totals.get(store.file) ?? 0) + store.count);
-  return [...totals].map(([file, count]) => ({ file, count }));
+function collapseStores(stores: SlotStore[]): SlotStore[] {
+  const totals = new Map<string, SlotStore>();
+  for (const store of stores) {
+    const running = totals.get(store.file);
+    if (running) {
+      running.entries += store.entries;
+      running.bullets += store.bullets;
+    } else {
+      totals.set(store.file, { ...store });
+    }
+  }
+  return [...totals.values()];
 }
 
 function rulesFrom(slots: Blk[], key: "BannedWeaponPreset" | "DependentWeaponPreset"): Rule[] {
@@ -140,14 +164,14 @@ export function parseArmament(fm: Blk, presetFiles: Map<string, Blk>): Armament 
     options: many<Blk>(slot.WeaponPreset).map((preset) => ({
       name: String(preset.name),
       hidden: preset.showInWeaponMenu === false,
-      // Four of a kind are written as four entries; one entry counted four is
-      // the same load and the same thing to show.
+      // Four of a kind written as four entries is one store carried four times.
       stores: collapseStores(
         many<Blk>(preset.Weapon)
           .filter((weapon) => typeof weapon.blk === "string")
           .map((weapon) => ({
             file: basename(weapon.blk as string),
-            count: typeof weapon.bullets === "number" ? weapon.bullets : 1,
+            entries: 1,
+            bullets: typeof weapon.bullets === "number" ? weapon.bullets : 1,
           })),
       ),
     })),

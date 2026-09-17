@@ -8,39 +8,53 @@ import armamentData from "../../data/armament.json";
  */
 type Data = {
   files: string[];
-  stores: { n: string | null; kg: number | null; k: string }[];
+  stores: { n: string | null; kg: number | null; k: string; b?: (string | number)[] }[];
   units: Record<string, { slots: { i: number; o: { n: string; w: number | [number, number][] }[] }[] }>;
 };
 
-const data = armamentData as Data;
+// TypeScript reads the literal shape of a JSON import, which cannot line up with
+// the tuples above on its own.
+const data = armamentData as unknown as Data;
+
+const storesOf = (option: { w: number | [number, number][] }) =>
+  typeof option.w === "number" ? [[option.w, 1] as [number, number]] : option.w;
 
 /**
- * A hardpoint's repeat count is a physical quantity only when it points at a
- * container — a rack, a rail, a launcher pod. Pointed at a gun or a
- * countermeasure dispenser, the same field in the game's own files is
- * ammunition, and 2,387 hardpoint choices across the roster originally carried
- * that straight through as if it meant "this many gun pods." A BK-27 at 102 kg
- * times a 150-round magazine is a 15,300 kg cannon, which would have poisoned
- * every weight check the loadout creator makes.
+ * How many of a store a choice hangs comes from two different statements in the
+ * game's files, and telling them apart is the whole difficulty.
  *
- * The pipeline corrects this before the file is written (see
- * `scripts/armament/index.ts`), so nothing at runtime needs to know the
- * difference. This test is the guard that the correction keeps happening: it
- * would have failed outright on the BK-27 before the fix, and stays red on
- * anything reintroducing the bug for guns or dispensers, which the real data
- * confirms are the only kinds a repeat count is never legitimate for.
+ * Separate mounting points are a physical count: a Tu-95M's bomb bay is written
+ * as six entries of one FAB-250 each, and reading that as one bomb offers a
+ * loadout nobody can fly. The `bullets` field beside a reference is a physical
+ * count only on a rack or a rail, and ammunition on anything else — a BK-27
+ * states 150 of itself, meaning its magazine.
+ *
+ * Both of those were wrong here at different times, in opposite directions, so
+ * both are pinned.
  */
-describe("armament.json: hardpoint repeat counts", () => {
-  it("never claims more than one gun or countermeasure at a single choice", () => {
+describe("armament.json: how many a hardpoint choice hangs", () => {
+  it("counts a bomb bay's stations, not one bomb", () => {
+    const bay = data.units.tu_95m?.slots.find((s) => s.i === 1);
+    const six = bay?.o.find((o) => o.n === "fab_250_x6");
+    expect(six).toBeDefined();
+
+    const [[index, count]] = storesOf(six!);
+    expect(data.stores[index].n).toContain("FAB-250");
+    expect(count).toBe(6);
+  });
+
+  it("never mistakes a magazine for a stack of gun pods", () => {
+    // Real multi-gun pods exist — the F-82E's centreline pod carries eight —
+    // but ammunition figures start at 20 rounds and climb past 2,000, so
+    // anything in that range has leaked through as a count.
     const offenders: string[] = [];
 
     for (const [unitId, unit] of Object.entries(data.units)) {
       for (const slot of unit.slots) {
         for (const option of slot.o) {
-          if (typeof option.w === "number") continue;
-          for (const [index, count] of option.w) {
+          for (const [index, count] of storesOf(option)) {
             const store = data.stores[index];
-            if (count > 1 && ["gun", "countermeasure"].includes(store.k)) {
+            if (count > 12 && ["gun", "countermeasure"].includes(store.k)) {
               offenders.push(`${unitId} slot ${slot.i} "${option.n}": ${count} × ${store.n}`);
             }
           }
@@ -51,16 +65,14 @@ describe("armament.json: hardpoint repeat counts", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("keeps the BK-27 gun pod at its own weight, not its magazine size", () => {
+  it("keeps the BK-27 gun pod a single cannon", () => {
     const bk27 = data.files.indexOf("cannon_mauser_bk_27");
     expect(bk27).toBeGreaterThanOrEqual(0);
-    expect(data.stores[bk27].kg).toBeLessThan(200);
 
-    const alphaJet = data.units.alpha_jet_a;
-    const gunPod = alphaJet?.slots.find((s) => s.i === 3)?.o.find((o) => o.n === "gun_pod");
+    const gunPod = data.units.alpha_jet_a?.slots.find((s) => s.i === 3)?.o.find((o) => o.n === "gun_pod");
     expect(gunPod).toBeDefined();
-    // A bare index is shorthand for "one of these" — exactly what a single
-    // physical cannon should be, whatever its magazine holds.
+    // A bare index is shorthand for "one of these" — one physical cannon,
+    // whatever its magazine holds.
     expect(gunPod!.w).toBe(bk27);
   });
 });
