@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AircraftPlanner } from "@/components/aircraft-planner";
+import { AircraftView } from "@/components/aircraft-view";
 import { Flag } from "@/components/flag";
 import { CATEGORY_LABELS, NATION_LABELS } from "@/domain/constants";
 import {
   aircraft,
   aircraftById,
+  armamentFor,
   bombsById,
   carriesPartialLoad,
   imagesByAircraft,
@@ -39,8 +40,10 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
   if (!plane) notFound();
 
   const imageId = imagesByAircraft[plane.id] ?? null;
+  const armament = armamentFor(plane.id);
 
-  // Ship only the bombs this aircraft can actually carry, not all 292 of them.
+  // Ship only the bombs this aircraft can actually carry, not all 292 of them —
+  // from the sheet's own schedules, and from every hardpoint the creator offers.
   const referenced = new Set(
     plane.options.flatMap((option) =>
       option.schedules.flatMap((schedule) =>
@@ -48,6 +51,13 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
       ),
     ),
   );
+  for (const hardpoint of armament?.hardpoints ?? []) {
+    for (const option of hardpoint.options) {
+      for (const { store } of option.stores) {
+        if (store.bomb) referenced.add(store.bomb.id);
+      }
+    }
+  }
   const bombs = [...referenced].flatMap((bombId) => {
     const bomb = bombsById.get(bombId);
     return bomb ? [bomb] : [];
@@ -91,11 +101,12 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
           No bombing loadout is listed for this aircraft.
         </p>
       ) : (
-        <AircraftPlanner
+        <AircraftView
           plane={plane}
           bombs={bombs}
           sourceUrl={meta.sourceUrl}
           splittable={carriesPartialLoad(plane.id)}
+          armament={armament}
         />
       )}
     </div>

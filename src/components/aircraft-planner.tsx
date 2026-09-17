@@ -309,7 +309,7 @@ function StanceTag({ stance }: { stance: Stance }) {
 }
 
 /** Describes a bracket the way a player thinks about it: the BRs they will meet. */
-function brLabelFor(vehicleBr: number, tier: BaseHp, tiers: BaseHp[]): string {
+export function brLabelFor(vehicleBr: number, tier: BaseHp, tiers: BaseHp[]): string {
   if (tiers.length === 1) return `${vehicleBr.toFixed(1)} and up`;
   return tier === tiers[0] ? "No uptier" : "Uptiered";
 }
