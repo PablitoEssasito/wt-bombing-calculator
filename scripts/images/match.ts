@@ -33,13 +33,17 @@ export type Match = { unit: WikiUnit; method: MatchMethod };
  * Names the sheet abbreviates past recognition, where no rule would get there.
  *
  * "2K" for "2000" is the sheet's own shorthand, and TTS/TSS is a plain typo on
- * one side or the other.
+ * one side or the other. The Tu-2S pair is a rename on the game's side: Sky
+ * Odyssey (2.26) dropped the year suffixes for regiment numbers, and the sheet
+ * kept the old names.
  */
 export const NAME_ALIASES: Record<string, string> = {
   "Su-2 TTS-1": "Su-2 TSS-1",
   "Mirage 2K-5F": "Mirage 2000-5F",
   "Mirage 2K-R1": "Mirage 2000D-R1",
   "Mirage 2K-RMV": "Mirage 2000D-RMV",
+  "Tu-2S-44": "Tu-2S (1)",
+  "Tu-2S-59": "Tu-2S (8)",
 };
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");

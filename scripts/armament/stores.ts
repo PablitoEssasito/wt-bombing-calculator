@@ -425,7 +425,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// `index.ts` imports `isPhysicalCount` from here, and an import must not pull
+// the whole catalogue down as a side effect — it would race the payload step
+// that reads the result. Only run when this file is the one that was invoked.
+if (process.argv[1] && /[\\/]stores\.ts$/.test(process.argv[1])) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
