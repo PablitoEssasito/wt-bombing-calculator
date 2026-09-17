@@ -366,7 +366,7 @@ async function main() {
     const coreNames = { full: names.full.get(core.file) ?? null, short: names.short.get(core.file) ?? null };
     const coreMass = massOfStore(core.file, bodies);
 
-    const bombId = ["bomb", "mine", "torpedo"].includes(classify(coreRef, coreBody))
+    const bombId = ["bomb", "mine", "torpedo", "rocket"].includes(classify(coreRef, coreBody))
       ? matchBomb({ file: core.file, massKg: coreMass }, coreNames, chart)
       : null;
 

@@ -1,5 +1,6 @@
 import type { Nation } from "../../src/domain/constants";
 import type { Bomb, BombKind } from "../../src/domain/types";
+import { ROCKET_ORDNANCE } from "./rockets";
 
 /**
  * Loadout cells that name a bomb differently from the Bomb Chart tab, and that
@@ -16,30 +17,26 @@ export const BOMB_ALIASES: Record<string, string> = {
 };
 
 /**
- * Ordnance that appears in loadouts but carries no damage value in the source.
- *
- * Rockets are simply absent from the Bomb Chart. Their damage cannot be inferred
- * from the schedules either: every rocket entry sits in a base that also carries
- * bombs, so the counts bound the pair rather than the rocket. FC1000 and 130-2
- * are bombs the chart is missing outright. All of them are carried through so the
- * schedules stay complete, and are flagged so nothing tries to price them.
+ * Bombs that appear in loadouts but carry no damage value in the source — the
+ * chart is simply missing these two rows outright. Carried through so the
+ * schedules stay complete, and flagged so nothing tries to price them.
  */
 export const UNPRICED_ORDNANCE: ReadonlyArray<{
   chartName: string;
   fullName: string;
   kind: BombKind;
 }> = [
-  { chartName: "HVAR", fullName: "HVAR rocket", kind: "ROCKET" },
-  { chartName: "Zuni", fullName: "Zuni Mk 32 rocket", kind: "ROCKET" },
-  { chartName: "FFAR", fullName: "FFAR Mighty Mouse rocket", kind: "ROCKET" },
-  { chartName: "RP-3", fullName: "RP-3 rocket", kind: "ROCKET" },
-  { chartName: "M8", fullName: "M8 rocket", kind: "ROCKET" },
   { chartName: "FC1000", fullName: "Flam C 1000 (not in source chart)", kind: "INC" },
   { chartName: "130-2", fullName: "130 kg 130-2 (not in source chart)", kind: "GP" },
 ];
 
+/**
+ * Rockets, none of which the Bomb Chart prices — see `scripts/etl/rockets.ts`
+ * for why `damageValue` stays null for all of them and where their mass and TNT
+ * figures actually come from.
+ */
 export function unpricedBombs(): Bomb[] {
-  return UNPRICED_ORDNANCE.map((o) => ({
+  const bombs = UNPRICED_ORDNANCE.map((o) => ({
     id: slugifyBomb(o.chartName),
     chartName: o.chartName,
     fullName: o.fullName,
@@ -52,6 +49,22 @@ export function unpricedBombs(): Bomb[] {
     efficiency: null,
     sheetCounts: null,
   }));
+
+  const rockets = ROCKET_ORDNANCE.map((r) => ({
+    id: slugifyBomb(r.chartName),
+    chartName: r.chartName,
+    fullName: r.fullName,
+    kind: "ROCKET" as const,
+    nation: null,
+    massKg: r.massKg,
+    massLabel: r.massLabel,
+    tntKg: r.tntKg,
+    damageValue: null,
+    efficiency: null,
+    sheetCounts: null,
+  }));
+
+  return [...bombs, ...rockets];
 }
 
 export function slugifyBomb(name: string): string {

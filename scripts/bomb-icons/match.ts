@@ -45,14 +45,15 @@ export type Bomb = {
 
 export type IconMatch = { iconType: string; confidence: "matched" | "fallback" };
 
-/** Chart names the automatic pass cannot reach at all, matched by hand. */
-export const ICON_ALIASES: Record<string, string> = {
-  HVAR: "rocketguns/us_5_in_hvar.blkx",
-  Zuni: "rocketguns/us_zuni_wafar_mk32.blkx",
-  FFAR: "rocketguns/us_2_75_in_ffar_mighty_mouse.blkx",
-  "RP-3": "rocketguns/uk_rp3.blkx",
-  M8: "rocketguns/su_m8.blkx",
-};
+/**
+ * Chart names the automatic pass cannot reach at all, matched by hand.
+ *
+ * Empty now that `rocketguns/` is listed in full (see `scripts/bomb-icons/config.ts`)
+ * — the five rockets this used to carry by hand match the same way every other
+ * weapon does. Kept as the escape hatch it always was, for whatever the mass
+ * and kind matching can't reach next.
+ */
+export const ICON_ALIASES: Record<string, string> = {};
 
 /** Country codes and unit words the game's filenames carry that the sheet's names never do. */
 const FILE_NOISE = new Set([
@@ -124,9 +125,17 @@ function fitsKind(kind: string, def: WeaponDef): boolean {
  * right kind of weapon — a same-mass incendiary bomb is not a stand-in for a
  * general-purpose one, so that case is left for the size-bucket fallback rather
  * than accepted here.
+ *
+ * Also drops any candidate with no icon of its own to give away — a rocket
+ * rail or launcher file often shares its projectile's mass exactly (the 9M120
+ * launcher rail and Sweden's 14.5 cm psrak m/49B both happen to weigh 42 kg)
+ * but carries no `iconType`, since the game draws the rail's icon from what it
+ * holds rather than the rail itself. Ranking that in among real icon-bearing
+ * candidates and losing the tie-break to it would silently blank the match
+ * instead of falling through to a same-mass weapon that actually has a tile.
  */
 function pickBest(bomb: Bomb, candidates: WeaponDef[]): WeaponDef | null {
-  const fitting = candidates.filter((d) => fitsKind(bomb.kind, d));
+  const fitting = candidates.filter((d) => fitsKind(bomb.kind, d) && (d.iconType !== null || d.isMine));
   if (fitting.length === 0) return null;
 
   const bombCore = coreOf(bomb.chartName || bomb.fullName, false);

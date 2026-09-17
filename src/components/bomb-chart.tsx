@@ -73,7 +73,13 @@ function formatMass(bomb: Bomb, unit: MassUnit): string {
     : `${Math.round(bomb.massKg * LB_PER_KG)} lb`;
 }
 
-/** Every kind that can actually reach this table — rockets carry no damage value, so never do. */
+/**
+ * Every kind that can actually reach this table.
+ *
+ * Rockets carry no damage value — nobody publishes one, see
+ * `scripts/etl/rockets.ts` — but they do carry real mass and TNT figures, so
+ * they still get a row; the damage and per-base columns just read "—" for them.
+ */
 const PRICED_KINDS = [
   "GP",
   "AP",
@@ -85,6 +91,7 @@ const PRICED_KINDS = [
   "TV",
   "IR",
   "RC",
+  "ROCKET",
 ] as const satisfies readonly BombKind[];
 
 export function BombChart({ bombs }: { bombs: Bomb[] }) {
@@ -110,16 +117,16 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const baseCount = (mapSize === 3 ? 3 : 4) as BaseCount;
   const effectiveHp = effectiveBaseHp(baseHp, mode as GameMode, baseCount);
 
-  // Priced only — what's actually in this table — so the hint text under each
-  // range input reflects what you can actually type, not the full 292 including
-  // unpriced rockets.
+  // Mass and TNT bounds read from every bomb and rocket that states one; damage
+  // only from what the chart actually prices — a rocket's blank damage column
+  // must not collapse this range to nothing.
   const bounds = useMemo(() => {
     const priced = bombs.filter((b) => b.damageValue !== null);
     const range = (values: number[]) =>
       values.length ? { min: Math.min(...values), max: Math.max(...values) } : { min: 0, max: 0 };
     return {
-      mass: range(priced.flatMap((b) => (b.massKg !== null ? [Math.round(b.massKg)] : []))),
-      tnt: range(priced.flatMap((b) => (b.tntKg !== null ? [Math.round(b.tntKg)] : []))),
+      mass: range(bombs.flatMap((b) => (b.massKg !== null ? [Math.round(b.massKg)] : []))),
+      tnt: range(bombs.flatMap((b) => (b.tntKg !== null ? [Math.round(b.tntKg)] : []))),
       damage: range(priced.map((b) => b.damageValue!)),
     };
   }, [bombs]);
@@ -127,7 +134,11 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const rows = useMemo(() => {
     const needle = deferred.trim().toLowerCase();
     const filtered = bombs.filter((bomb) => {
-      if (bomb.damageValue === null) return false;
+      // Rockets carry no damage value anywhere in the source — see
+      // scripts/etl/rockets.ts — but still belong in the table for their mass
+      // and TNT figures. Everything else with no damage value has nothing to
+      // show at all, so it stays out.
+      if (bomb.damageValue === null && bomb.kind !== "ROCKET") return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
@@ -137,13 +148,19 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
       if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
       if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
       if (tntMax !== null && (bomb.tntKg ?? Infinity) > tntMax) return false;
-      if (dmgMin !== null && bomb.damageValue < dmgMin) return false;
-      if (dmgMax !== null && bomb.damageValue > dmgMax) return false;
+      // A damage-range filter can't be tested against a rocket's blank value —
+      // treat "no data" as failing the filter rather than coercing null to 0.
+      if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
+      if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
+      if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
       return true;
     });
 
     return filtered
-      .map((bomb) => ({ bomb, needed: bombsNeeded(effectiveHp, bomb.damageValue!) }))
+      .map((bomb) => ({
+        bomb,
+        needed: bomb.damageValue !== null ? bombsNeeded(effectiveHp, bomb.damageValue) : null,
+      }))
       .sort((a, b) => compareRows(a, b, sort, dir));
   }, [
     bombs,
@@ -373,10 +390,10 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                     </div>
                   </td>
                   <td className="nums px-3 py-2 text-right text-accent font-semibold text-base">
-                    {needed}
+                    {needed ?? "—"}
                   </td>
                   <td className="nums px-3 py-2 text-right text-ink-dim">
-                    {formatCount(bomb.damageValue!)}
+                    {bomb.damageValue !== null ? formatCount(bomb.damageValue) : "—"}
                   </td>
                   <td className="nums px-3 py-2 text-right text-ink-dim hidden sm:table-cell">
                     {formatMass(bomb, massUnit)}
@@ -409,7 +426,7 @@ const BR_RANGE_LABELS: Record<BaseHp, string> = {
   25900: "8.0 and up",
 };
 
-type SortableRow = { bomb: Bomb; needed: number };
+type SortableRow = { bomb: Bomb; needed: number | null };
 
 function sortKeyOf(row: SortableRow, column: Sort): number | string | null {
   switch (column) {

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { API_BASE, ICON_DIR, RAW_BASE, ROCKET_FILES, WEAPON_DIRS, WEAPONS_PATH } from "./config";
+import { API_BASE, ICON_DIR, RAW_BASE, WEAPON_DIRS, WEAPONS_PATH } from "./config";
 import type { WeaponDef } from "./match";
 
 const CACHE_DIR = path.join(process.cwd(), ".cache", "weapon-defs");
@@ -58,7 +58,7 @@ export async function fetchWeaponDefs(useCache: boolean): Promise<WeaponDef[]> {
   }
 
   const dirLists = await Promise.all(WEAPON_DIRS.map((dir) => listDir(dir)));
-  const allPaths = [...dirLists.flat(), ...ROCKET_FILES];
+  const allPaths = dirLists.flat();
 
   const defs: WeaponDef[] = [];
   const queue = [...allPaths];

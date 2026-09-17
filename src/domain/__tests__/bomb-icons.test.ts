@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import bombData from "../../data/bombs.json";
 import bombIconData from "../../data/bomb-icons.json";
-import { matchBombIcons, ICON_ALIASES, type WeaponDef } from "../../../scripts/bomb-icons/match";
+import { matchBombIcons, type WeaponDef } from "../../../scripts/bomb-icons/match";
 import type { Bomb } from "../types";
 
 const bombs = bombData as Bomb[];
@@ -62,9 +62,29 @@ describe("matchBombIcons", () => {
     expect(matches.get("a")).toEqual({ iconType: "air_mines", confidence: "matched" });
   });
 
-  it("resolves an aliased rocket that carries no mass in our own data", () => {
-    expect(ICON_ALIASES.HVAR).toBeDefined();
-    const { matches } = matchBombIcons([bomb({ id: "a", chartName: "HVAR", kind: "ROCKET", massKg: null })], DEFS);
+  it("matches a rocket by mass and kind exactly like a bomb", () => {
+    const { matches } = matchBombIcons([bomb({ id: "a", chartName: "HVAR", kind: "ROCKET", massKg: 62.8 })], DEFS);
+    expect(matches.get("a")).toEqual({ iconType: "rockets_he_small", confidence: "matched" });
+  });
+
+  it("never gives a rocket a bomb-shaped fallback just because a mass-matched candidate carries no icon of its own", () => {
+    // A rail/launcher file with no iconType (the way mines have none) must not
+    // win the tie-break and blank the match — it should be skipped in favour of
+    // the real, icon-bearing candidate at the same mass.
+    const iconless: WeaponDef = {
+      path: "rocketguns/xx_launcher_rail.blkx",
+      iconType: null,
+      massKg: 62.8,
+      isMine: false,
+      isRocket: true,
+      isGuided: false,
+      isDrag: false,
+      isIncendiary: false,
+    };
+    const { matches } = matchBombIcons(
+      [bomb({ id: "a", chartName: "HVAR", kind: "ROCKET", massKg: 62.8 })],
+      [...DEFS, iconless],
+    );
     expect(matches.get("a")).toEqual({ iconType: "rockets_he_small", confidence: "matched" });
   });
 
