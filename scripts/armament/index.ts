@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Aircraft, Bomb } from "../../src/domain/types";
 import { parseArmament, presetPath, type Armament } from "./parse";
+import { isPhysicalCount } from "./stores";
 
 const RAW =
   "https://raw.githubusercontent.com/gszabi99/War-Thunder-Datamine/master/aces.vromfs.bin_u/gamedata";
@@ -31,6 +32,7 @@ type StoreRecord = {
   massKg: number | null;
   kind: string;
   bomb: { id: string; count: number } | null;
+  container: boolean;
 };
 
 const CONCURRENCY = 8;
@@ -152,6 +154,19 @@ async function writePayload(byUnit: Record<string, Armament>) {
     return files.length - 1;
   };
 
+  /**
+   * The flight model states a repeat count next to every weapon reference, but it
+   * means ammunition on a gun and physical quantity on a rack — see
+   * `isPhysicalCount`. This is where that gets sorted out, since it is the first
+   * point with the store catalogue in hand to tell the two apart.
+   */
+  let ammoMiscounted = 0;
+  const countOf = (file: string, count: number): number => {
+    const store = byFile.get(file);
+    if (store && !isPhysicalCount(store) && count > 1) ammoMiscounted++;
+    return store && !isPhysicalCount(store) ? 1 : count;
+  };
+
   const units: Record<string, unknown> = {};
   for (const [unitId, armament] of Object.entries(byUnit)) {
     if (armament.style !== "pylons") continue;
@@ -165,14 +180,20 @@ async function writePayload(byUnit: Record<string, Armament>) {
         i: slot.index,
         o: slot.options
           .filter((option) => !option.hidden)
-          .map((option) => ({
-            n: option.name,
-            // One store carried once is the ordinary case, and writes as a bare index.
-            w:
-              option.stores.length === 1 && option.stores[0].count === 1
-                ? intern(option.stores[0].file)
-                : option.stores.map((store) => [intern(store.file), store.count]),
-          })),
+          .map((option) => {
+            const resolved = option.stores.map((store) => ({
+              file: store.file,
+              count: countOf(store.file, store.count),
+            }));
+            return {
+              n: option.name,
+              // One store carried once is the ordinary case, and writes as a bare index.
+              w:
+                resolved.length === 1 && resolved[0].count === 1
+                  ? intern(resolved[0].file)
+                  : resolved.map((store) => [intern(store.file), store.count]),
+            };
+          }),
       })),
       bans: armament.bans.map((r) => [r.slot, r.preset, r.otherSlot, r.otherPreset]),
     };
@@ -197,6 +218,12 @@ async function writePayload(byUnit: Record<string, Armament>) {
     `      wrote ${Object.keys(units).length} buildable aircraft and ${files.length} stores ` +
       `to src/data/armament.json (${Math.round(Buffer.byteLength(JSON.stringify(payload)) / 1024)} KB)`,
   );
+  if (ammoMiscounted > 0) {
+    console.log(
+      `      corrected ${ammoMiscounted} hardpoint choice(s) that stated ammunition as a physical ` +
+        `count — a cannon's magazine, not that many gun pods`,
+    );
+  }
 }
 
 function report(

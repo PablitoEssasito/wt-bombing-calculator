@@ -43,6 +43,15 @@ export type Store = {
    * glide bombs it never catalogued.
    */
   bomb: { id: string; count: number } | null;
+  /**
+   * Whether this file itself holds something else — a rack, a rail, a launcher
+   * pod — as opposed to being ordnance in its own right.
+   *
+   * This is what tells a repeat count on a hardpoint choice apart from a round
+   * count on a gun: only a container's own multiplier is a physical quantity.
+   * See `isPhysicalCount`.
+   */
+  container: boolean;
 };
 
 const many = <T,>(value: unknown): T[] =>
@@ -134,6 +143,25 @@ function ownMass(body: Record<string, unknown>): number | null {
 export function contained(body: Record<string, unknown>): { blk: string; count: number } | null {
   if (body.container !== true || typeof body.blk !== "string") return null;
   return { blk: body.blk, count: typeof body.bullets === "number" ? body.bullets : 1 };
+}
+
+/**
+ * Whether a repeat count next to a weapon reference means physical quantity.
+ *
+ * A flight model's own Weapon entry carries a `bullets` field whichever kind of
+ * store it names, but the field means two different things depending on what is
+ * on the other end. Pointed at a container — a rack, a rail, a launcher pod —
+ * it is how many of that whole unit are hung, verified against the AIM-9 twin
+ * rail (2 missiles) and the Zuni LAU-35 (2 pods). Pointed at a gun or a
+ * countermeasure dispenser, the same field is its ammunition: every one of the
+ * 156 non-container files seen with `bullets` above 1 is a cannon or a flare/
+ * chaff launcher, and the number is rounds, not spare gun pods — the BK-27
+ * reads `bullets: 150` for a real 150-round magazine on one physical cannon.
+ * Bombs referenced directly, never through a container, are never seen with
+ * `bullets` above 1 at all, so this affects nothing about how bombs are counted.
+ */
+export function isPhysicalCount(store: { container: boolean }): boolean {
+  return store.container;
 }
 
 /**
@@ -351,6 +379,7 @@ async function main() {
       // ...and is filed under it too, the way the loadout menu lists it.
       kind: classify(coreRef, coreBody),
       bomb: bombId ? { id: bombId, count: core.count } : null,
+      container: contained(body) !== null,
     });
   }
 
@@ -364,6 +393,10 @@ async function main() {
   console.log(`\nread ${stores.length} stores, ${weighed} of them weighed`);
   console.log(
     "  " + [...byKind].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}: ${n}`).join(", "),
+  );
+  console.log(
+    `  ${stores.filter((s) => s.container).length} are containers — the only files whose ` +
+      `hardpoint repeat count is a physical quantity rather than ammunition`,
   );
 
   const named = stores.filter((s) => s.name !== null).length;
