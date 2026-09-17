@@ -5,7 +5,7 @@ import { formatCount } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "Where the data comes from and how the numbers are worked out.",
+  description: "What the calculator does, and how the numbers are worked out.",
 };
 
 export default function AboutPage() {
@@ -14,28 +14,46 @@ export default function AboutPage() {
       <header className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">About</h1>
         <p className="text-ink-dim">
-          A faster way to read a spreadsheet that already had the answers.
+          What to load, per aircraft, per base — worked out for the battle rating and game mode
+          you&apos;re actually in.
         </p>
       </header>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-medium text-accent">Where the data comes from</h2>
-        <p className="text-ink-dim">
-          Every loadout and every bomb figure on this site is imported from{" "}
+        <h2 className="text-lg font-medium text-accent">What&apos;s here</h2>
+        <ul className="text-ink-dim space-y-2 list-disc pl-5">
+          <li>
+            Search across {meta.aircraftCount} aircraft, filterable by nation and battle rating,
+            with a per-aircraft drop schedule that recalculates as you change BR, game mode, or
+            base count.
+          </li>
+          <li>
+            Every loadout note sorted into what it actually means — recommended, worth knowing,
+            heads up, or advised against — instead of a bare marker you have to hover to read.
+          </li>
+          <li>
+            A loadout creator modelled on the game&apos;s own weapon menu: pylon by pylon, with
+            mass limits and mutual exclusions enforced and unmet dependencies flagged, built from
+            the game&apos;s own data files rather than guessed from the loadouts alone.
+          </li>
+          <li>
+            A sortable bomb chart with a standalone calculator for any bomb against any base
+            health.
+          </li>
+          <li>Every control lives in the URL, so a specific setup is one link to share.</li>
+        </ul>
+        <p className="text-ink-faint text-sm">
+          Loadouts and bomb figures started from{" "}
           <a
             href={meta.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-ink underline underline-offset-4 hover:text-accent"
+            className="underline underline-offset-4 hover:text-accent"
           >
             LEGION&apos;s Loadouts
           </a>
-          {meta.sheetVersion ? `, version ${meta.sheetVersion}` : null}. The research is theirs.
-          This site adds search, reacts to your battle rating and game mode, and nothing else.
-        </p>
-        <p className="text-ink-faint text-sm">
-          Last imported {new Date(meta.generatedAt).toISOString().slice(0, 10)} —{" "}
-          {meta.aircraftCount} aircraft, {meta.bombCount} bombs.
+          {meta.sheetVersion ? ` (v${meta.sheetVersion})` : null}, last pulled{" "}
+          {new Date(meta.generatedAt).toISOString().slice(0, 10)}.
         </p>
       </section>
 
