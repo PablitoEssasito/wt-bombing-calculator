@@ -3,6 +3,7 @@ import {
   blockedIn,
   bombsIn,
   massOf,
+  unmetIn,
   unpricedIn,
   violationsOf,
   type Armament,
@@ -18,9 +19,13 @@ const store = (over: Partial<Store> & { name: string }): Store => ({
   ...over,
 });
 
-/** A pylon aircraft cut down to what the rules need: two wing stations and a rack. */
+/**
+ * A pylon aircraft cut down to what the rules need: two wing stations and a
+ * rack. The limit is generous on purpose, so the exclusion tests below never
+ * incidentally trip a mass block too — the mass tests set their own limit.
+ */
 const armament: Armament = {
-  maxLoadKg: 1000,
+  maxLoadKg: 5000,
   perWingKg: 500,
   disbalanceKg: 300,
   hardpoints: [
@@ -54,6 +59,7 @@ const armament: Armament = {
   ],
   // Stated one way only, as four fifths of the game's rules are.
   exclusions: [{ slot: 1, option: "500lb", otherSlot: 2, otherOption: "250lb" }],
+  dependencies: [{ slot: 2, option: "jdam", needsSlot: 1, needsOption: "500lb_x6" }],
 };
 
 const build = (entries: [number, string][]): Build => new Map(entries);
@@ -78,7 +84,8 @@ describe("violationsOf", () => {
   });
 
   it("reports a build heavier than the airframe lifts", () => {
-    expect(violationsOf(build([[1, "500lb_x6"]]), armament)).toEqual([
+    const cramped = { ...armament, maxLoadKg: 1000 };
+    expect(violationsOf(build([[1, "500lb_x6"]]), cramped)).toEqual([
       { kind: "overweight", kg: 1445, limitKg: 1000 },
     ]);
   });
@@ -111,6 +118,20 @@ describe("blockedIn", () => {
   it("blocks nothing on an empty aircraft", () => {
     expect([...blockedIn(armament, build([]), 2)]).toEqual([]);
   });
+
+  it("greys out every choice that would push the build past the airframe's limit", () => {
+    // The rack alone is 1445 kg, already over this test's 1000 kg maxLoadKg —
+    // nothing on the other hardpoint can be added on top of it.
+    const cramped = { ...armament, maxLoadKg: 1000 };
+    expect([...blockedIn(cramped, build([[1, "500lb_x6"]]), 2)]).toEqual(["250lb", "jdam"]);
+  });
+
+  it("does not block a choice the current slot itself is already carrying", () => {
+    // Re-selecting slot 1's own heavy option must not count itself twice —
+    // otherwise a 1445 kg rack under a 1445 kg limit would grey itself out.
+    const exact = { ...armament, maxLoadKg: 1445 };
+    expect([...blockedIn(exact, build([[1, "500lb_x6"]]), 1)]).toEqual([]);
+  });
 });
 
 describe("bombsIn", () => {
@@ -140,5 +161,25 @@ describe("unpricedIn", () => {
 
   it("says nothing about ordnance the chart does price", () => {
     expect(unpricedIn(build([[1, "500lb"]]), armament)).toEqual([]);
+  });
+});
+
+describe("unmetIn", () => {
+  it("flags a choice whose dependency is not in the build", () => {
+    expect(unmetIn(build([[2, "jdam"]]), armament)).toEqual([
+      { slot: 2, option: "jdam", needsSlot: 1, needsOption: "500lb_x6" },
+    ]);
+  });
+
+  it("says nothing once the dependency is met", () => {
+    expect(unmetIn(build([[1, "500lb_x6"], [2, "jdam"]]), armament)).toEqual([]);
+  });
+
+  it("says nothing about a choice with no dependency of its own", () => {
+    expect(unmetIn(build([[1, "500lb"]]), armament)).toEqual([]);
+  });
+
+  it("is never blocked on — a build can carry an unmet dependency", () => {
+    expect(violationsOf(build([[2, "jdam"]]), armament)).toEqual([]);
   });
 });

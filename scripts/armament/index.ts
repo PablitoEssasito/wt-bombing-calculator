@@ -171,6 +171,15 @@ async function writePayload(byUnit: Record<string, Armament>) {
   for (const [unitId, armament] of Object.entries(byUnit)) {
     if (armament.style !== "pylons") continue;
 
+    // A dependency rule is only useful if both ends name a choice this aircraft
+    // actually offers — 5.5% do not, being copy-paste in the source (see the
+    // audit above), and there is nothing to warn about pointing at nothing.
+    const offered = new Map(armament.slots.map((s) => [s.index, new Set(s.options.map((o) => o.name))]));
+    const resolves = (slot: number, preset: string) => offered.get(slot)?.has(preset) ?? false;
+    const requires = armament.requires.filter(
+      (r) => resolves(r.slot, r.preset) && resolves(r.otherSlot, r.otherPreset),
+    );
+
     units[unitId] = {
       max: armament.maxLoadKg,
       left: armament.maxLeftKg,
@@ -196,6 +205,7 @@ async function writePayload(byUnit: Record<string, Armament>) {
           }),
       })),
       bans: armament.bans.map((r) => [r.slot, r.preset, r.otherSlot, r.otherPreset]),
+      reqs: requires.map((r) => [r.slot, r.preset, r.otherSlot, r.otherPreset]),
     };
   }
 

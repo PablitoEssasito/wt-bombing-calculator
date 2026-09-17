@@ -45,6 +45,7 @@ type CompactArmament = {
       diff: number | null;
       slots: { i: number; o: { n: string; w: number | [number, number][] }[] }[];
       bans: [number, string, number, string][];
+      reqs: [number, string, number, string][];
     }
   >;
 };
@@ -93,6 +94,12 @@ export function armamentFor(aircraftId: string): Armament | null {
       option,
       otherSlot,
       otherOption,
+    })),
+    dependencies: unit.reqs.map(([slot, option, needsSlot, needsOption]) => ({
+      slot,
+      option,
+      needsSlot,
+      needsOption,
     })),
   };
 }

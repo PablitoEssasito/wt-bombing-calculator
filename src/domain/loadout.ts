@@ -46,6 +46,14 @@ export type Exclusion = {
   otherOption: string;
 };
 
+/** "Choosing this here calls for that over there too." */
+export type Dependency = {
+  slot: number;
+  option: string;
+  needsSlot: number;
+  needsOption: string;
+};
+
 export type Armament = {
   maxLoadKg: number | null;
   /** Stated by the game but not enforced here — see `violationsOf`. */
@@ -53,6 +61,15 @@ export type Armament = {
   disbalanceKg: number | null;
   hardpoints: Hardpoint[];
   exclusions: Exclusion[];
+  /**
+   * Pairings the game states but that this build never blocks on — see
+   * `unmetIn`. Already filtered to ones resolving against a real choice on this
+   * aircraft; 5.5% of the game's own rules do not, being copy-paste in the
+   * source data, and are dropped before this ever sees them. What is left is
+   * shown as a note, not enforced, because a dependency is directional in a way
+   * an exclusion is not — nothing here can be sure the reverse should hold.
+   */
+  dependencies: Dependency[];
 };
 
 /** What each hardpoint is holding, by option name. An absent slot is empty. */
@@ -109,14 +126,25 @@ function clashes(
  * The choices this hardpoint cannot take, given everything else already hung.
  *
  * This is what greys an entry out in the menu rather than letting it be picked
- * and then complained about.
+ * and then complained about — the two things stated firmly enough to enforce:
+ * what the airframe lifts, and what rules out what. A dependency is not
+ * enforced here; see `unmetIn`.
  */
 export function blockedIn(armament: Armament, build: Build, slot: number): ReadonlySet<string> {
   const blocked = new Set<string>();
   const hardpoint = armament.hardpoints.find((h) => h.index === slot);
   if (!hardpoint) return blocked;
 
+  const rest = new Map(build);
+  rest.delete(slot);
+  const carriedElsewhere = massOf(rest, armament);
+
   for (const option of hardpoint.options) {
+    if (armament.maxLoadKg !== null && carriedElsewhere + massOfOption(option) > armament.maxLoadKg) {
+      blocked.add(option.name);
+      continue;
+    }
+
     const candidate = { slot, option: option.name };
     for (const [otherSlot, otherName] of build) {
       if (otherSlot === slot) continue;
@@ -128,6 +156,13 @@ export function blockedIn(armament: Armament, build: Build, slot: number): Reado
     }
   }
   return blocked;
+}
+
+/** Dependencies the build states without meeting — shown, never blocked on. */
+export function unmetIn(build: Build, armament: Armament): Dependency[] {
+  return armament.dependencies.filter(
+    (dep) => build.get(dep.slot) === dep.option && build.get(dep.needsSlot) !== dep.needsOption,
+  );
 }
 
 /**
