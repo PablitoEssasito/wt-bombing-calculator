@@ -3,6 +3,7 @@ import {
   blockedIn,
   bombsIn,
   massOf,
+  munitionsIn,
   unmetIn,
   unpricedIn,
   violationsOf,
@@ -102,35 +103,52 @@ describe("violationsOf", () => {
 });
 
 describe("blockedIn", () => {
-  it("greys out what the rest of the build rules out", () => {
-    expect([...blockedIn(armament, build([[1, "500lb"]]), 2)]).toEqual(["250lb"]);
+  it("greys out what the rest of the build rules out, and says which pylon did it", () => {
+    expect([...blockedIn(armament, build([[1, "500lb"]]), 2)]).toEqual([
+      ["250lb", { reason: "clash", withSlot: 1, withOption: "500lb" }],
+    ]);
   });
 
   it("blocks in the unwritten direction too", () => {
     // Nothing in the data says the 250 bars the 500; it has to be read as mutual.
-    expect([...blockedIn(armament, build([[2, "250lb"]]), 1)]).toEqual(["500lb"]);
+    expect([...blockedIn(armament, build([[2, "250lb"]]), 1).keys()]).toEqual(["500lb"]);
   });
 
   it("does not block a hardpoint against itself", () => {
-    expect([...blockedIn(armament, build([[1, "500lb"]]), 1)]).toEqual([]);
+    expect([...blockedIn(armament, build([[1, "500lb"]]), 1).keys()]).toEqual([]);
   });
 
   it("blocks nothing on an empty aircraft", () => {
-    expect([...blockedIn(armament, build([]), 2)]).toEqual([]);
+    expect([...blockedIn(armament, build([]), 2).keys()]).toEqual([]);
   });
 
   it("greys out every choice that would push the build past the airframe's limit", () => {
     // The rack alone is 1445 kg, already over this test's 1000 kg maxLoadKg —
     // nothing on the other hardpoint can be added on top of it.
     const cramped = { ...armament, maxLoadKg: 1000 };
-    expect([...blockedIn(cramped, build([[1, "500lb_x6"]]), 2)]).toEqual(["250lb", "jdam"]);
+    const blocked = blockedIn(cramped, build([[1, "500lb_x6"]]), 2);
+
+    expect([...blocked.keys()]).toEqual(["250lb", "jdam"]);
+    expect(blocked.get("250lb")).toEqual({ reason: "weight", overBy: 563 });
   });
 
   it("does not block a choice the current slot itself is already carrying", () => {
     // Re-selecting slot 1's own heavy option must not count itself twice —
     // otherwise a 1445 kg rack under a 1445 kg limit would grey itself out.
     const exact = { ...armament, maxLoadKg: 1445 };
-    expect([...blockedIn(exact, build([[1, "500lb_x6"]]), 1)]).toEqual([]);
+    expect([...blockedIn(exact, build([[1, "500lb_x6"]]), 1).keys()]).toEqual([]);
+  });
+});
+
+describe("munitionsIn", () => {
+  it("counts what a rack holds, not the rack", () => {
+    const rack = armament.hardpoints[0].options.find((o) => o.name === "500lb_x6")!;
+    expect(munitionsIn(rack)).toBe(6);
+  });
+
+  it("counts one for a store the chart cannot price", () => {
+    const jdam = armament.hardpoints[1].options.find((o) => o.name === "jdam")!;
+    expect(munitionsIn(jdam)).toBe(1);
   });
 });
 

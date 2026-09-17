@@ -122,16 +122,27 @@ function clashes(
   );
 }
 
+/** Why a hardpoint cannot take a choice right now. */
+export type Blocker =
+  | { reason: "weight"; overBy: number }
+  | { reason: "clash"; withSlot: number; withOption: string };
+
 /**
- * The choices this hardpoint cannot take, given everything else already hung.
+ * The choices this hardpoint cannot take, given everything else already hung,
+ * and what stands in the way of each.
  *
  * This is what greys an entry out in the menu rather than letting it be picked
  * and then complained about — the two things stated firmly enough to enforce:
  * what the airframe lifts, and what rules out what. A dependency is not
- * enforced here; see `unmetIn`.
+ * enforced here; see `unmetIn`. The reason travels with the block so the menu
+ * can say which other pylon is the problem instead of only that there is one.
  */
-export function blockedIn(armament: Armament, build: Build, slot: number): ReadonlySet<string> {
-  const blocked = new Set<string>();
+export function blockedIn(
+  armament: Armament,
+  build: Build,
+  slot: number,
+): ReadonlyMap<string, Blocker> {
+  const blocked = new Map<string, Blocker>();
   const hardpoint = armament.hardpoints.find((h) => h.index === slot);
   if (!hardpoint) return blocked;
 
@@ -140,8 +151,9 @@ export function blockedIn(armament: Armament, build: Build, slot: number): Reado
   const carriedElsewhere = massOf(rest, armament);
 
   for (const option of hardpoint.options) {
-    if (armament.maxLoadKg !== null && carriedElsewhere + massOfOption(option) > armament.maxLoadKg) {
-      blocked.add(option.name);
+    const total = carriedElsewhere + massOfOption(option);
+    if (armament.maxLoadKg !== null && total > armament.maxLoadKg) {
+      blocked.set(option.name, { reason: "weight", overBy: total - armament.maxLoadKg });
       continue;
     }
 
@@ -150,12 +162,17 @@ export function blockedIn(armament: Armament, build: Build, slot: number): Reado
       if (otherSlot === slot) continue;
       const other = { slot: otherSlot, option: otherName };
       if (armament.exclusions.some((rule) => clashes(rule, candidate, other))) {
-        blocked.add(option.name);
+        blocked.set(option.name, { reason: "clash", withSlot: otherSlot, withOption: otherName });
         break;
       }
     }
   }
   return blocked;
+}
+
+/** Munitions a choice delivers, counting what a rack holds. */
+export function munitionsIn(option: SlotOption): number {
+  return option.stores.reduce((n, { store, count }) => n + count * (store.bomb?.count ?? 1), 0);
 }
 
 /** Dependencies the build states without meeting — shown, never blocked on. */

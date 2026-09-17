@@ -1,7 +1,16 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
-import { useMemo } from "react";
+import {
+  Bomb as BombGlyph,
+  Crosshair,
+  Fuel,
+  Package,
+  Rocket,
+  Sparkles,
+  Target,
+} from "lucide-react";
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import { brLabelFor } from "@/components/aircraft-planner";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
 import { Segmented } from "@/components/segmented";
@@ -12,16 +21,21 @@ import {
   bombsIn,
   massOf,
   massOfOption,
+  munitionsIn,
+  optionAt,
   unmetIn,
   unpricedIn,
   violationsOf,
   type Armament,
+  type Blocker,
   type Build,
   type SlotOption,
+  type StoreKind,
   type Violation,
 } from "@/domain/loadout";
 import { planPayload, type PlanItem } from "@/domain/schedule";
 import type { Bomb } from "@/domain/types";
+import { bombIconUrl, bombIconsById } from "@/lib/assets";
 import { urlInteger, urlLiteral, useUrlState, type UrlCodec } from "@/lib/use-url-state";
 import { cn, formatCount } from "@/lib/utils";
 
@@ -43,33 +57,37 @@ function urlBuild(): UrlCodec<Build> {
   };
 }
 
+/** The headings the game's own loadout menu groups its list under, in its order. */
+const GROUPS: { kind: StoreKind[]; label: string }[] = [
+  { kind: ["bomb", "mine", "torpedo"], label: "Bombs" },
+  { kind: ["rocket"], label: "Rockets" },
+  { kind: ["missile"], label: "Missiles" },
+  { kind: ["gun"], label: "Cannons & machine guns" },
+  { kind: ["tank"], label: "Fuel tanks" },
+  { kind: ["pod", "countermeasure", "other"], label: "Pods & other" },
+];
+
 /**
- * What a hardpoint choice is called on screen.
+ * What a choice is called on screen, using the game's own names for its stores.
  *
- * Most options hang exactly one store, and the game's own full name is already
- * the right amount of detail — "500 lb AN-M64A1 bomb". A rack or a combination
- * of stores falls back to the shorter name so the line stays readable: "6 ×
- * AN-M64 500 lb + 2 × AIM-9B Sidewinder".
+ * Singular, the way the game writes it: the quantity lives beside it as "Ammo",
+ * so a six-bomb rack reads "250 kg FAB-250M-46 bomb" with "Ammo: 6" rather than
+ * repeating the number in the name.
  */
 function labelForOption(option: SlotOption): string {
   if (option.stores.length === 0) return option.name;
-  if (option.stores.length === 1 && option.stores[0].count === 1) {
-    return option.stores[0].store.name;
-  }
-  return option.stores
-    .map(({ store, count }) => {
-      const name = store.short ?? store.name;
-      return count > 1 ? `${count} × ${name}` : name;
-    })
-    .join(" + ");
+  return option.stores.map(({ store }) => store.name).join(" + ");
 }
 
 function labelFor(armament: Armament, slot: number, optionName: string): string {
-  const option = armament.hardpoints.find((h) => h.index === slot)?.options.find((o) => o.name === optionName);
+  const option = armament.hardpoints
+    .find((h) => h.index === slot)
+    ?.options.find((o) => o.name === optionName);
   return option ? labelForOption(option) : optionName;
 }
 
-const EMPTY = "";
+/** The kind that decides which heading a choice is filed under. */
+const kindOf = (option: SlotOption): StoreKind => option.stores[0]?.store.kind ?? "other";
 
 export function LoadoutCreator({
   plane,
@@ -86,16 +104,25 @@ export function LoadoutCreator({
   const [hp, setHp] = useUrlState("hp", urlInteger(tiers[0]));
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
   const [mapSize, setMapSize] = useUrlState("map", urlInteger(4));
-  const [build, setBuild] = useUrlState("build", urlBuild());
+  const [rawBuild, setBuild] = useUrlState("build", urlBuild());
+  const [editing, setEditing] = useState(armament.hardpoints[0]?.index ?? 1);
+
+  // A link can name a choice this aircraft no longer offers — an old build after
+  // a data update, or a hand-edited URL. Those drop out rather than sit on a
+  // pylon as something that can be neither shown nor removed.
+  const build = useMemo<Build>(
+    () => new Map([...rawBuild].filter(([slot, name]) => optionAt(armament, slot, name) !== null)),
+    [rawBuild, armament],
+  );
 
   const baseHp = (tiers.includes(hp as BaseHp) ? hp : tiers[0]) as BaseHp;
   const baseCount = (BASE_COUNTS as readonly number[]).includes(mapSize)
     ? (mapSize as BaseCount)
     : 4;
 
-  const setSlot = (slot: number, option: string) => {
+  const setSlot = (slot: number, option: string | null) => {
     const next = new Map(build);
-    if (option === EMPTY) next.delete(slot);
+    if (option === null) next.delete(slot);
     else next.set(slot, option);
     setBuild(next);
   };
@@ -105,6 +132,9 @@ export function LoadoutCreator({
   const violations = violationsOf(build, armament);
   const unmet = unmetIn(build, armament);
   const unpriced = unpricedIn(build, armament);
+
+  const hardpoint = armament.hardpoints.find((h) => h.index === editing);
+  const blocked = hardpoint ? blockedIn(armament, build, editing) : new Map<string, Blocker>();
 
   const items = useMemo<PlanItem[]>(
     () =>
@@ -155,38 +185,97 @@ export function LoadoutCreator({
         />
       </section>
 
-      <section className="card p-4 sm:p-5 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-ink-faint">Total load</p>
-            <p className={cn("nums text-lg font-semibold", overweight ? "text-danger" : "text-ink")}>
-              {formatCount(Math.round(massKg))} kg
-              {armament.maxLoadKg !== null ? (
-                <span className="text-sm font-normal text-ink-faint">
-                  {" "}
-                  of {formatCount(armament.maxLoadKg)} kg
-                </span>
-              ) : null}
-            </p>
-          </div>
-          {build.size > 0 ? (
-            <button
-              type="button"
-              onClick={() => setBuild(new Map())}
-              className="text-sm text-ink-faint hover:text-accent underline underline-offset-4"
-            >
-              clear all
-            </button>
-          ) : null}
+      <section className="card overflow-hidden">
+        <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-3">
+          <p className="text-sm text-ink-dim">
+            Editing <span className="text-ink">pylon {editing}</span>
+          </p>
+          <p className="nums text-sm">
+            <span className="text-ink-faint">Mass: </span>
+            <span className={cn("font-semibold", overweight ? "text-danger" : "text-ink")}>
+              {formatCount(Math.round(massKg))}
+            </span>
+            {armament.maxLoadKg !== null ? (
+              <span className="text-ink-faint"> / {formatCount(armament.maxLoadKg)} kg</span>
+            ) : null}
+          </p>
+        </header>
+
+        <div className="max-h-[26rem] overflow-y-auto px-2 py-2">
+          <OptionRow
+            label="Empty"
+            detail="nothing on this pylon"
+            selected={!build.has(editing)}
+            onSelect={() => setSlot(editing, null)}
+          />
+          {GROUPS.map((group) => {
+            const options = (hardpoint?.options ?? []).filter((o) => group.kind.includes(kindOf(o)));
+            if (options.length === 0) return null;
+            return (
+              <div key={group.label} className="mt-2">
+                <p className="px-2 py-1 text-xs uppercase tracking-wider text-accent">
+                  {group.label}
+                </p>
+                {options.map((option) => {
+                  const blocker = blocked.get(option.name);
+                  return (
+                    <OptionRow
+                      key={option.name}
+                      label={labelForOption(option)}
+                      detail={`Ammo: ${munitionsIn(option)}, Mass: ${formatCount(Math.round(massOfOption(option)))} kg`}
+                      glyph={<StoreGlyph option={option} size={18} />}
+                      selected={build.get(editing) === option.name}
+                      blocked={blocker ? describeBlocker(blocker, armament) : null}
+                      onSelect={() => setSlot(editing, option.name)}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
-        {armament.maxLoadKg !== null ? (
-          <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-            <div
-              className={cn("h-full rounded-full", overweight ? "bg-danger" : "bg-accent")}
-              style={{ width: `${Math.min((massKg / armament.maxLoadKg) * 100, 100)}%` }}
-            />
+
+        <div className="border-t border-line px-3 py-3 overflow-x-auto">
+          <div className="flex gap-1 justify-center min-w-max">
+            {armament.hardpoints.map((point) => {
+              const chosen = build.get(point.index);
+              const option = chosen
+                ? point.options.find((o) => o.name === chosen)
+                : undefined;
+              return (
+                <button
+                  key={point.index}
+                  type="button"
+                  onClick={() => setEditing(point.index)}
+                  aria-pressed={point.index === editing}
+                  title={option ? labelForOption(option) : `Pylon ${point.index} — empty`}
+                  className={cn(
+                    "w-12 h-14 shrink-0 rounded-md border flex flex-col items-center justify-center gap-1 transition-colors",
+                    point.index === editing
+                      ? "border-accent bg-accent-dim"
+                      : option
+                        ? "border-line-bright bg-surface-2 hover:border-accent/60"
+                        : "border-line border-dashed hover:border-line-bright",
+                  )}
+                >
+                  {option ? (
+                    <StoreGlyph option={option} size={20} />
+                  ) : (
+                    <span className="text-ink-faint text-lg leading-none">·</span>
+                  )}
+                  <span
+                    className={cn(
+                      "nums text-[10px]",
+                      point.index === editing ? "text-accent" : "text-ink-faint",
+                    )}
+                  >
+                    {point.index}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        ) : null}
+        </div>
       </section>
 
       {violations.length > 0 ? (
@@ -205,56 +294,27 @@ export function LoadoutCreator({
           <p className="text-xs uppercase tracking-wider text-warn">Worth checking</p>
           {unmet.map((dep, i) => (
             <p key={i} className="text-ink-dim">
-              Pylon {dep.slot}&apos;s {labelFor(armament, dep.slot, dep.option)} usually comes with pylon{" "}
-              {dep.needsSlot}&apos;s {labelFor(armament, dep.needsSlot, dep.needsOption)}, which isn&apos;t
-              mounted.
+              Pylon {dep.slot}&apos;s {labelFor(armament, dep.slot, dep.option)} usually comes with
+              pylon {dep.needsSlot}&apos;s {labelFor(armament, dep.needsSlot, dep.needsOption)}, which
+              isn&apos;t mounted.
             </p>
           ))}
         </div>
       ) : null}
 
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {armament.hardpoints.map((hardpoint) => {
-          const current = build.get(hardpoint.index) ?? EMPTY;
-          const blocked = blockedIn(armament, build, hardpoint.index);
-          const currentOption = hardpoint.options.find((o) => o.name === current);
-          const currentMass = currentOption ? massOfOption(currentOption) : 0;
-
-          return (
-            <li key={hardpoint.index} className="card p-3.5 space-y-2">
-              <p className="text-xs uppercase tracking-wider text-ink-faint">
-                Pylon {hardpoint.index}
-              </p>
-              <div className="relative">
-                <select
-                  value={current}
-                  onChange={(e) => setSlot(hardpoint.index, e.target.value)}
-                  className="w-full appearance-none card bg-surface px-3 py-2 pr-8 text-sm outline-none focus:border-accent transition-colors"
-                >
-                  <option value={EMPTY}>— Empty —</option>
-                  {hardpoint.options.map((option) => (
-                    <option key={option.name} value={option.name} disabled={blocked.has(option.name)}>
-                      {labelForOption(option)}
-                      {blocked.has(option.name) ? " (unavailable)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  aria-hidden
-                  size={16}
-                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint"
-                />
-              </div>
-              <p className="nums text-xs text-ink-faint">
-                {currentOption ? `${formatCount(Math.round(currentMass))} kg` : "empty"}
-              </p>
-            </li>
-          );
-        })}
-      </ol>
-
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">What it drops</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="text-lg font-semibold">What it drops</h2>
+          {build.size > 0 ? (
+            <button
+              type="button"
+              onClick={() => setBuild(new Map())}
+              className="text-sm text-ink-faint hover:text-accent underline underline-offset-4"
+            >
+              clear the aircraft
+            </button>
+          ) : null}
+        </div>
         <p className="text-sm text-ink-dim">
           {plan.basesDestroyed} base{plan.basesDestroyed === 1 ? "" : "s"}
           {items.length > 0 ? (
@@ -267,8 +327,8 @@ export function LoadoutCreator({
 
         {unpriced.length > 0 ? (
           <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
-            Also carrying: {unpriced.map((s) => s.name).join(", ")} — the bomb chart doesn&apos;t price
-            these, so they&apos;re left out of the count above.
+            Also carrying: {unpriced.map((s) => s.name).join(", ")} — the bomb chart doesn&apos;t
+            price these, so they&apos;re left out of the count above.
           </p>
         ) : null}
 
@@ -276,6 +336,87 @@ export function LoadoutCreator({
       </section>
     </div>
   );
+}
+
+/** The game's own icon for a choice, where it hangs something the chart knows. */
+function iconFor(option: SlotOption): string | null {
+  const bombId = option.stores.find(({ store }) => store.bomb)?.store.bomb?.id;
+  const iconType = bombId ? bombIconsById[bombId] : undefined;
+  return iconType ? bombIconUrl(iconType) : null;
+}
+
+/**
+ * A stand-in for stores the game gives us no artwork for.
+ *
+ * Bombs carry the game's own weapon-selector icon, matched through the chart;
+ * everything else — missiles, tanks, gun pods — has none to match, so the shape
+ * says what sort of thing it is rather than leaving the row blank.
+ */
+const GLYPHS: Record<StoreKind, typeof Rocket> = {
+  bomb: BombGlyph,
+  mine: BombGlyph,
+  torpedo: BombGlyph,
+  rocket: Rocket,
+  missile: Target,
+  gun: Crosshair,
+  tank: Fuel,
+  pod: Package,
+  countermeasure: Sparkles,
+  other: Package,
+};
+
+function StoreGlyph({ option, size }: { option: SlotOption; size: number }) {
+  const icon = iconFor(option);
+  if (icon) return <Image src={icon} alt="" width={size} height={size} />;
+
+  const Glyph = GLYPHS[kindOf(option)];
+  return <Glyph aria-hidden size={size - 2} className="text-ink-faint" />;
+}
+
+function OptionRow({
+  label,
+  detail,
+  glyph,
+  selected,
+  blocked,
+  onSelect,
+}: {
+  label: string;
+  detail: string;
+  glyph?: React.ReactNode;
+  selected: boolean;
+  blocked?: string | null;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={Boolean(blocked)}
+      aria-pressed={selected}
+      className={cn(
+        "w-full flex items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+        blocked
+          ? "cursor-not-allowed opacity-45"
+          : selected
+            ? "bg-accent-dim text-accent"
+            : "hover:bg-surface-2",
+      )}
+    >
+      <span className="w-5 shrink-0 flex justify-center">{glyph}</span>
+      <span className="min-w-0 flex-1">
+        <span className={cn("block truncate", selected ? "text-accent" : "text-ink")}>{label}</span>
+        <span className="nums block truncate text-xs text-ink-faint">{blocked ?? detail}</span>
+      </span>
+    </button>
+  );
+}
+
+function describeBlocker(blocker: Blocker, armament: Armament): string {
+  if (blocker.reason === "weight") {
+    return `${formatCount(Math.round(blocker.overBy))} kg over the limit`;
+  }
+  return `clashes with pylon ${blocker.withSlot}'s ${labelFor(armament, blocker.withSlot, blocker.withOption)}`;
 }
 
 function describeViolation(violation: Violation, armament: Armament): string {
