@@ -31,9 +31,10 @@ export const UNPRICED_ORDNANCE: ReadonlyArray<{
 ];
 
 /**
- * Rockets, none of which the Bomb Chart prices — see `scripts/etl/rockets.ts`
- * for why `damageValue` stays null for all of them and where their mass and TNT
- * figures actually come from.
+ * Rockets. The Bomb Chart prices none of them — see `scripts/etl/rockets.ts`
+ * for where their mass and TNT figures come from, and for `damageValue`,
+ * filled in by hand a few at a time from an in-game check rather than any
+ * published source.
  */
 export function unpricedBombs(): Bomb[] {
   const bombs = UNPRICED_ORDNANCE.map((o) => ({
@@ -50,19 +51,22 @@ export function unpricedBombs(): Bomb[] {
     sheetCounts: null,
   }));
 
-  const rockets = ROCKET_ORDNANCE.map((r) => ({
-    id: slugifyBomb(r.chartName),
-    chartName: r.chartName,
-    fullName: r.fullName,
-    kind: "ROCKET" as const,
-    nation: null,
-    massKg: r.massKg,
-    massLabel: r.massLabel,
-    tntKg: r.tntKg,
-    damageValue: null,
-    efficiency: null,
-    sheetCounts: null,
-  }));
+  const rockets = ROCKET_ORDNANCE.map((r) => {
+    const damageValue = r.damageValue ?? null;
+    return {
+      id: slugifyBomb(r.chartName),
+      chartName: r.chartName,
+      fullName: r.fullName,
+      kind: "ROCKET" as const,
+      nation: null,
+      massKg: r.massKg,
+      massLabel: r.massLabel,
+      tntKg: r.tntKg,
+      damageValue,
+      efficiency: damageValue !== null ? Math.round(damageValue / r.massKg) : null,
+      sheetCounts: null,
+    };
+  });
 
   return [...bombs, ...rockets];
 }
