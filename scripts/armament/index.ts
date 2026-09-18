@@ -194,6 +194,32 @@ async function writePayload(byUnit: Record<string, Armament>) {
     return store.entries;
   };
 
+  /**
+   * The choices a hardpoint offers, with any name it states twice kept once.
+   *
+   * A dozen slots across the roster list the same preset name twice — the
+   * Alpha Jet's `lau_51`, the Netz's `ptb_slot4`, the MiG-27M's `zb_500` —
+   * always with identical contents, so the game is repeating itself rather
+   * than offering two different things. Nothing downstream could tell them
+   * apart even if it were: a build is a map of slot to preset name, so the
+   * name *is* the address of a choice, and a second entry under it can neither
+   * be selected nor shown as selected. Dropping it here keeps that model
+   * honest instead of shipping a row that looks pickable and is not.
+   */
+  let duplicateOptions = 0;
+  const distinct = <T extends { name: string; hidden: boolean }>(options: T[]): T[] => {
+    const seen = new Set<string>();
+    return options.filter((option) => {
+      if (option.hidden) return false;
+      if (seen.has(option.name)) {
+        duplicateOptions++;
+        return false;
+      }
+      seen.add(option.name);
+      return true;
+    });
+  };
+
   // Intern every store up front, sorted, so the file reads the same on every
   // run — the flight models arrive in whatever order the fetch finished, and
   // interning on first sight made each regeneration a spurious 1.3 MB diff.
@@ -230,9 +256,7 @@ async function writePayload(byUnit: Record<string, Armament>) {
       diff: armament.maxDisbalanceKg,
       slots: armament.slots.map((slot) => ({
         i: slot.index,
-        o: slot.options
-          .filter((option) => !option.hidden)
-          .map((option) => {
+        o: distinct(slot.options).map((option) => {
             const resolved = option.stores.map((store) => ({
               file: store.file,
               count: countOf(store),
@@ -277,6 +301,12 @@ async function writePayload(byUnit: Record<string, Armament>) {
     `      wrote ${Object.keys(units).length} buildable aircraft and ${files.length} stores ` +
       `to src/data/armament.json (${Math.round(Buffer.byteLength(JSON.stringify(payload)) / 1024)} KB)`,
   );
+  if (duplicateOptions > 0) {
+    console.log(
+      `      dropped ${duplicateOptions} hardpoint choice(s) repeating a name already ` +
+        `offered on the same pylon — one choice, stated twice`,
+    );
+  }
   if (ammoIgnored > 0) {
     console.log(
       `      ignored an ammunition figure on ${ammoIgnored} hardpoint choice(s) — a cannon's ` +

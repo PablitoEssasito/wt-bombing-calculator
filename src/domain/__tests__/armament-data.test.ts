@@ -65,6 +65,26 @@ describe("armament.json: how many a hardpoint choice hangs", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("offers each choice once per pylon, whatever the game's own file repeats", () => {
+    // A build is a map of pylon to preset name, so the name is the address of a
+    // choice: a second entry under it can be neither selected nor shown as
+    // selected, and React would draw the two under one key. A dozen slots in
+    // the source list a name twice, always with identical contents.
+    const repeated: string[] = [];
+
+    for (const [unitId, unit] of Object.entries(data.units)) {
+      for (const slot of unit.slots) {
+        const seen = new Set<string>();
+        for (const option of slot.o) {
+          if (seen.has(option.n)) repeated.push(`${unitId} slot ${slot.i}: "${option.n}"`);
+          seen.add(option.n);
+        }
+      }
+    }
+
+    expect(repeated).toEqual([]);
+  });
+
   it("keeps the BK-27 gun pod a single cannon", () => {
     const bk27 = data.files.indexOf("cannon_mauser_bk_27");
     expect(bk27).toBeGreaterThanOrEqual(0);
