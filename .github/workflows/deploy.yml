@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - master
+      - main
   # Lets you re-run a deploy by hand from the Actions tab without a new commit.
   workflow_dispatch:
 
