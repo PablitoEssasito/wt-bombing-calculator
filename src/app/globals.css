@@ -61,6 +61,22 @@ body {
   border-bottom: 1px solid var(--color-line);
 }
 
+/*
+ * A premium or squadron tile's own glow: a soft radial wash reading as light
+ * cast down from the badge pinned to the tile's top edge, rather than a flat
+ * tint across the whole card. rgb()-with-alpha instead of Tailwind's opacity
+ * modifier because an arbitrary radial-gradient() isn't a colour utility
+ * Tailwind can apply one to.
+ */
+@utility tile-premium {
+  border-color: rgb(232 193 90 / 45%);
+  background: radial-gradient(ellipse 65% 80% at 50% 0%, rgb(232 193 90 / 20%), transparent 70%);
+}
+@utility tile-squadron {
+  border-color: rgb(107 207 143 / 45%);
+  background: radial-gradient(ellipse 65% 80% at 50% 0%, rgb(107 207 143 / 20%), transparent 70%);
+}
+
 ::selection {
   background: var(--color-accent);
   color: #0b0f14;
