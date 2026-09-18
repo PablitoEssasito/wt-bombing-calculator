@@ -35,7 +35,7 @@ export const carriesPartialLoad = (aircraftId: string) =>
  */
 type CompactArmament = {
   files: string[];
-  stores: { n: string | null; s: string | null; kg: number | null; k: string; b?: [string, number] }[];
+  stores: { n: string | null; s: string | null; kg: number | null; k: string; b?: [string, number]; h?: number }[];
   units: Record<
     string,
     {
@@ -73,6 +73,7 @@ export function armamentFor(aircraftId: string): Armament | null {
       massKg: raw.kg,
       kind: raw.k as StoreKind,
       bomb: raw.b ? { id: raw.b[0], count: raw.b[1] } : null,
+      holds: raw.h ?? 1,
     };
   };
 

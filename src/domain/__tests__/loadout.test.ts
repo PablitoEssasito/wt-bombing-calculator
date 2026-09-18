@@ -17,6 +17,7 @@ const store = (over: Partial<Store> & { name: string }): Store => ({
   massKg: 100,
   kind: "bomb",
   bomb: null,
+  holds: over.bomb?.count ?? 1,
   ...over,
 });
 
@@ -146,9 +147,18 @@ describe("munitionsIn", () => {
     expect(munitionsIn(rack)).toBe(6);
   });
 
-  it("counts one for a store the chart cannot price", () => {
+  it("counts one for a single store the chart cannot price", () => {
     const jdam = armament.hardpoints[1].options.find((o) => o.name === "jdam")!;
     expect(munitionsIn(jdam)).toBe(1);
+  });
+
+  it("counts a rail's rounds even when the chart prices none of them", () => {
+    // A twin R-60M rail is two missiles, whatever the bomb chart thinks of them.
+    const rail = {
+      name: "r60m_x2",
+      stores: [{ store: store({ name: "R-60M air-to-air missiles", kind: "missile", massKg: 88, holds: 2 }), count: 1 }],
+    };
+    expect(munitionsIn(rail)).toBe(2);
   });
 });
 

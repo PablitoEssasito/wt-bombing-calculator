@@ -44,6 +44,13 @@ export type Store = {
    */
   bomb: { id: string; count: number } | null;
   /**
+   * How many rounds this store comes to once every rack and rail is opened —
+   * a twin R-60M rail holds two, a nineteen-tube pod holds nineteen, a bare
+   * bomb holds one. Independent of whether the chart prices what is inside,
+   * which is what lets a missile rail be counted at all.
+   */
+  holds: number;
+  /**
    * Whether this file itself holds something else — a rack, a rail, a launcher
    * pod — as opposed to being ordnance in its own right.
    *
@@ -379,6 +386,7 @@ async function main() {
       // ...and is filed under it too, the way the loadout menu lists it.
       kind: classify(coreRef, coreBody),
       bomb: bombId ? { id: bombId, count: core.count } : null,
+      holds: core.count,
       container: contained(body) !== null,
     });
   }

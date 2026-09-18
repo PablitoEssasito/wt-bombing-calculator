@@ -25,6 +25,12 @@ export type Store = {
    * holding three bombs, so this is what decides how much damage it does.
    */
   bomb: { id: string; count: number } | null;
+  /**
+   * Rounds inside once every rack and rail is opened — a twin R-60M rail is
+   * two, a rocket pod nineteen, a bare bomb one. Set whether or not the chart
+   * prices the contents, which `bomb` alone cannot tell you.
+   */
+  holds: number;
 };
 
 export type SlotOption = {
@@ -170,9 +176,9 @@ export function blockedIn(
   return blocked;
 }
 
-/** Munitions a choice delivers, counting what a rack holds. */
+/** Munitions a choice delivers, counting what a rack or rail holds. */
 export function munitionsIn(option: SlotOption): number {
-  return option.stores.reduce((n, { store, count }) => n + count * (store.bomb?.count ?? 1), 0);
+  return option.stores.reduce((n, { store, count }) => n + count * store.holds, 0);
 }
 
 /** Dependencies the build states without meeting — shown, never blocked on. */

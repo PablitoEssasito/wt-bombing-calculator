@@ -32,6 +32,7 @@ type StoreRecord = {
   massKg: number | null;
   kind: string;
   bomb: { id: string; count: number } | null;
+  holds: number;
   container: boolean;
 };
 
@@ -173,8 +174,24 @@ async function writePayload(byUnit: Record<string, Armament>) {
     return store.entries;
   };
 
+  // Intern every store up front, sorted, so the file reads the same on every
+  // run — the flight models arrive in whatever order the fetch finished, and
+  // interning on first sight made each regeneration a spurious 1.3 MB diff.
+  const referenced = new Set<string>();
+  for (const armament of Object.values(byUnit)) {
+    if (armament.style !== "pylons") continue;
+    for (const slot of armament.slots) {
+      for (const option of slot.options) {
+        if (option.hidden) continue;
+        for (const store of option.stores) referenced.add(store.file);
+      }
+    }
+  }
+  for (const file of [...referenced].sort()) intern(file);
+
   const units: Record<string, unknown> = {};
-  for (const [unitId, armament] of Object.entries(byUnit)) {
+  const unitsInOrder = Object.entries(byUnit).sort(([a], [b]) => a.localeCompare(b));
+  for (const [unitId, armament] of unitsInOrder) {
     if (armament.style !== "pylons") continue;
 
     // A dependency rule is only useful if both ends name a choice this aircraft
@@ -225,6 +242,8 @@ async function writePayload(byUnit: Record<string, Armament>) {
       kg: store.massKg === null ? null : Math.round(store.massKg * 100) / 100,
       k: store.kind,
       ...(store.bomb ? { b: [store.bomb.id, store.bomb.count] } : {}),
+      // One round is the ordinary case and is left implicit.
+      ...(store.holds > 1 ? { h: store.holds } : {}),
     };
   });
 

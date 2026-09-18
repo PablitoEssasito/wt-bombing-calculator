@@ -21,7 +21,7 @@ import {
   bombsIn,
   massOf,
   massOfOption,
-  munitionsIn,
+
   optionAt,
   unmetIn,
   unpricedIn,
@@ -68,15 +68,18 @@ const GROUPS: { kind: StoreKind[]; label: string }[] = [
 ];
 
 /**
- * What a choice is called on screen, using the game's own names for its stores.
- *
- * Singular, the way the game writes it: the quantity lives beside it as "Ammo",
- * so a six-bomb rack reads "250 kg FAB-250M-46 bomb" with "Ammo: 6" rather than
- * repeating the number in the name.
+ * Named the way the game's own menu does it: the store's name, with the round
+ * count in front once a rack or rail makes it more than one — "2 × R-60M",
+ * not an R-60M that happens to weigh twice as much.
  */
 function labelForOption(option: SlotOption): string {
   if (option.stores.length === 0) return option.name;
-  return option.stores.map(({ store }) => store.name).join(" + ");
+  return option.stores
+    .map(({ store, count }) => {
+      const rounds = count * store.holds;
+      return rounds > 1 ? `${rounds} × ${store.name}` : store.name;
+    })
+    .join(" + ");
 }
 
 function labelFor(armament: Armament, slot: number, optionName: string): string {
@@ -222,7 +225,7 @@ export function LoadoutCreator({
                     <OptionRow
                       key={option.name}
                       label={labelForOption(option)}
-                      detail={`Ammo: ${munitionsIn(option)}, Mass: ${formatCount(Math.round(massOfOption(option)))} kg`}
+                      detail={`Mass: ${formatCount(Math.round(massOfOption(option)))} kg`}
                       glyph={<StoreGlyph option={option} size={18} />}
                       selected={build.get(editing) === option.name}
                       blocked={blocker ? describeBlocker(blocker, armament) : null}
