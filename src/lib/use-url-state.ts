@@ -15,14 +15,23 @@ function notify() {
   for (const listener of listeners) listener();
 }
 
-function subscribe(onChange: () => void) {
-  listeners.add(onChange);
+/**
+ * Exported only so the ref-counting below has a test — every real caller goes
+ * through `useUrlState`.
+ */
+export function subscribe(onChange: () => void) {
   // replaceState is silent, so our own writes call notify() directly; this covers
-  // the browser's own navigation.
-  window.addEventListener("popstate", notify);
+  // the browser's own navigation. Registered once for the whole page rather than
+  // once per control — every control here calls subscribe(), and `notify` is a
+  // single shared function, so listeners past the first would be no-ops anyway.
+  // What has to be counted is the *unregistering*: two controls unsubscribing in
+  // sequence must not have the first one tear down the listener the second is
+  // still relying on.
+  if (listeners.size === 0) window.addEventListener("popstate", notify);
+  listeners.add(onChange);
   return () => {
     listeners.delete(onChange);
-    window.removeEventListener("popstate", notify);
+    if (listeners.size === 0) window.removeEventListener("popstate", notify);
   };
 }
 
