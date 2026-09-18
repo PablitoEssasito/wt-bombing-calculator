@@ -127,7 +127,8 @@ async function main() {
 
   const bombs = JSON.parse(await readFile(path.join(DATA_DIR, "bombs.json"), "utf8")) as Bomb[];
   await writePayload(byUnit);
-  report(aircraft, unitIds, byUnit, missing, bombs);
+  const catalogue = JSON.parse(await readFile(STORES_FILE, "utf8")) as StoreRecord[];
+  report(aircraft, unitIds, byUnit, missing, bombs, catalogue);
 }
 
 /**
@@ -268,6 +269,7 @@ function report(
   byUnit: Record<string, Armament>,
   missing: string[],
   bombs: Bomb[],
+  catalogue: StoreRecord[],
 ) {
   const units = Object.values(byUnit);
   const read = aircraft.filter((p) => byUnit[unitIds[p.id]]).length;
@@ -292,6 +294,7 @@ function report(
   console.log(`      ${hidden} hardpoint choice(s) the loadout menu does not show`);
 
   audit(byUnit);
+  auditPresets(byUnit, catalogue);
   weighLoadouts(aircraft, unitIds, byUnit, bombs);
 
   if (missing.length > 0) {
@@ -309,9 +312,10 @@ function report(
  * This is the one place two independent sources describe the same thing: the
  * sheet says how many of each bomb to hang, and the game's own files say what
  * each bomb weighs and how much the aircraft may carry. A loadout heavier than
- * the limit is not a loadout anyone can take, whatever the sheet says — the
- * ready-made presets all stay under it, the heaviest reaching 96%, so the ceiling
- * is real and enforced.
+ * the limit is not a loadout anyone can take, whatever the sheet says — with
+ * the caveat `auditPresets` prints: four of the game's own presets sit over
+ * their airframe's figure too, so the ceiling is not quite the hard wall it
+ * looks like.
  *
  * Bomb masses agree with the game's to the gram, which is why the tolerance here
  * is small: it exists for rounding in the sheet's own figures, where twelve
@@ -432,6 +436,89 @@ function namedCounts(
  * fix, but a consumer that trusts a reference to resolve needs to know how often
  * it does not.
  */
+/**
+ * Holds the game's own ready-made loadouts up against the two rules the creator
+ * hard-blocks on — the mass limit and the exclusion rules — since both come
+ * from the same flight model that lists the presets.
+ *
+ * A preset the game itself offers must be buildable; where it is not, either
+ * the game does not enforce the rule the way the creator does, or the file
+ * contradicts itself (the Tornado GR.4 lists a Mk 82 loadout that its own
+ * BannedWeaponPreset on slot 7 rules out). Either way it is worth a look
+ * before trusting the block.
+ */
+function auditPresets(byUnit: Record<string, Armament>, catalogue: StoreRecord[]) {
+  const massByFile = new Map(catalogue.map((s) => [s.file, s.massKg ?? 0]));
+  const clashes = (
+    rule: Armament["bans"][number],
+    a: { slot: number; opt: string },
+    b: { slot: number; opt: string },
+  ) =>
+    (rule.slot === a.slot && rule.preset === a.opt && rule.otherSlot === b.slot && rule.otherPreset === b.opt) ||
+    (rule.slot === b.slot && rule.preset === b.opt && rule.otherSlot === a.slot && rule.otherPreset === a.opt);
+
+  let checked = 0;
+  const overweight: string[] = [];
+  const excluded: string[] = [];
+
+  for (const [unitId, armament] of Object.entries(byUnit)) {
+    if (armament.style !== "pylons") continue;
+
+    const offers = new Map<string, number[]>();
+    const massOf = new Map<string, number>();
+    for (const slot of armament.slots) {
+      for (const option of slot.options) {
+        offers.set(option.name, [...(offers.get(option.name) ?? []), slot.index]);
+        const kg = option.stores.reduce((n, s) => n + (massByFile.get(s.file) ?? 0) * s.entries, 0);
+        massOf.set(option.name, Math.max(massOf.get(option.name) ?? 0, kg));
+      }
+    }
+
+    for (const preset of armament.presets) {
+      const need = preset.weapons.map((w) => ({ opt: w.weapon, n: w.count, slots: offers.get(w.weapon) ?? [] }));
+      if (need.some((x) => x.slots.length < x.n)) continue;
+      checked++;
+
+      const kg = preset.weapons.reduce((n, w) => n + (massOf.get(w.weapon) ?? 0) * w.count, 0);
+      if (armament.maxLoadKg !== null && kg > armament.maxLoadKg * 1.01) {
+        overweight.push(`${unitId} ${preset.name}: ${Math.round(kg)} kg against ${armament.maxLoadKg}`);
+      }
+
+      // A weapon name can be offered on several slots; the preset is fine if
+      // any placement of it clears the rules.
+      const picks: { slot: number; opt: string }[] = [];
+      const used = new Set<number>();
+      const clean = () =>
+        picks.every((a, i) => picks.slice(i + 1).every((b) => !armament.bans.some((r) => clashes(r, a, b))));
+      const place = (i: number, k: number): boolean => {
+        if (i === need.length) return clean();
+        if (k === need[i].n) return place(i + 1, 0);
+        for (const slot of need[i].slots) {
+          if (used.has(slot)) continue;
+          used.add(slot);
+          picks.push({ slot, opt: need[i].opt });
+          const ok = place(i, k + 1);
+          picks.pop();
+          used.delete(slot);
+          if (ok) return true;
+        }
+        return false;
+      };
+      if (!place(0, 0)) excluded.push(`${unitId} ${preset.name}`);
+    }
+  }
+
+  const tag = (list: string[]) => (list.length === 0 ? "ok   " : "warn ");
+  console.log(
+    `${tag(overweight)} game presets: ${overweight.length}/${checked} exceed the airframe's own mass limit`,
+  );
+  for (const one of overweight.slice(0, 6)) console.log(`        ${one}`);
+  console.log(
+    `${tag(excluded)} game presets: ${excluded.length}/${checked} would be blocked by the exclusion rules as read`,
+  );
+  for (const one of excluded.slice(0, 6)) console.log(`        ${one}`);
+}
+
 function audit(byUnit: Record<string, Armament>) {
   const units = Object.entries(byUnit);
   let bansTotal = 0;
