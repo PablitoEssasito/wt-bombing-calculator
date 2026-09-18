@@ -3,7 +3,6 @@ import {
   blockedIn,
   bombsIn,
   massOf,
-  munitionsIn,
   unmetIn,
   unpricedIn,
   violationsOf,
@@ -149,26 +148,6 @@ describe("blockedIn", () => {
   });
 });
 
-describe("munitionsIn", () => {
-  it("counts what a rack holds, not the rack", () => {
-    const rack = armament.hardpoints[0].options.find((o) => o.name === "500lb_x6")!;
-    expect(munitionsIn(rack)).toBe(6);
-  });
-
-  it("counts one for a single store the chart cannot price", () => {
-    const jdam = armament.hardpoints[1].options.find((o) => o.name === "jdam")!;
-    expect(munitionsIn(jdam)).toBe(1);
-  });
-
-  it("counts a rail's rounds even when the chart prices none of them", () => {
-    // A twin R-60M rail is two missiles, whatever the bomb chart thinks of them.
-    const rail = option({
-      name: "r60m_x2",
-      stores: [{ store: store({ name: "R-60M air-to-air missiles", kind: "missile", massKg: 88, holds: 2 }), count: 1 }],
-    });
-    expect(munitionsIn(rail)).toBe(2);
-  });
-});
 
 describe("bombsIn", () => {
   it("counts a rack's bombs, not the rack", () => {

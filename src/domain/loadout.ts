@@ -190,11 +190,6 @@ export function blockedIn(
   return blocked;
 }
 
-/** Munitions a choice delivers, counting what a rack or rail holds. */
-export function munitionsIn(option: SlotOption): number {
-  return option.stores.reduce((n, { store, count }) => n + count * store.holds, 0);
-}
-
 /** Dependencies the build states without meeting — shown, never blocked on. */
 export function unmetIn(build: Build, armament: Armament): Dependency[] {
   return armament.dependencies.filter(
