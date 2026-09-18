@@ -20,8 +20,6 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   // The medallion the tech tree pins to the top of a premium vehicle's tile.
   await fetchIcon("talisman", "talisman");
-  // The squad leader's own HUD marker, repurposed for a squadron vehicle's tile.
-  await fetchIcon("squad_leader", "squad-leader");
 }
 
 main().catch((error) => {

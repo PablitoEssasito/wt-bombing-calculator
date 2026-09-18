@@ -24,6 +24,3 @@ export const bombIconUrl = (iconType: string) => `/bombs/icons/${iconType}.webp`
 
 /** The tech tree's own medallion for a premium vehicle — see scripts/reward-icons. */
 export const TALISMAN_ICON_URL = "/icons/talisman.webp";
-
-/** The game's own squad leader HUD marker, repurposed for a squadron vehicle's tile. */
-export const SQUAD_LEADER_ICON_URL = "/icons/squad-leader.webp";
