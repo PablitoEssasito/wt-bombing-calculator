@@ -87,21 +87,25 @@ function normalizeSeparators(text: string): string {
     .replace(/\s*x\s*(\d+)\b/g, " × $1");
 }
 
-type ParsedCell = { items: { name: string; count: number }[]; extraBases: number };
+type ParsedCell = { items: { name: string; count: number }[] };
 
+/**
+ * Past ten bases the sheet runs out of columns and writes the rest as a bare
+ * "+ 2" — a base count with no load beside it. That has no × in it, so the
+ * item regex below already finds nothing there; `schedule.ts` recovers the
+ * count itself, from the gap between what the row states destroyed and how
+ * many base cells it actually filled in (see `unlistedBases`), rather than
+ * this cell needing to be read specially.
+ */
 function parseBaseCell(raw: string): ParsedCell {
   const text = normalizeSeparators(flatten(raw));
-
-  // The sheet runs out of columns past ten bases and writes the rest as "+ 2".
-  const overflow = text.match(/^\+\s*(\d+)$/);
-  if (overflow) return { items: [], extraBases: Number(overflow[1]) };
 
   const items: { name: string; count: number }[] = [];
   for (const match of text.matchAll(/([^×]+?)\s*×\s*(\d+)/g)) {
     const name = match[1].trim();
     if (name) items.push({ name, count: Number(match[2]) });
   }
-  return { items, extraBases: 0 };
+  return { items };
 }
 
 function parseNoteMarker(raw: string): LoadoutOption["noteMarker"] {
@@ -208,10 +212,8 @@ export function parseNation(
     const owner = heading?.name ?? current?.name ?? "(unknown)";
 
     const bases: BaseLoadout[] = [];
-    let extraBases = 0;
     for (let col = NATION_COL.basesStart; col < NATION_COL.basesEnd; col++) {
       const parsed = parseBaseCell(cell(row, col));
-      extraBases += parsed.extraBases;
       if (parsed.items.length === 0) continue;
 
       const items: LoadoutItem[] = [];
@@ -248,7 +250,6 @@ export function parseNation(
       bracket,
       baseHp: baseHpForBr(bracket ? bracket.br : (current?.br ?? 0)),
       bases,
-      extraBases,
       basesDestroyed: parseTrailingNumber(cell(row, NATION_COL.basesDestroyed)),
       bracketNote: noteAt(rowIndex, NATION_COL.bracket),
     };

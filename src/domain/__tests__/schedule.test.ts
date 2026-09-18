@@ -138,6 +138,71 @@ describe("buildPlan when conditions differ", () => {
   });
 });
 
+describe("bases the source counts but never spells out", () => {
+  /**
+   * Three schedules state a higher target than they have cells to describe. The
+   * heading is driven by `basesDestroyed` and the tiles by `bases`, so the gap
+   * has to travel with the plan or the two contradict each other on screen.
+   */
+  it("reports the gap rather than quietly drawing fewer bases than it counts", () => {
+    // The sheet writes nine loadouts and "+ 2", and counts eleven.
+    const schedule = find("germany-ju-88-a-1").options[0].schedules[0];
+    const plan = buildPlan(schedule, bombs, { baseHp: 4000, mode: "rb", baseCount: 4 });
+
+    expect(plan.source).toBe("sheet");
+    expect(plan.basesDestroyed).toBe(11);
+    expect(plan.bases).toHaveLength(9);
+    expect(plan.unlistedBases).toBe(2);
+  });
+
+  it("leaves nothing unsaid on a schedule that describes every base it counts", () => {
+    const plan = buildPlan(pe8().options[0].schedules[0], bombs, {
+      baseHp: 10000,
+      mode: "rb",
+      baseCount: 4,
+    });
+    expect(plan.unlistedBases).toBe(0);
+  });
+
+  it("never claims one on a plan it laid out itself", () => {
+    const schedule = find("germany-ju-88-a-1").options[0].schedules[0];
+    const plan = buildPlan(schedule, bombs, { baseHp: 4000, mode: "ab", baseCount: 4 });
+
+    expect(plan.source).toBe("recomputed");
+    expect(plan.unlistedBases).toBe(0);
+    expect(plan.basesDestroyed).toBe(plan.bases.length);
+  });
+
+  it("holds for every schedule: a plan never counts a base it did not draw or flag", () => {
+    for (const plane of aircraft) {
+      for (const option of plane.options) {
+        for (const schedule of option.schedules) {
+          const plan = buildPlan(schedule, bombs, {
+            baseHp: schedule.baseHp,
+            mode: "rb",
+            baseCount: 4,
+          });
+          expect(plan.basesDestroyed).toBe(
+            Math.min(plan.basesDestroyed, plan.bases.length + plan.unlistedBases),
+          );
+        }
+      }
+    }
+  });
+
+  it("stops counting the gap once the payload is trimmed down", () => {
+    const schedule = find("germany-ju-88-a-1").options[0].schedules[0];
+    const full = buildPlan(schedule, bombs, { baseHp: 4000, mode: "rb", baseCount: 4 });
+
+    const trimmed = trimToTarget(full, 3);
+    expect(trimmed.bases).toHaveLength(3);
+    expect(trimmed.unlistedBases).toBe(0);
+
+    // Asking for more bases than are drawn leaves nothing to leave behind.
+    expect(trimToTarget(full, 10)).toBe(full);
+  });
+});
+
 describe("trimToTarget", () => {
   /** The AU-1 has a single loadout the sheet spreads over three bases. */
   const au1 = () => find("usa-au-1");

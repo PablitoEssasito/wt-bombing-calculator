@@ -24,6 +24,16 @@ export function DropSchedule({ plan }: { plan: Plan }) {
         ))}
       </ol>
 
+      {plan.unlistedBases > 0 ? (
+        <p className="text-sm text-ink-dim">
+          <span className="text-ink-faint">
+            {`Plus ${plan.unlistedBases} more base${plan.unlistedBases === 1 ? "" : "s"}: `}
+          </span>
+          the source counts {plan.basesDestroyed} for this loadout but writes the load for{" "}
+          {plan.bases.length}, so what to drop on the rest is left unsaid.
+        </p>
+      ) : null}
+
       {plan.leftover.length > 0 ? (
         <p className="text-sm text-ink-dim">
           <span className="text-ink-faint">{plan.trimmed ? "Leave behind: " : "Left over: "}</span>

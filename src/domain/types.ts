@@ -60,8 +60,6 @@ export type Schedule = {
   bracket: BrBracket | null;
   baseHp: BaseHp;
   bases: BaseLoadout[];
-  /** Bases beyond the ten the sheet has columns for, written there as "+ 2". */
-  extraBases: number;
   /** 🎯 — bases this payload fully flattens. Only the sheet's own figure; null when it does not state one. */
   basesDestroyed: number | null;
   /** The source's explanation of which matches this schedule is for. */

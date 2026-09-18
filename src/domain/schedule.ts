@@ -46,6 +46,18 @@ export type Plan = {
   trimmed: boolean;
   basesDestroyed: number;
   /**
+   * Bases the source counts but never writes a load for.
+   *
+   * Three schedules state a higher target than they have cells to describe: the
+   * Ju 88 A-1 and the Tu-4 run out of columns at ten and write the remainder as
+   * "+ 2", while the B-52H's second loadout simply skips one. Counting them and
+   * drawing nothing would have the heading promise more bases than the tiles
+   * below it show, so the gap is carried here and said out loud instead. Always
+   * zero on a plan we laid out ourselves, which cannot claim what it did not
+   * draw.
+   */
+  unlistedBases: number;
+  /**
    * "sheet" means these are the source's own hand-tuned numbers. "recomputed"
    * means conditions differ from what the source assumes and we redistributed
    * the same payload ourselves.
@@ -115,7 +127,9 @@ export function mountedIn(plan: Plan): PlanItem[] {
  * means them to be bombed.
  */
 export function trimToTarget(plan: Plan, wanted: number): Plan {
-  if (wanted >= plan.basesDestroyed) return plan;
+  // Asking for more bases than are drawn leaves nothing to leave behind, even
+  // where the source counts higher than it describes.
+  if (wanted >= plan.basesDestroyed || wanted >= plan.bases.length) return plan;
 
   const kept = plan.bases.slice(0, wanted);
   const spare = plan.bases.slice(wanted).flatMap((base) => base.items);
@@ -124,6 +138,7 @@ export function trimToTarget(plan: Plan, wanted: number): Plan {
     ...plan,
     bases: kept,
     basesDestroyed: kept.length,
+    unlistedBases: 0,
     leftover: collapse([...spare, ...plan.leftover]),
     trimmed: true,
   };
@@ -231,6 +246,7 @@ export function buildPlan(
       leftover: [],
       trimmed: false,
       basesDestroyed: destroyed,
+      unlistedBases: Math.max(0, destroyed - bases.length),
       source: "sheet",
       effectiveHp,
       threshold,
@@ -272,6 +288,7 @@ export function planPayload(items: PlanItem[], conditions: Conditions): Plan {
     leftover,
     trimmed: false,
     basesDestroyed: bases.length,
+    unlistedBases: 0,
     source: "recomputed",
     effectiveHp,
     threshold,
