@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { BombChart } from "@/components/bomb-chart";
 import { bombs } from "@/lib/dataset";
+import { canonicalOf, pageOpenGraph } from "@/lib/site";
+
+const TITLE = "Bomb chart";
+const DESCRIPTION =
+  "Every bomb in War Thunder with its damage against bases, and how many it takes to flatten one at any battle rating.";
 
 export const metadata: Metadata = {
-  title: "Bomb chart",
-  description:
-    "Every bomb in War Thunder with its damage against bases, and how many it takes to flatten one at any battle rating.",
+  title: TITLE,
+  description: DESCRIPTION,
+  ...canonicalOf("/bombs"),
+  ...pageOpenGraph(TITLE, DESCRIPTION),
 };
 
 export default function BombsPage() {

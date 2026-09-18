@@ -16,6 +16,7 @@ import {
   renderUrl,
 } from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
+import { canonicalOf, pageOpenGraph } from "@/lib/site";
 
 export function generateStaticParams() {
   return aircraft.map((plane) => ({ id: plane.id }));
@@ -26,11 +27,21 @@ export async function generateMetadata({ params }: PageProps<"/aircraft/[id]">):
   const plane = aircraftById.get(id);
   if (!plane) return {};
 
+  const title = `${plane.name} bomb loadout`;
+  const description =
+    `How many bombs to take on the ${plane.name} (${NATION_LABELS[plane.nation]}, BR ` +
+    `${plane.br.toFixed(1)}) in War Thunder, and what to drop on each base.`;
+
+  const imageId = imagesByAircraft[plane.id];
+  const image = imageId
+    ? { url: renderUrl(imageId), width: 512, height: 256, alt: `${plane.name} in War Thunder` }
+    : undefined;
+
   return {
-    title: `${plane.name} bomb loadout`,
-    description:
-      `How many bombs to take on the ${plane.name} (${NATION_LABELS[plane.nation]}, BR ` +
-      `${plane.br.toFixed(1)}) in War Thunder, and what to drop on each base.`,
+    title,
+    description,
+    ...canonicalOf(`/aircraft/${plane.id}`),
+    ...pageOpenGraph(title, description, image),
   };
 }
 

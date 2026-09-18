@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { meta } from "@/lib/dataset";
+import { canonicalOf, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -10,13 +11,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "War Thunder Base Bombing Calculator";
+const DESCRIPTION =
+  "How many bombs to take, and what to drop on each base, for every bomber and attacker in War Thunder.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "War Thunder Base Bombing Calculator",
+    default: TITLE,
     template: "%s · WT Bombing Calculator",
   },
-  description:
-    "How many bombs to take, and what to drop on each base, for every bomber and attacker in War Thunder.",
+  description: DESCRIPTION,
+  // Correct for the home page, which sets no metadata of its own; every other
+  // page restates it for its own path, for the same replace-not-deepen reason
+  // openGraph/twitter do below.
+  ...canonicalOf("/"),
+  // A page below overrides title/description but keeps this shape — Next
+  // merges Metadata one key at a time, replacing rather than deepening a
+  // nested object, so siteName/type/locale only reach a page that repeats them.
+  openGraph: {
+    type: "website",
+    siteName: TITLE,
+    title: TITLE,
+    description: DESCRIPTION,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 const NAV = [
