@@ -22,7 +22,8 @@ export type Bomb = {
   kind: BombKind;
   /**
    * The nation block of the Bomb Chart tab this row was printed under. Null for
-   * unpriced ordnance (rockets), which has no chart row at all.
+   * anything with no chart row at all — every rocket (see scripts/etl/rockets.ts)
+   * and the two bombs the chart is missing.
    *
    * Several nations reuse each other's bombs — the block says where it was
    * first catalogued, not an exhaustive list of who can carry it.
@@ -33,12 +34,12 @@ export type Bomb = {
   massLabel: string;
   tntKg: number | null;
   /**
-   * Damage one of these does to a base, in base hitpoints. Null for ordnance the
-   * source chart does not price — rockets, and a handful of bombs that appear in
-   * loadouts but are missing from the chart.
+   * Damage one of these does to a base, in base hitpoints. From the chart for
+   * bombs, from an in-game check for rockets (0 for kinetic rounds that cannot
+   * hurt a base at all); null only for the two bombs the chart is missing.
    */
   damageValue: number | null;
-  /** damageValue per kg of carried mass; the 💡 column of the source chart. */
+  /** damageValue per kg of carried mass; the 💡 column of the source chart, or derived for rockets. */
   efficiency: number | null;
   /**
    * Bombs-per-base as printed in the source chart, one entry per BASE_HP_TIERS

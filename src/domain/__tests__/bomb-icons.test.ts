@@ -52,6 +52,17 @@ describe("matchBombIcons", () => {
     expect(matches.get("a")?.iconType).toBe("bombs_middle");
   });
 
+  it("never gives a plain GP bomb its retarded twin's icon, even with no name to go on", () => {
+    // Only the Snake Eye file sits at this mass among the drag-tagged ones, and
+    // the chart name shares no letters with either file — so nothing but the
+    // kind rule keeps the high-drag icon off a plain bomb.
+    const { matches } = matchBombIcons(
+      [bomb({ id: "a", chartName: "Zzz", kind: "GP", massKg: 240.9 })],
+      DEFS.filter((d) => !d.path.includes("mk_82_ldgp.blkx")),
+    );
+    expect(matches.get("a")?.iconType.includes("high_drag")).toBe(false);
+  });
+
   it("gives a guided bomb the guided icon, not the plain one at the same mass class", () => {
     const { matches } = matchBombIcons([bomb({ id: "a", chartName: "GBU-31", kind: "GNSS", massKg: 893.6 })], DEFS);
     expect(matches.get("a")?.iconType).toBe("bombs_heavy_middle");
@@ -64,6 +75,26 @@ describe("matchBombIcons", () => {
 
   it("matches a rocket by mass and kind exactly like a bomb", () => {
     const { matches } = matchBombIcons([bomb({ id: "a", chartName: "HVAR", kind: "ROCKET", massKg: 62.8 })], DEFS);
+    expect(matches.get("a")).toEqual({ iconType: "rockets_he_small", confidence: "matched" });
+  });
+
+  it("never gives an unguided rocket a guided missile's icon at the same mass", () => {
+    // rocketguns/ files the ATGMs alongside the plain rockets; the 8-cm Flz.-Rakete
+    // really did land on atgm_type1x1 this way before the kind rule excluded them.
+    const atgm: WeaponDef = {
+      path: "rocketguns/xx_atgm.blkx",
+      iconType: "atgm_type1x1",
+      massKg: 62.8,
+      isMine: false,
+      isRocket: true,
+      isGuided: true,
+      isDrag: false,
+      isIncendiary: false,
+    };
+    const { matches } = matchBombIcons(
+      [bomb({ id: "a", chartName: "Zzz", kind: "ROCKET", massKg: 62.8 })],
+      [atgm, ...DEFS],
+    );
     expect(matches.get("a")).toEqual({ iconType: "rockets_he_small", confidence: "matched" });
   });
 

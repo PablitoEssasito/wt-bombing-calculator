@@ -224,8 +224,11 @@ export function bombsIn(build: Build, armament: Armament): { bombId: string; cou
   return [...totals].map(([bombId, count]) => ({ bombId, count }));
 }
 
-/** Ordnance the chart would price if it listed it — everything else is not meant to be. */
-const ORDNANCE = new Set<StoreKind>(["bomb", "mine", "torpedo"]);
+/**
+ * Ordnance the chart would price if it listed it — everything else is not meant
+ * to be. The same set `scripts/armament/stores.ts` lets through to the chart.
+ */
+const ORDNANCE = new Set<StoreKind>(["bomb", "mine", "torpedo", "rocket"]);
 
 /** Bombs carried that the chart does not price, so nothing here can count them. */
 export function unpricedIn(build: Build, armament: Armament): Store[] {

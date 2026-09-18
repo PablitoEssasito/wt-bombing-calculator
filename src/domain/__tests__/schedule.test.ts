@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import aircraftData from "../../data/aircraft.json";
 import bombData from "../../data/bombs.json";
 import { BASE_HP_TIERS } from "../constants";
-import { buildPlan, mountedIn, payloadOf, trimToTarget } from "../schedule";
+import { buildPlan, mountedIn, payloadOf, planPayload, trimToTarget } from "../schedule";
 import type { Aircraft, Bomb } from "../types";
 
 const bombs = new Map((bombData as Bomb[]).map((b) => [b.id, b]));
@@ -178,5 +178,32 @@ describe("trimToTarget", () => {
 
     const trimmed = trimToTarget(arcade, 1);
     expect(mountedIn(trimmed).reduce((n, i) => n + i.count, 0)).toBeLessThan(40);
+  });
+});
+
+describe("planPayload with rockets", () => {
+  const bomb = (id: string) => {
+    const b = bombs.get(id);
+    if (!b) throw new Error(`no bomb ${id}`);
+    return b;
+  };
+
+  it("counts a priced rocket towards a base like any bomb", () => {
+    // 12 HVAR at 359 each (4 308) clear a 4 000 HP base (3 608 needed) on their own.
+    const plan = planPayload([{ bomb: bomb("hvar"), count: 12 }], { baseHp: 4000, mode: "rb", baseCount: 4 });
+    expect(plan.basesDestroyed).toBe(1);
+    expect(plan.bases[0].hasUnpriced).toBe(false);
+  });
+
+  it("leaves a zero-damage rocket in the leftovers instead of spending it on a base", () => {
+    // AP Mk I is priced at 0 — a kinetic round. It must neither be planned onto
+    // a base (it "fits" any remainder) nor make one look unpriced.
+    const plan = planPayload(
+      [{ bomb: bomb("ap-mk-i"), count: 8 }, { bomb: bomb("hvar"), count: 12 }],
+      { baseHp: 4000, mode: "rb", baseCount: 4 },
+    );
+    expect(plan.basesDestroyed).toBe(1);
+    expect(plan.bases[0].items.map((i) => i.bomb.id)).toEqual(["hvar"]);
+    expect(plan.leftover).toContainEqual({ bomb: bomb("ap-mk-i"), count: 8 });
   });
 });

@@ -97,7 +97,8 @@ const massMatches = (a: number, b: number) => Math.abs(a - b) <= Math.max(0.3, a
 /** Whether an icon key belongs to the family a bomb's own kind calls for. */
 function fitsKind(kind: string, def: WeaponDef): boolean {
   if (def.isMine) return kind === "MINE";
-  if (def.isRocket) return kind === "ROCKET";
+  // rocketguns/ holds the guided missiles too; a chart rocket is never one of those.
+  if (def.isRocket) return kind === "ROCKET" && !def.isGuided;
   switch (kind) {
     case "MINE":
     case "ROCKET":
@@ -114,7 +115,9 @@ function fitsKind(kind: string, def: WeaponDef): boolean {
       return def.isIncendiary;
     case "GP":
     case "AP":
-      return !def.isGuided && !def.isIncendiary;
+      // A plain bomb must not borrow a retarded twin's icon either — the two
+      // share a mass exactly, and only the name overlap used to keep them apart.
+      return !def.isGuided && !def.isIncendiary && !def.isDrag;
     default:
       return true;
   }

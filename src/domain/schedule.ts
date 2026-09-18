@@ -155,7 +155,9 @@ function drawOneBase(pool: Pool, threshold: number): PlanItem[] | null {
   let remaining = threshold;
 
   while (remaining > 0) {
-    const available = draft.filter((entry) => entry.count > 0 && entry.bomb.damageValue !== null);
+    // Priced at zero is not the same as unpriced, but neither can bring a base
+    // down: a kinetic rocket would "fit" any remainder and get spent for nothing.
+    const available = draft.filter((entry) => entry.count > 0 && (entry.bomb.damageValue ?? 0) > 0);
     if (available.length === 0) return null;
 
     const fits = available.filter((entry) => entry.bomb.damageValue! <= remaining);

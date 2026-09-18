@@ -379,10 +379,13 @@ function namedCounts(
         checked++;
 
         const pairs = typeof option.w === "number" ? [[option.w, 1] as const] : option.w;
-        // A rack is named for what it holds, so read through to the munitions.
+        // A bomb rack is named for what it holds, so read through to the
+        // munitions. A rocket pod is named per launcher — "zuni_x2" is two
+        // LAU-10s, eight rockets — so there the pods themselves are the count.
+        const perLauncher = stores[pairs[0][0]]?.k === "rocket";
         const delivered = pairs.reduce((n, [index, count]) => {
           const held = stores[index]?.b?.[1];
-          return n + count * (typeof held === "number" ? held : 1);
+          return n + count * (!perLauncher && typeof held === "number" ? held : 1);
         }, 0);
 
         if (delivered === Number(stated[1])) agreed++;
