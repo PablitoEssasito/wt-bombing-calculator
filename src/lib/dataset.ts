@@ -4,6 +4,7 @@ import bombData from "@/data/bombs.json";
 import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
+import squadronData from "@/data/squadron.json";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
 import type { Aircraft, Bomb, Meta } from "@/domain/types";
 
@@ -13,6 +14,13 @@ export const meta = metaData as Meta;
 
 /** Aircraft id to the wiki unit whose render illustrates it. */
 export const imagesByAircraft = imageData as Record<string, string>;
+
+/**
+ * Aircraft the wiki marks a squadron vehicle — earned through a squadron's own
+ * activity rather than research or purchase. Premium needs no set of its own:
+ * the sheet already states it per aircraft, in `category`.
+ */
+const squadronIds = new Set(squadronData as string[]);
 
 /**
  * How each aircraft mounts its ordnance, read off the wiki's suspended armament
@@ -134,6 +142,10 @@ export type AircraftSummary = {
   preview: { bombId: string; count: number } | null;
   /** Wiki unit whose render illustrates it, if one was found. */
   imageId: string | null;
+  /** Bought with Golden Eagles rather than researched — the game's gold tiles. */
+  premium: boolean;
+  /** Earned through a squadron rather than research or purchase — the game's green tiles. */
+  squadron: boolean;
 };
 
 /** Just enough of a bomb to show it; the full records are far heavier. */
@@ -182,6 +194,8 @@ export const aircraftIndex: AircraftSummary[] = aircraft
     ),
     preview: headlineBomb(plane),
     imageId: imagesByAircraft[plane.id] ?? null,
+    premium: plane.category.startsWith("premium"),
+    squadron: squadronIds.has(plane.id),
   }))
   .sort((a, b) => a.br - b.br || a.name.localeCompare(b.name));
 

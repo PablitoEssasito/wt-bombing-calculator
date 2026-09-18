@@ -14,6 +14,13 @@ const ICON = (id: string) => `https://static.encyclopedia.warthunder.com/slots/$
 const OUT_RENDERS = path.join(process.cwd(), "public", "aircraft", "renders");
 const OUT_ICONS = path.join(process.cwd(), "public", "aircraft", "icons");
 const OUT_DATA = path.join(process.cwd(), "src", "data", "images.json");
+/**
+ * Shipped: aircraft ids the wiki marks a squadron vehicle — earned through a
+ * squadron's own activity rather than research or purchase, the same set the
+ * game's tech tree colours green. Premium needs no file of its own; the sheet
+ * already states it per aircraft, in `category` (see `src/domain/constants.ts`).
+ */
+const OUT_SQUADRON = path.join(process.cwd(), "src", "data", "squadron.json");
 const CACHE = path.join(process.cwd(), ".cache", "wiki-aviation.html");
 
 const useCache = process.argv.includes("--cache");
@@ -113,6 +120,13 @@ async function main() {
   }
   await writeFile(OUT_DATA, JSON.stringify(map));
   console.log(`Wrote ${Object.keys(map).length} image references to src/data/images.json`);
+
+  const squadron = [...matches]
+    .filter(([aircraftId, match]) => aircraftId in map && match.unit.rewardKind === 2)
+    .map(([aircraftId]) => aircraftId)
+    .sort();
+  await writeFile(OUT_SQUADRON, JSON.stringify(squadron));
+  console.log(`Wrote ${squadron.length} squadron-vehicle ids to src/data/squadron.json`);
 }
 
 main().catch((error) => {

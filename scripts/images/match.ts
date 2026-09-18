@@ -11,6 +11,13 @@ export type WikiUnit = {
   id: string;
   name: string;
   country: string;
+  /**
+   * How the wiki marks the vehicle: 0 for tech-tree research, 1 for premium
+   * (bought outright), 2 for a squadron vehicle (earned through a squadron's
+   * own activity). The same three the game's own tech tree colours gold and
+   * green for.
+   */
+  rewardKind: 0 | 1 | 2;
 };
 
 export type SheetAircraft = {
@@ -77,6 +84,78 @@ function prepare(units: WikiUnit[]): Prepared[] {
 const covers = (needed: string[], have: Set<string>) =>
   needed.every((token) => [...have].some((h) => h === token || h.startsWith(token)));
 
+/** Every unit a name could plausibly mean, grouped by how firmly it says so. */
+type Candidates = {
+  exact: Prepared[];
+  prefix: Prepared[];
+  tokens: Prepared[];
+  reverse: Prepared[];
+  foreign: Prepared[];
+};
+
+function candidatesFor(
+  plane: SheetAircraft,
+  prepared: Prepared[],
+  byNation: Map<string, Prepared[]>,
+): Candidates {
+  const name = NAME_ALIASES[plane.name] ?? plane.name;
+  const key = normalize(name);
+  const needed = tokenize(name);
+  const pool = byNation.get(plane.nation) ?? [];
+
+  return {
+    exact: pool.filter((u) => u.key === key),
+    prefix: pool.filter((u) => key.length >= 3 && u.key.startsWith(key)),
+    tokens: pool.filter((u) => covers(needed, u.tokens)),
+    reverse: pool.filter((u) => u.key.length >= 4 && key.startsWith(u.key)),
+    foreign: prepared.filter((u) => u.key === key),
+  };
+}
+
+/** A rule that landed on exactly one candidate, which is as sure as this gets. */
+function confidentMatch(c: Candidates): Match | null {
+  if (c.exact.length > 0) return { unit: c.exact[0], method: "exact" };
+  if (c.prefix.length === 1) return { unit: c.prefix[0], method: "prefix" };
+  if (c.tokens.length === 1) return { unit: c.tokens[0], method: "tokens" };
+  if (c.reverse.length === 1) return { unit: c.reverse[0], method: "reverse" };
+  return null;
+}
+
+/**
+ * The best of several candidates, once the confident matches have had their say.
+ *
+ * `taken` is what those matches claimed, and skipping it is what stops a guess
+ * from walking off with a unit another row named outright. The sheet lists
+ * "F-4EJ" and "F-4EJ ADTW" separately; the ADTW row matches its unit exactly,
+ * while the plain row matches nothing exactly and used to be handed that same
+ * ADTW — the shortest of the three F-4EJ names — leaving the tech-tree F-4EJ
+ * unused and two rows sharing one aircraft's hardpoints. Same story for
+ * Germany's Tornado IDS, which reached across to Italy's.
+ */
+function fallbackMatch(c: Candidates, taken: ReadonlySet<string>): Match | null {
+  const free = (list: Prepared[]) => list.filter((u) => !taken.has(u.id));
+
+  const foreign = free(c.foreign);
+  if (foreign.length > 0) return { unit: foreign[0], method: "cross-nation" };
+
+  // Several fit. The shortest name is the plain variant the sheet means when
+  // it does not say otherwise.
+  const spare = free([...c.tokens, ...c.prefix]);
+  // Nothing left unclaimed: better a picture shared with another row than none,
+  // which is the case for the two Sea Harrier FRS rows on one unit.
+  const pool = spare.length > 0 ? spare : [...c.tokens, ...c.prefix];
+  const fallback = [...pool].sort((a, b) => a.key.length - b.key.length)[0];
+  return fallback ? { unit: fallback, method: "ambiguous" } : null;
+}
+
+/**
+ * Lines every aircraft up with its wiki unit, confident rules first.
+ *
+ * The two passes matter because this map long ago stopped being only about
+ * pictures: `armamentFor` reads it to decide whose hardpoints the loadout
+ * creator offers, so a guess landing on the wrong variant is no longer a
+ * slightly-off render but the wrong aircraft's pylons.
+ */
 export function matchAircraft(
   aircraft: SheetAircraft[],
   units: WikiUnit[],
@@ -89,34 +168,27 @@ export function matchAircraft(
     byNation.set(unit.country, list);
   }
 
+  const candidates = new Map(
+    aircraft.map((plane) => [plane.id, candidatesFor(plane, prepared, byNation)]),
+  );
+
   const matches = new Map<string, Match>();
-  const unmatched: SheetAircraft[] = [];
+  const claimed = new Set<string>();
+  const pending: SheetAircraft[] = [];
 
   for (const plane of aircraft) {
-    const name = NAME_ALIASES[plane.name] ?? plane.name;
-    const key = normalize(name);
-    const needed = tokenize(name);
-    const pool = byNation.get(plane.nation) ?? [];
-
-    const exact = pool.filter((u) => u.key === key);
-    const prefix = pool.filter((u) => key.length >= 3 && u.key.startsWith(key));
-    const tokens = pool.filter((u) => covers(needed, u.tokens));
-    const reverse = pool.filter((u) => u.key.length >= 4 && key.startsWith(u.key));
-    const foreign = prepared.filter((u) => u.key === key);
-
-    let match: Match | null = null;
-    if (exact.length > 0) match = { unit: exact[0], method: "exact" };
-    else if (prefix.length === 1) match = { unit: prefix[0], method: "prefix" };
-    else if (tokens.length === 1) match = { unit: tokens[0], method: "tokens" };
-    else if (reverse.length === 1) match = { unit: reverse[0], method: "reverse" };
-    else if (foreign.length > 0) match = { unit: foreign[0], method: "cross-nation" };
-    else {
-      // Several fit. The shortest name is the plain variant the sheet means when
-      // it does not say otherwise.
-      const fallback = [...tokens, ...prefix].sort((a, b) => a.key.length - b.key.length)[0];
-      if (fallback) match = { unit: fallback, method: "ambiguous" };
+    const match = confidentMatch(candidates.get(plane.id)!);
+    if (!match) {
+      pending.push(plane);
+      continue;
     }
+    matches.set(plane.id, match);
+    claimed.add(match.unit.id);
+  }
 
+  const unmatched: SheetAircraft[] = [];
+  for (const plane of pending) {
+    const match = fallbackMatch(candidates.get(plane.id)!, claimed);
     if (match) matches.set(plane.id, match);
     else unmatched.push(plane);
   }
@@ -129,6 +201,14 @@ export function parseUnitList(html: string): WikiUnit[] {
   const raw = html.match(/window\.WT_UnitList\s*=\s*'([\s\S]*?)';/)?.[1];
   if (!raw) throw new Error("WT_UnitList not found — the wiki page changed shape");
 
-  const rows = JSON.parse(raw.replace(/\\'/g, "'")) as [string, string, string][];
-  return rows.map(([id, name, country]) => ({ id, name, country }));
+  // The row carries several fields this project has no use for — battle ratings
+  // per mode, the research-tree position, a price block — read by position and
+  // left untyped past what is actually used.
+  const rows = JSON.parse(raw.replace(/\\'/g, "'")) as [string, string, string, ...unknown[]][];
+  return rows.map(([id, name, country, , , rewardKind]) => ({
+    id,
+    name,
+    country,
+    rewardKind: (typeof rewardKind === "number" ? rewardKind : 0) as 0 | 1 | 2,
+  }));
 }

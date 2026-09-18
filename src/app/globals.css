@@ -22,6 +22,14 @@
   /* Reserved for the source telling you not to take something — amber is too
      close to the accent to carry that against a page full of accent. */
   --color-danger: #f87171;
+  /* The game's own tile colours: gold for bought outright, green for a
+     squadron's own reward — kept apart from --color-accent/--color-live so
+     tuning one never nudges what an unrelated element means. Tinted
+     backgrounds are mixed from these with Tailwind's opacity modifiers
+     (bg-premium/15 etc.) rather than baked-in -dim tokens, so a tile's
+     gradient wash and its badge can share one source colour. */
+  --color-premium: #e8c15a;
+  --color-squadron: #6bcf8f;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
