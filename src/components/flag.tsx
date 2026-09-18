@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { Nation } from "@/domain/constants";
 import { NATION_LABELS } from "@/domain/constants";
+import { withBasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,7 +26,7 @@ export function Flag({
 }) {
   return (
     <Image
-      src={`/flags/${nation}.svg`}
+      src={withBasePath(`/flags/${nation}.svg`)}
       alt=""
       width={Math.round((size * 4) / 3)}
       height={size}

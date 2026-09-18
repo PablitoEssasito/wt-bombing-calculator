@@ -1,4 +1,5 @@
 import bombIconData from "@/data/bomb-icons.json";
+import { withBasePath } from "./base-path";
 
 /**
  * Where the images live, and the one small lookup needed to pick a bomb's icon.
@@ -10,17 +11,25 @@ import bombIconData from "@/data/bomb-icons.json";
  * of loadout tables along for the ride would be a poor trade.
  */
 
-/** Full-size aircraft render, for the vehicle page. Matches the wiki's own art. */
+/**
+ * Full-size aircraft render, for the vehicle page. Matches the wiki's own art.
+ *
+ * Deliberately not basePath-prefixed here, unlike every other URL in this
+ * file: its one other caller is the aircraft page's Open Graph image, a
+ * Metadata field that Next resolves against `metadataBase` itself — which
+ * already carries the base path — so prefixing it here would double it up.
+ * The plain `<Image>` on the page body wraps this in `withBasePath` itself.
+ */
 export const renderUrl = (unitId: string) => `/aircraft/renders/${unitId}.webp`;
 
 /** Small tech-tree slot icon, the style the source spreadsheet itself used. */
-export const iconUrl = (unitId: string) => `/aircraft/icons/${unitId}.webp`;
+export const iconUrl = (unitId: string) => withBasePath(`/aircraft/icons/${unitId}.webp`);
 
 /** Bomb id to the game's own UI icon key for it — e.g. "bombs_small", "napalm_middle". */
 export const bombIconsById = bombIconData as Record<string, string>;
 
 /** The game's own weapon-selector icon for a bomb, the same art the source sheet uses. */
-export const bombIconUrl = (iconType: string) => `/bombs/icons/${iconType}.webp`;
+export const bombIconUrl = (iconType: string) => withBasePath(`/bombs/icons/${iconType}.webp`);
 
 /** The tech tree's own medallion for a premium vehicle — see scripts/reward-icons. */
-export const TALISMAN_ICON_URL = "/icons/talisman.webp";
+export const TALISMAN_ICON_URL = withBasePath("/icons/talisman.webp");

@@ -15,6 +15,7 @@ import {
   meta,
   renderUrl,
 } from "@/lib/dataset";
+import { withBasePath } from "@/lib/base-path";
 import { RANK_LABELS } from "@/lib/labels";
 import { canonicalOf, pageOpenGraph } from "@/lib/site";
 
@@ -98,7 +99,7 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
 
       {imageId ? (
         <Image
-          src={renderUrl(imageId)}
+          src={withBasePath(renderUrl(imageId))}
           alt={`${plane.name} in War Thunder`}
           width={512}
           height={256}

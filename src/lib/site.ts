@@ -1,16 +1,19 @@
+import { BASE_PATH } from "./base-path";
+
 /**
- * The origin this site is served from.
+ * The full URL this site is served from, base path and all — e.g.
+ * `https://pablitoessasito.github.io/wt-bombing-calculator` on GitHub Pages,
+ * where the repo has no custom domain of its own.
  *
  * The sitemap, robots.txt and every Open Graph tag need an absolute URL, which
  * a relative path cannot give them. Set `NEXT_PUBLIC_SITE_URL` before building
  * for production — the localhost fallback is only ever right for `next dev`,
  * and shipping it by accident would point search engines and link previews at
- * a machine they cannot reach.
+ * a machine they cannot reach. `NEXT_PUBLIC_SITE_URL` itself is origin-only;
+ * `BASE_PATH` is appended here so every caller gets one already-correct value.
  */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
-  /\/+$/,
-  "",
-);
+export const SITE_URL =
+  (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "") + BASE_PATH;
 
 /**
  * The `openGraph`/`twitter` pair a page needs to carry its own title and
