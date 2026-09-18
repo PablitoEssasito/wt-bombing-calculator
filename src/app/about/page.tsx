@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { BASE_BLEED, BASE_HP_TIERS } from "@/domain/constants";
 import { meta } from "@/lib/dataset";
+import { canonicalOf, pageOpenGraph } from "@/lib/site";
 import { formatCount } from "@/lib/utils";
 
+const TITLE = "About";
+const DESCRIPTION = "What the calculator does, and how the numbers are worked out.";
+
 export const metadata: Metadata = {
-  title: "About",
-  description: "What the calculator does, and how the numbers are worked out.",
+  title: TITLE,
+  description: DESCRIPTION,
+  ...canonicalOf("/about"),
+  ...pageOpenGraph(TITLE, DESCRIPTION),
 };
 
 export default function AboutPage() {
@@ -38,7 +44,12 @@ export default function AboutPage() {
           </li>
           <li>
             A sortable bomb chart with a standalone calculator for any bomb against any base
-            health.
+            health — rockets included, priced by hand against the game&apos;s own hangar figures
+            rather than left blank.
+          </li>
+          <li>
+            Premium and squadron aircraft picked out the way the game itself does — gold and
+            green — so a search result does not need a click to tell which is which.
           </li>
           <li>Every control lives in the URL, so a specific setup is one link to share.</li>
         </ul>
@@ -83,8 +94,10 @@ export default function AboutPage() {
             they were written by hand; the recalculated ones assume you can take any mix.
           </li>
           <li>
-            Rocket damage. The bomb chart prices bombs only, so rockets appear in loadouts
-            without a damage figure.
+            The per-wing and balance limits the game states alongside the overall mass one.
+            Nothing in the flight model says which wing a hardpoint sits on, and guessing would
+            block loadouts that are perfectly legal — so the loadout creator checks the total
+            only.
           </li>
         </ul>
       </section>
