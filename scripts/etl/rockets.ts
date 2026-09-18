@@ -4,9 +4,11 @@
  * LEGION's Loadouts never priced rockets — its Bomb Chart only has bombs, and no
  * base-damage figure for rockets is published anywhere: not the current wiki, not
  * the old community wiki (now closed behind a login), not any surviving community
- * chart. So `damageValue` stays null here exactly as it did for the five rockets
- * the sheet already named, until someone checks the game's own "Estimated Base
- * Damage" stat in the hangar and fills it in by hand.
+ * chart. So `damageValue` was filled in by hand instead, checked a batch at a
+ * time against the game's own "Estimated Base Damage" stat in the hangar.
+ * Where that stat is missing entirely — AP Mk I/II, TBA Multi-Dart 100 AB — the
+ * weapon is a kinetic round with no explosive filler and is priced at 0 rather
+ * than left unchecked. One entry, RZ 65, is still outstanding.
  *
  * What the wiki *does* publish, on every vehicle page that carries a weapon, is a
  * stats popover next to its loadout row — caliber, projectile mass, explosive
@@ -53,29 +55,29 @@ export const ROCKET_ORDNANCE: ReadonlyArray<{
   tntKg: number | null;
   damageValue?: number;
 }> = [
-  { chartName: "8-cm Flz.-Rakete", fullName: "8-cm Flz.-Rakete Oerlikon rockets", massKg: 12.8, massLabel: "12.8 kg", tntKg: 1.6 },
+  { chartName: "8-cm Flz.-Rakete", fullName: "8-cm Flz.-Rakete Oerlikon rockets", massKg: 12.8, massLabel: "12.8 kg", tntKg: 1.6, damageValue: 144 },
   { chartName: "AP Mk I", fullName: "AP Mk I rockets", massKg: 27.3, massLabel: "27.3 kg", tntKg: null, damageValue: 0 },
   { chartName: "AP Mk II", fullName: "AP Mk II rockets", massKg: 27.3, massLabel: "27.3 kg", tntKg: null, damageValue: 0 },
   { chartName: "ARF/8M3(AP-AT)", fullName: "ARF/8M3(AP-AT) rockets", massKg: 3.8, massLabel: "3.8 kg", tntKg: 0.474, damageValue: 41 },
-  { chartName: "Aspid", fullName: "Aspid 1057 rockets", massKg: 5, massLabel: "5 kg", tntKg: 0.465 },
-  { chartName: "CRV7 M247", fullName: "70 mm CRV7 M247 rocket", massKg: 10.6, massLabel: "10.6 kg", tntKg: 1.2 },
+  { chartName: "Aspid", fullName: "Aspid 1057 rockets", massKg: 5, massLabel: "5 kg", tntKg: 0.465, damageValue: 40 },
+  { chartName: "CRV7 M247", fullName: "70 mm CRV7 M247 rocket", massKg: 10.6, massLabel: "10.6 kg", tntKg: 1.2, damageValue: 106 },
   { chartName: "FFAR", fullName: "FFAR Mighty Mouse rockets", massKg: 9, massLabel: "9 kg", tntKg: 1.2, damageValue: 105 },
   { chartName: "FZ49", fullName: "FZ49 HEAT rockets", massKg: 8.1, massLabel: "8.1 kg", tntKg: 1.2, damageValue: 103 },
   { chartName: "HVAR", fullName: "HVAR rockets", massKg: 62.8, massLabel: "62.8 kg", tntKg: 4.5, damageValue: 359 },
   { chartName: "Hydra-70 M247", fullName: "70 mm Hydra-70 M247 rocket", massKg: 10.2, massLabel: "10.2 kg", tntKg: 1.2, damageValue: 106 },
   { chartName: "M-13UK", fullName: "M-13UK rockets", massKg: 42.4, massLabel: "42.4 kg", tntKg: 4.9, damageValue: 388 },
   { chartName: "M-8", fullName: "M-8 rockets", massKg: 7.8, massLabel: "7.8 kg", tntKg: 0.64, damageValue: 60 },
-  { chartName: "m/49", fullName: "18 cm hprak m/49 rockets", massKg: 120, massLabel: "120 kg", tntKg: 5.3 },
-  { chartName: "m/49/56", fullName: "14,5 cm psrak m/49/56 rockets", massKg: 43, massLabel: "43 kg", tntKg: 3.5 },
-  { chartName: "m/49B", fullName: "14,5 cm psrak m/49B rockets", massKg: 42, massLabel: "42 kg", tntKg: 3.5 },
-  { chartName: "m/51", fullName: "15 cm srak m/51 rockets", massKg: 64, massLabel: "64 kg", tntKg: 4.5 },
-  { chartName: "m/55", fullName: "7,5 cm srak m/55 Frida rockets", massKg: 8, massLabel: "8 kg", tntKg: 0.786 },
-  { chartName: "m/56D", fullName: "m/56D rockets", massKg: 41, massLabel: "41 kg", tntKg: 3.7 },
-  { chartName: "m/70", fullName: "13,5 cm psrak m/70 rockets", massKg: 47.7, massLabel: "47.7 kg", tntKg: 6 },
+  { chartName: "m/49", fullName: "18 cm hprak m/49 rockets", massKg: 120, massLabel: "120 kg", tntKg: 5.3, damageValue: 395 },
+  { chartName: "m/49/56", fullName: "14,5 cm psrak m/49/56 rockets", massKg: 43, massLabel: "43 kg", tntKg: 3.5, damageValue: 359 },
+  { chartName: "m/49B", fullName: "14,5 cm psrak m/49B rockets", massKg: 42, massLabel: "42 kg", tntKg: 3.5, damageValue: 359 },
+  { chartName: "m/51", fullName: "15 cm srak m/51 rockets", massKg: 64, massLabel: "64 kg", tntKg: 4.5, damageValue: 380 },
+  { chartName: "m/55", fullName: "7,5 cm srak m/55 Frida rockets", massKg: 8, massLabel: "8 kg", tntKg: 0.786, damageValue: 71 },
+  { chartName: "m/56D", fullName: "m/56D rockets", massKg: 41, massLabel: "41 kg", tntKg: 3.7, damageValue: 364 },
+  { chartName: "m/70", fullName: "13,5 cm psrak m/70 rockets", massKg: 47.7, massLabel: "47.7 kg", tntKg: 6, damageValue: 410 },
   { chartName: "M8", fullName: "M8 rocket", massKg: 17.3, massLabel: "17.3 kg", tntKg: 2, damageValue: 180 },
   { chartName: "M80", fullName: "128 mm M80 rockets", massKg: 52.7, massLabel: "52.7 kg", tntKg: 7.7, damageValue: 444 },
-  { chartName: "Pampero", fullName: "Pampero rockets", massKg: 28.5, massLabel: "28.5 kg", tntKg: 3.1 },
-  { chartName: "Pb2", fullName: "Pb2 rockets", massKg: 5.3, massLabel: "5.3 kg", tntKg: 1.1 },
+  { chartName: "Pampero", fullName: "Pampero rockets", massKg: 28.5, massLabel: "28.5 kg", tntKg: 3.1, damageValue: 352 },
+  { chartName: "Pb2", fullName: "Pb2 rockets", massKg: 5.3, massLabel: "5.3 kg", tntKg: 1.1, damageValue: 95 },
   { chartName: "PRN-122", fullName: "PRN-122 rockets", massKg: 42, massLabel: "42 kg", tntKg: 9.8, damageValue: 476 },
   { chartName: "RBS-132", fullName: "RBS-132 rockets", massKg: 51.6, massLabel: "51.6 kg", tntKg: 1.4, damageValue: 120 },
   { chartName: "RBS-82", fullName: "RBS-82 rockets", massKg: 15, massLabel: "15 kg", tntKg: 0.48, damageValue: 42 },
@@ -98,7 +100,7 @@ export const ROCKET_ORDNANCE: ReadonlyArray<{
   { chartName: "S-5KP", fullName: "S-5KP rockets", massKg: 5, massLabel: "5 kg", tntKg: 0.528, damageValue: 47 },
   { chartName: "S-8KO", fullName: "S-8KO rockets", massKg: 11.3, massLabel: "11.3 kg", tntKg: 1.4, damageValue: 122 },
   { chartName: "Skyfire-70 AC/AP", fullName: "70 mm Skyfire-70 AC/AP rocket", massKg: 11.3, massLabel: "11.3 kg", tntKg: 1.2, damageValue: 106 },
-  { chartName: "SNEB type 23", fullName: "SNEB type 23 rockets", massKg: 5.1, massLabel: "5.1 kg", tntKg: 0.435 },
+  { chartName: "SNEB type 23", fullName: "SNEB type 23 rockets", massKg: 5.1, massLabel: "5.1 kg", tntKg: 0.435, damageValue: 37 },
   { chartName: "SNEB type 23 rockets", fullName: "Type 23 SNEB rockets", massKg: 5.1, massLabel: "5.1 kg", tntKg: 0.435, damageValue: 37 },
   { chartName: "T-80-P 3", fullName: "Type R80 SURA rockets T-80-P 3", massKg: 11.9, massLabel: "11.9 kg", tntKg: 0.917, damageValue: 82 },
   { chartName: "T-80-US 3", fullName: "Type R80 SURA rockets T-80-US 3", massKg: 11.9, massLabel: "11.9 kg", tntKg: 0.87, damageValue: 78 },
@@ -111,7 +113,7 @@ export const ROCKET_ORDNANCE: ReadonlyArray<{
   { chartName: "Type 23 SNEB", fullName: "Type 23 SNEB rockets", massKg: 5.1, massLabel: "5.1 kg", tntKg: 0.435, damageValue: 37 },
   { chartName: "Type 90-1 HEAT", fullName: "Type 90-1 HEAT rockets", massKg: 14.6, massLabel: "14.6 kg", tntKg: 1.1, damageValue: 98 },
   { chartName: "Uncle Tom", fullName: "Uncle Tom rockets", massKg: 467.2, massLabel: "467.2 kg", tntKg: 51.3, damageValue: 1613 },
-  { chartName: "Wfr.Gr.21", fullName: "Wfr.Gr.21 rockets", massKg: 112, massLabel: "112 kg", tntKg: null },
+  { chartName: "Wfr.Gr.21", fullName: "Wfr.Gr.21 rockets", massKg: 112, massLabel: "112 kg", tntKg: null, damageValue: 471 },
   { chartName: "Yasser", fullName: "Yasser rockets", massKg: 760, massLabel: "760 kg", tntKg: 206.6, damageValue: 3633 },
   { chartName: "Zuni", fullName: "Zuni Mk32 Mod 0 ATAP rockets", massKg: 57.3, massLabel: "57.3 kg", tntKg: 8.9, damageValue: 463 },
 ];
