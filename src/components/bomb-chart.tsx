@@ -76,9 +76,10 @@ function formatMass(bomb: Bomb, unit: MassUnit): string {
 /**
  * Every kind that can actually reach this table.
  *
- * Rockets carry no damage value — nobody publishes one, see
- * `scripts/etl/rockets.ts` — but they do carry real mass and TNT figures, so
- * they still get a row; the damage and per-base columns just read "—" for them.
+ * Rockets are priced by hand rather than by the source — see
+ * `scripts/etl/rockets.ts` — so a newly discovered one can sit here with a
+ * real mass and TNT figure but no damage value yet; the damage and per-base
+ * columns just read "—" for those until it's checked.
  */
 const PRICED_KINDS = [
   "GP",
@@ -134,10 +135,9 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const rows = useMemo(() => {
     const needle = deferred.trim().toLowerCase();
     const filtered = bombs.filter((bomb) => {
-      // Rockets carry no damage value anywhere in the source — see
-      // scripts/etl/rockets.ts — but still belong in the table for their mass
-      // and TNT figures. Everything else with no damage value has nothing to
-      // show at all, so it stays out.
+      // A rocket belongs in the table for its mass and TNT figures even before
+      // its damage value is checked (see scripts/etl/rockets.ts). Everything
+      // else with no damage value has nothing to show at all, so it stays out.
       if (bomb.damageValue === null && bomb.kind !== "ROCKET") return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
@@ -390,7 +390,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                     </div>
                   </td>
                   <td className="nums px-3 py-2 text-right text-accent font-semibold text-base">
-                    {needed ?? "—"}
+                    {needed !== null && Number.isFinite(needed) ? needed : "—"}
                   </td>
                   <td className="nums px-3 py-2 text-right text-ink-dim">
                     {bomb.damageValue !== null ? formatCount(bomb.damageValue) : "—"}

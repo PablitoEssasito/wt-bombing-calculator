@@ -8,7 +8,7 @@
  * time against the game's own "Estimated Base Damage" stat in the hangar.
  * Where that stat is missing entirely — AP Mk I/II, TBA Multi-Dart 100 AB — the
  * weapon is a kinetic round with no explosive filler and is priced at 0 rather
- * than left unchecked. One entry, RZ 65, is still outstanding.
+ * than left unchecked. Every entry below now carries a value.
  *
  * What the wiki *does* publish, on every vehicle page that carries a weapon, is a
  * stats popover next to its loadout row — caliber, projectile mass, explosive
@@ -53,7 +53,7 @@ export const ROCKET_ORDNANCE: ReadonlyArray<{
   massKg: number;
   massLabel: string;
   tntKg: number | null;
-  damageValue?: number;
+  damageValue: number;
 }> = [
   { chartName: "8-cm Flz.-Rakete", fullName: "8-cm Flz.-Rakete Oerlikon rockets", massKg: 12.8, massLabel: "12.8 kg", tntKg: 1.6, damageValue: 144 },
   { chartName: "AP Mk I", fullName: "AP Mk I rockets", massKg: 27.3, massLabel: "27.3 kg", tntKg: null, damageValue: 0 },
@@ -89,7 +89,7 @@ export const ROCKET_ORDNANCE: ReadonlyArray<{
   { chartName: "RP-3", fullName: "RP-3 rockets", massKg: 43.1, massLabel: "43.1 kg", tntKg: 6.3, damageValue: 417 },
   { chartName: "RS-132", fullName: "RS-132 rockets", massKg: 42.4, massLabel: "42.4 kg", tntKg: 4.9, damageValue: 388 },
   { chartName: "RS-82", fullName: "RS-82 rockets", massKg: 7.8, massLabel: "7.8 kg", tntKg: 0.64, damageValue: 60 },
-  { chartName: "RZ 65", fullName: "RZ.65 rockets", massKg: 2.8, massLabel: "2.8 kg", tntKg: 0.156 },
+  { chartName: "RZ 65", fullName: "RZ.65 rockets", massKg: 2.8, massLabel: "2.8 kg", tntKg: 0.156, damageValue: 13 },
   { chartName: "S-13OF", fullName: "S-13OF rockets", massKg: 69, massLabel: "69 kg", tntKg: 10.6, damageValue: 488 },
   { chartName: "S-24", fullName: "S-24 rockets", massKg: 235, massLabel: "235 kg", tntKg: 25.5, damageValue: 1113 },
   { chartName: "S-24B", fullName: "S-24B rockets", massKg: 235, massLabel: "235 kg", tntKg: 25.5, damageValue: 1113 },
