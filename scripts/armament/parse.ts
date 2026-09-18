@@ -35,6 +35,18 @@ export type SlotOption = {
   stores: SlotStore[];
   /** True for choices the game keeps out of the loadout menu. */
   hidden: boolean;
+  /**
+   * The icon the loadout menu shows for this exact choice, stated on the
+   * preset itself — not on the weapon it hangs.
+   *
+   * The two disagree more often than not: a weapon file's own `iconType` is
+   * some baseline the game falls back on elsewhere, while the preset states
+   * what the count and mount actually look like — a twin AIM-120 rail reads
+   * `missile_type_f_air_to_air_midrange_group`, its own file plain
+   * `missile_type_b_air_to_air_midrange`, and only the preset's is what the
+   * hangar draws. 97.7% of presets state one; null falls back to the store's.
+   */
+  iconType: string | null;
 };
 
 /** What one hardpoint will take. */
@@ -164,6 +176,7 @@ export function parseArmament(fm: Blk, presetFiles: Map<string, Blk>): Armament 
     options: many<Blk>(slot.WeaponPreset).map((preset) => ({
       name: String(preset.name),
       hidden: preset.showInWeaponMenu === false,
+      iconType: typeof preset.iconType === "string" ? preset.iconType : null,
       // Four of a kind written as four entries is one store carried four times.
       stores: collapseStores(
         many<Blk>(preset.Weapon)

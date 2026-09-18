@@ -42,6 +42,14 @@ export type Store = {
 export type SlotOption = {
   name: string;
   stores: { store: Store; count: number }[];
+  /**
+   * The icon the game's own loadout menu draws for this exact choice — stated
+   * on the preset, not on any one store it hangs, and the one that actually
+   * accounts for how many are mounted. A twin missile rail and a lone one off
+   * the same file draw differently; only this field knows which. Null for the
+   * ~2% of presets that state none, where a store's own `iconType` stands in.
+   */
+  iconType: string | null;
 };
 
 export type Hardpoint = {

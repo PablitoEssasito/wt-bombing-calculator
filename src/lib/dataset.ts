@@ -51,7 +51,7 @@ type CompactArmament = {
       left: number | null;
       right: number | null;
       diff: number | null;
-      slots: { i: number; o: { n: string; w: number | [number, number][] }[] }[];
+      slots: { i: number; o: { n: string; w: number | [number, number][]; i?: string }[] }[];
       bans: [number, string, number, string][];
       reqs: [number, string, number, string][];
     }
@@ -86,12 +86,13 @@ export function armamentFor(aircraftId: string): Armament | null {
     };
   };
 
-  const optionOf = (option: { n: string; w: number | [number, number][] }): SlotOption => ({
+  const optionOf = (option: { n: string; w: number | [number, number][]; i?: string }): SlotOption => ({
     name: option.n,
     stores:
       typeof option.w === "number"
         ? [{ store: storeAt(option.w), count: 1 }]
         : option.w.map(([index, count]) => ({ store: storeAt(index), count })),
+    iconType: option.i ?? null,
   });
 
   return {

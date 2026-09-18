@@ -9,6 +9,7 @@ import {
   violationsOf,
   type Armament,
   type Build,
+  type SlotOption,
   type Store,
 } from "../loadout";
 
@@ -18,6 +19,12 @@ const store = (over: Partial<Store> & { name: string }): Store => ({
   kind: "bomb",
   bomb: null,
   holds: over.bomb?.count ?? 1,
+  iconType: null,
+  ...over,
+});
+
+const option = (over: Partial<SlotOption> & { name: string }): SlotOption => ({
+  stores: [],
   iconType: null,
   ...over,
 });
@@ -35,28 +42,28 @@ const armament: Armament = {
     {
       index: 1,
       options: [
-        {
+        option({
           name: "500lb",
           stores: [{ store: store({ name: "500 lb bomb", massKg: 240, bomb: { id: "mk82", count: 1 } }), count: 1 }],
-        },
-        {
+        }),
+        option({
           // One rack holding six, which is one store carrying six bombs.
           name: "500lb_x6",
           stores: [{ store: store({ name: "six-rack", massKg: 1445, bomb: { id: "mk82", count: 6 } }), count: 1 }],
-        },
+        }),
       ],
     },
     {
       index: 2,
       options: [
-        {
+        option({
           name: "250lb",
           stores: [{ store: store({ name: "250 lb bomb", massKg: 118, bomb: { id: "mk81", count: 1 } }), count: 1 }],
-        },
-        {
+        }),
+        option({
           name: "jdam",
           stores: [{ store: store({ name: "GBU-38 JDAM", massKg: 253, bomb: null }), count: 1 }],
-        },
+        }),
       ],
     },
   ],
@@ -155,10 +162,10 @@ describe("munitionsIn", () => {
 
   it("counts a rail's rounds even when the chart prices none of them", () => {
     // A twin R-60M rail is two missiles, whatever the bomb chart thinks of them.
-    const rail = {
+    const rail = option({
       name: "r60m_x2",
       stores: [{ store: store({ name: "R-60M air-to-air missiles", kind: "missile", massKg: 88, holds: 2 }), count: 1 }],
-    };
+    });
     expect(munitionsIn(rail)).toBe(2);
   });
 });

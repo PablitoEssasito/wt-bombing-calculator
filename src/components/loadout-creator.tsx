@@ -345,13 +345,15 @@ export function LoadoutCreator({
 /**
  * The game's own artwork for a choice, where there is any.
  *
- * A bomb or rocket goes through the bomb chart's own icon match first — it
- * already resolved the handful of kinds (mines, incendiaries) the game's data
- * names no icon for at all, by mass and kind instead. Everything else — every
- * missile, most guns — states its icon directly in the game's own files, with
- * no chart entry needed to find it.
+ * The choice's own icon comes first — it is what the preset itself states,
+ * which is the only thing that knows how many are mounted (a twin missile
+ * rail draws differently from one off the same file; a weapon's own icon
+ * cannot tell you that). Only the ~2% of presets that state none fall through
+ * to a store's own icon — the bomb chart's match for a bomb or rocket, or
+ * whatever the weapon file names directly for anything else.
  */
 function iconFor(option: SlotOption): string | null {
+  if (option.iconType) return bombIconUrl(option.iconType);
   for (const { store } of option.stores) {
     const iconType = (store.bomb ? bombIconsById[store.bomb.id] : undefined) ?? store.iconType;
     if (iconType) return bombIconUrl(iconType);

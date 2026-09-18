@@ -135,8 +135,15 @@ async function main() {
   // Every icon a missile, a gun or anything else states directly — the bomb
   // chart's own icons come from a separate match in scripts/bomb-icons, keyed
   // by bomb id rather than icon type, so this only ever pulls what that step
-  // would not already have.
-  const iconTypes = [...new Set(catalogue.flatMap((s) => (s.iconType ? [s.iconType] : [])))].sort();
+  // would not already have. Presets first: a preset's own iconType is what the
+  // loadout menu actually draws (see SlotOption.iconType in parse.ts), so its
+  // key needs fetching even where the store catalogue's own key already exists.
+  const presetIconTypes = Object.values(byUnit).flatMap((a) =>
+    a.slots.flatMap((s) => s.options.flatMap((o) => (o.iconType ? [o.iconType] : []))),
+  );
+  const iconTypes = [
+    ...new Set([...presetIconTypes, ...catalogue.flatMap((s) => (s.iconType ? [s.iconType] : []))]),
+  ].sort();
   console.log(`\nDownloading ${iconTypes.length} distinct icons the armament catalogue names directly...`);
   const { downloaded, failed } = await downloadIcons(iconTypes);
   console.log(`Icons ready (${downloaded} newly downloaded, ${failed.length} failed)`);
@@ -237,6 +244,9 @@ async function writePayload(byUnit: Record<string, Armament>) {
                 resolved.length === 1 && resolved[0].count === 1
                   ? intern(resolved[0].file)
                   : resolved.map((store) => [intern(store.file), store.count]),
+              // The preset's own icon, when it states one — see SlotOption.iconType
+              // in scripts/armament/parse.ts for why this outranks a store's own.
+              ...(option.iconType ? { i: option.iconType } : {}),
             };
           }),
       })),
