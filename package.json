@@ -18,7 +18,8 @@
     "armament": "tsx scripts/armament/index.ts",
     "armament:cache": "tsx scripts/armament/index.ts --cache",
     "stores": "tsx scripts/armament/stores.ts",
-    "stores:cache": "tsx scripts/armament/stores.ts --cache"
+    "stores:cache": "tsx scripts/armament/stores.ts --cache",
+    "reward-icons": "tsx scripts/reward-icons/index.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -21,3 +21,6 @@ export const bombIconsById = bombIconData as Record<string, string>;
 
 /** The game's own weapon-selector icon for a bomb, the same art the source sheet uses. */
 export const bombIconUrl = (iconType: string) => `/bombs/icons/${iconType}.webp`;
+
+/** The tech tree's own medallion for a premium vehicle — see scripts/reward-icons. */
+export const TALISMAN_ICON_URL = "/icons/talisman.webp";
