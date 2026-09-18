@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Aircraft, Bomb } from "../../src/domain/types";
+import { downloadIcons } from "../bomb-icons/fetch";
 import { parseArmament, presetPath, type Armament } from "./parse";
 import { isPhysicalCount } from "./stores";
 
@@ -33,6 +34,7 @@ type StoreRecord = {
   kind: string;
   bomb: { id: string; count: number } | null;
   holds: number;
+  iconType: string | null;
   container: boolean;
 };
 
@@ -129,6 +131,16 @@ async function main() {
   await writePayload(byUnit);
   const catalogue = JSON.parse(await readFile(STORES_FILE, "utf8")) as StoreRecord[];
   report(aircraft, unitIds, byUnit, missing, bombs, catalogue);
+
+  // Every icon a missile, a gun or anything else states directly — the bomb
+  // chart's own icons come from a separate match in scripts/bomb-icons, keyed
+  // by bomb id rather than icon type, so this only ever pulls what that step
+  // would not already have.
+  const iconTypes = [...new Set(catalogue.flatMap((s) => (s.iconType ? [s.iconType] : [])))].sort();
+  console.log(`\nDownloading ${iconTypes.length} distinct icons the armament catalogue names directly...`);
+  const { downloaded, failed } = await downloadIcons(iconTypes);
+  console.log(`Icons ready (${downloaded} newly downloaded, ${failed.length} failed)`);
+  if (failed.length > 0) console.log(`  ${failed.slice(0, 10).join(", ")}`);
 }
 
 /**
@@ -245,6 +257,7 @@ async function writePayload(byUnit: Record<string, Armament>) {
       ...(store.bomb ? { b: [store.bomb.id, store.bomb.count] } : {}),
       // One round is the ordinary case and is left implicit.
       ...(store.holds > 1 ? { h: store.holds } : {}),
+      ...(store.iconType ? { i: store.iconType } : {}),
     };
   });
 

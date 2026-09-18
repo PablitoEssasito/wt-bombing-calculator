@@ -342,10 +342,21 @@ export function LoadoutCreator({
 }
 
 /** The game's own icon for a choice, where it hangs something the chart knows. */
+/**
+ * The game's own artwork for a choice, where there is any.
+ *
+ * A bomb or rocket goes through the bomb chart's own icon match first — it
+ * already resolved the handful of kinds (mines, incendiaries) the game's data
+ * names no icon for at all, by mass and kind instead. Everything else — every
+ * missile, most guns — states its icon directly in the game's own files, with
+ * no chart entry needed to find it.
+ */
 function iconFor(option: SlotOption): string | null {
-  const bombId = option.stores.find(({ store }) => store.bomb)?.store.bomb?.id;
-  const iconType = bombId ? bombIconsById[bombId] : undefined;
-  return iconType ? bombIconUrl(iconType) : null;
+  for (const { store } of option.stores) {
+    const iconType = (store.bomb ? bombIconsById[store.bomb.id] : undefined) ?? store.iconType;
+    if (iconType) return bombIconUrl(iconType);
+  }
+  return null;
 }
 
 /**

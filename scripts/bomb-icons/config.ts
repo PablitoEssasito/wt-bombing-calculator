@@ -1,5 +1,15 @@
+import path from "node:path";
+
 const REPO = "gszabi99/War-Thunder-Datamine";
 const BRANCH = "master";
+
+/**
+ * Where every icon this project ships lands, whichever script downloaded it —
+ * a bomb's, a rocket's, or (via `scripts/armament/index.ts`) a missile's or a
+ * gun's. One directory, one URL scheme (`bombIconUrl` in `src/lib/assets.ts`),
+ * regardless of which pipeline put a given file there.
+ */
+export const OUT_ICONS_DIR = path.join(process.cwd(), "public", "bombs", "icons");
 
 export const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
 export const API_BASE = `https://api.github.com/repos/${REPO}/contents`;

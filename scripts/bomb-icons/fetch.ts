@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { API_BASE, ICON_DIR, RAW_BASE, WEAPON_DIRS, WEAPONS_PATH } from "./config";
+import sharp from "sharp";
+import { API_BASE, ICON_DIR, OUT_ICONS_DIR, RAW_BASE, WEAPON_DIRS, WEAPONS_PATH } from "./config";
 import type { WeaponDef } from "./match";
 
 const CACHE_DIR = path.join(process.cwd(), ".cache", "weapon-defs");
@@ -86,4 +87,29 @@ export async function fetchIconPng(iconType: string): Promise<Buffer | null> {
   const response = await fetch(`${RAW_BASE}/${ICON_DIR}/${iconType}.png`);
   if (!response.ok) return null;
   return Buffer.from(await response.arrayBuffer());
+}
+
+/**
+ * Pulls whichever of these icon keys are not already sitting in `OUT_ICONS_DIR`
+ * and writes them there as webp. Shared by every script that discovers icon
+ * keys of its own — the bomb chart's own match, and the armament catalogue's
+ * direct read of a missile's or a gun's `iconType` — so a key already fetched
+ * for one is never pulled a second time for the other.
+ */
+export async function downloadIcons(iconTypes: string[]): Promise<{ downloaded: number; failed: string[] }> {
+  await mkdir(OUT_ICONS_DIR, { recursive: true });
+  const failed: string[] = [];
+  let downloaded = 0;
+  for (const iconType of iconTypes) {
+    const file = path.join(OUT_ICONS_DIR, `${iconType}.webp`);
+    if (existsSync(file)) continue;
+    const png = await fetchIconPng(iconType);
+    if (!png) {
+      failed.push(iconType);
+      continue;
+    }
+    await sharp(png).webp({ quality: 95 }).toFile(file);
+    downloaded++;
+  }
+  return { downloaded, failed };
 }

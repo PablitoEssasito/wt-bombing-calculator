@@ -18,6 +18,7 @@ const store = (over: Partial<Store> & { name: string }): Store => ({
   kind: "bomb",
   bomb: null,
   holds: over.bomb?.count ?? 1,
+  iconType: null,
   ...over,
 });
 

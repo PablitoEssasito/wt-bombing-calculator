@@ -31,6 +31,12 @@ export type Store = {
    * prices the contents, which `bomb` alone cannot tell you.
    */
   holds: number;
+  /**
+   * The game's own UI icon key, when this store has one of its own — every
+   * missile and most guns do, a rack takes it from what it holds. Null for the
+   * kinds the game draws with no per-weapon icon (fuel tanks, torpedoes).
+   */
+  iconType: string | null;
 };
 
 export type SlotOption = {

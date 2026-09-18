@@ -51,6 +51,13 @@ export type Store = {
    */
   holds: number;
   /**
+   * The game's own UI icon key, resolved through the same rack/rail chain as
+   * `holds` — a rail carries none of its own, the missile it holds does. Null
+   * for the kinds (tanks, torpedoes, most of `other`) the game draws with no
+   * per-weapon icon at all.
+   */
+  iconType: string | null;
+  /**
    * Whether this file itself holds something else — a rack, a rail, a launcher
    * pod — as opposed to being ordnance in its own right.
    *
@@ -134,6 +141,27 @@ export function classify(reference: string, body: Record<string, unknown>): Stor
     return "gun";
   }
   return "other";
+}
+
+/**
+ * The game's own UI icon key for a store, read the same way the bomb-icons
+ * pipeline reads it for a `bombguns/` file — except here it stands on its own,
+ * with no chart to fall back on if it comes up empty. It does for torpedoes
+ * and most of `other` (targeting pods, data links); everything else the
+ * loadout menu shows an icon for states one directly, missiles included.
+ *
+ * Fuel tanks are the one deliberate exception: not one of 198 drop-tank files
+ * anywhere in the data carries an `iconType` of its own, because the game
+ * doesn't draw one per tank — every capacity, every nation, shows the same
+ * "ptb" icon in the loadout menu (confirmed against the wiki's own vehicle
+ * pages, which embed the exact icon key: F-16A, MiG-29, Su-25 and F-4E all
+ * point at `gui_skin/ptb.png` for a drop tank regardless of its size).
+ */
+function iconTypeOf(body: Record<string, unknown>, kind: StoreKind): string | null {
+  if (kind === "tank") return "ptb";
+  const payload = (body.rocket ?? body.bomb ?? body.torpedo ?? {}) as Record<string, unknown>;
+  const candidate = body.iconType ?? payload.iconType;
+  return typeof candidate === "string" ? candidate : null;
 }
 
 /** What a store weighs on its own, before anything it might be holding. */
@@ -373,7 +401,8 @@ async function main() {
     const coreNames = { full: names.full.get(core.file) ?? null, short: names.short.get(core.file) ?? null };
     const coreMass = massOfStore(core.file, bodies);
 
-    const bombId = ["bomb", "mine", "torpedo", "rocket"].includes(classify(coreRef, coreBody))
+    const kind = classify(coreRef, coreBody);
+    const bombId = ["bomb", "mine", "torpedo", "rocket"].includes(kind)
       ? matchBomb({ file: core.file, massKg: coreMass }, coreNames, chart)
       : null;
 
@@ -384,9 +413,11 @@ async function main() {
       short: names.short.get(file) ?? coreNames.short,
       massKg: massOfStore(file, bodies),
       // ...and is filed under it too, the way the loadout menu lists it.
-      kind: classify(coreRef, coreBody),
+      kind,
       bomb: bombId ? { id: bombId, count: core.count } : null,
       holds: core.count,
+      // ...and its icon lives there too, same as the name and kind above.
+      iconType: iconTypeOf(coreBody, kind),
       container: contained(body) !== null,
     });
   }
@@ -408,9 +439,10 @@ async function main() {
   );
 
   const named = stores.filter((s) => s.name !== null).length;
+  const iconed = stores.filter((s) => s.iconType !== null).length;
+  console.log(`  ${named} carry the game's own name, ${iconed} its own icon`);
   const ordnance = stores.filter((s) => ["bomb", "mine", "torpedo"].includes(s.kind));
   const priced = ordnance.filter((s) => s.bomb !== null);
-  console.log(`  ${named} carry the game's own name`);
   console.log(
     `  ${priced.length}/${ordnance.length} pieces of ordnance tie to a bomb chart entry`,
   );
