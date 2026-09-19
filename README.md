@@ -1,5 +1,10 @@
 # WT Bombing Calculator
 
+[![Deploy](https://github.com/PablitoEssasito/wt-bombing-calculator/actions/workflows/deploy.yml/badge.svg)](https://github.com/PablitoEssasito/wt-bombing-calculator/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**Live at [pablitoessasito.github.io/wt-bombing-calculator](https://pablitoessasito.github.io/wt-bombing-calculator/).**
+
 A faster way to read [LEGION's Loadouts](https://docs.google.com/spreadsheets/d/1oNwp_MXszU5J2dcaz5IoCtSAQ-infPdOWhwtJXqtrwU/edit) —
 the community spreadsheet that works out how many bombs it takes to flatten a base in
 War Thunder — plus a loadout creator built straight from the game's own data files, for
@@ -258,3 +263,9 @@ loadout creator prefers the preset's own stated icon over this match — see
   can be taken, which the game does not always allow; the loadout creator's own mass and
   exclusion rules do not have that problem, but check per-wing/balance limits, which
   nothing in the flight model attributes to a specific wing.
+
+## License
+
+The code is [MIT](LICENSE). The loadout data is LEGION's own work (see above), and the
+aircraft renders, icons and weapon artwork are War Thunder's, owned by Gaijin
+Entertainment — this is a fan tool, not affiliated with or endorsed by them.
