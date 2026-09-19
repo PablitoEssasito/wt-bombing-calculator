@@ -21,6 +21,12 @@ const OUT_DATA = path.join(process.cwd(), "src", "data", "images.json");
  * already states it per aircraft, in `category` (see `src/domain/constants.ts`).
  */
 const OUT_SQUADRON = path.join(process.cwd(), "src", "data", "squadron.json");
+/**
+ * Shipped: aircraft id to the wiki's own class (fighter / bomber / strike
+ * aircraft) — the same grouping the game's tech tree itself uses, read
+ * straight off the unit list rather than guessed from the sheet's loadouts.
+ */
+const OUT_TYPES = path.join(process.cwd(), "src", "data", "vehicle-types.json");
 const CACHE = path.join(process.cwd(), ".cache", "wiki-aviation.html");
 
 const useCache = process.argv.includes("--cache");
@@ -127,6 +133,13 @@ async function main() {
     .sort();
   await writeFile(OUT_SQUADRON, JSON.stringify(squadron));
   console.log(`Wrote ${squadron.length} squadron-vehicle ids to src/data/squadron.json`);
+
+  const types: Record<string, string> = {};
+  for (const [aircraftId, match] of matches) {
+    if (aircraftId in map && match.unit.vehicleType) types[aircraftId] = match.unit.vehicleType;
+  }
+  await writeFile(OUT_TYPES, JSON.stringify(types));
+  console.log(`Wrote ${Object.keys(types).length} vehicle classes to src/data/vehicle-types.json`);
 }
 
 main().catch((error) => {

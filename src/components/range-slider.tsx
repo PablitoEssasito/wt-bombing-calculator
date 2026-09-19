@@ -3,21 +3,25 @@
 import { cn } from "@/lib/utils";
 
 /**
- * A two-handle range over the battle ratings that actually exist.
- *
- * Battle ratings are not evenly spaced — they step 1.0, 1.3, 1.7, 2.0 — so the
- * sliders run over positions in the list rather than over the numbers, which
+ * A two-handle range over a set of steps that actually exist in the data —
+ * battle ratings step 1.0, 1.3, 1.7, 2.0, ranks step 1..9, so both sliders run
+ * over positions in the list rather than over the numbers themselves, which
  * makes every stop land on a real value instead of somewhere between two.
  */
-export function BrRange({
+export function RangeSlider({
+  label,
   steps,
   from,
   to,
+  format,
   onChange,
 }: {
+  label: string;
   steps: number[];
   from: number;
   to: number;
+  /** How to print one endpoint value, e.g. `(v) => v.toFixed(1)` or a roman numeral lookup. */
+  format: (value: number) => string;
   onChange: (from: number, to: number) => void;
 }) {
   const last = steps.length - 1;
@@ -26,13 +30,13 @@ export function BrRange({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <span className="text-xs uppercase tracking-wider text-ink-faint">Battle rating</span>
+        <span className="text-xs uppercase tracking-wider text-ink-faint">{label}</span>
         <span className="nums text-sm">
           {from === 0 && to === last ? (
             <span className="text-ink-faint">all</span>
           ) : (
             <span className="text-accent">
-              {steps[from].toFixed(1)} – {steps[to].toFixed(1)}
+              {format(steps[from])} – {format(steps[to])}
             </span>
           )}
         </span>
@@ -46,13 +50,13 @@ export function BrRange({
           style={{ left: `${pct(from)}%`, right: `${100 - pct(to)}%` }}
         />
         <RangeInput
-          label="Lowest battle rating"
+          label={`Lowest ${label.toLowerCase()}`}
           max={last}
           value={from}
           onChange={(v) => onChange(Math.min(v, to), to)}
         />
         <RangeInput
-          label="Highest battle rating"
+          label={`Highest ${label.toLowerCase()}`}
           max={last}
           value={to}
           onChange={(v) => onChange(from, Math.max(v, from))}

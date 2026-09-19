@@ -81,6 +81,28 @@ export const CATEGORY_LABELS: Record<VehicleCategory, string> = {
   "premium-fighter": "Premium · fighter",
 };
 
+/**
+ * The wiki's own aircraft class — fighter, bomber, or strike aircraft — the
+ * same grouping the game's tech tree filters by. Independent of `category`
+ * above: that axis is premium-vs-researched and reward curve, this one is
+ * what the aircraft actually is.
+ */
+export const VEHICLE_TYPES = ["fighter", "bomber", "assault"] as const;
+export type VehicleType = (typeof VEHICLE_TYPES)[number];
+
+export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = {
+  fighter: "Fighter",
+  bomber: "Bomber",
+  assault: "Strike aircraft",
+};
+
+/** The wiki's own colour for each class — the diamond it marks a unit row with. */
+export const VEHICLE_TYPE_COLORS: Record<VehicleType, string> = {
+  fighter: "#ffac6f",
+  bomber: "#a3b1ff",
+  assault: "#bde9b5",
+};
+
 export const GAME_MODES = ["rb", "ab"] as const;
 export type GameMode = (typeof GAME_MODES)[number];
 

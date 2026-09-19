@@ -5,6 +5,8 @@ import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
 import squadronData from "@/data/squadron.json";
+import vehicleTypeData from "@/data/vehicle-types.json";
+import type { VehicleType } from "@/domain/constants";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
 import type { Aircraft, Bomb, Meta } from "@/domain/types";
 
@@ -21,6 +23,9 @@ export const imagesByAircraft = imageData as Record<string, string>;
  * the sheet already states it per aircraft, in `category`.
  */
 const squadronIds = new Set(squadronData as string[]);
+
+/** Aircraft id to the wiki's own class — fighter, bomber, or strike aircraft. */
+const vehicleTypesByAircraft = vehicleTypeData as Record<string, VehicleType>;
 
 /**
  * How each aircraft mounts its ordnance, read off the wiki's suspended armament
@@ -146,6 +151,8 @@ export type AircraftSummary = {
   premium: boolean;
   /** Earned through a squadron rather than research or purchase — the game's green tiles. */
   squadron: boolean;
+  /** The wiki's own class — null for the few rows it never matched to a unit. */
+  vehicleType: VehicleType | null;
 };
 
 /** Just enough of a bomb to show it; the full records are far heavier. */
@@ -196,11 +203,15 @@ export const aircraftIndex: AircraftSummary[] = aircraft
     imageId: imagesByAircraft[plane.id] ?? null,
     premium: plane.category.startsWith("premium"),
     squadron: squadronIds.has(plane.id),
+    vehicleType: vehicleTypesByAircraft[plane.id] ?? null,
   }))
   .sort((a, b) => a.br - b.br || a.name.localeCompare(b.name));
 
 /** Every battle rating actually present, so a slider can snap to real values. */
 export const BR_STEPS: number[] = [...new Set(aircraft.map((a) => a.br))].sort((a, b) => a - b);
+
+/** Every rank actually present, so a slider can snap to real values. */
+export const RANK_STEPS: number[] = [...new Set(aircraft.map((a) => a.rank))].sort((a, b) => a - b);
 
 export const bombGlyphData: BombGlyphData[] = bombs.map((b) => ({
   id: b.id,

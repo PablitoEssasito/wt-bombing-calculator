@@ -1,5 +1,5 @@
 import { AircraftSearch } from "@/components/aircraft-search";
-import { BR_STEPS, aircraftIndex, bombGlyphData, meta } from "@/lib/dataset";
+import { BR_STEPS, RANK_STEPS, aircraftIndex, bombGlyphData, meta } from "@/lib/dataset";
 
 export default function HomePage() {
   return (
@@ -17,8 +17,8 @@ export default function HomePage() {
 
       <AircraftSearch
         index={aircraftIndex}
-        nationNotes={meta.nationNotes}
         brSteps={BR_STEPS}
+        rankSteps={RANK_STEPS}
         bombs={bombGlyphData}
       />
 

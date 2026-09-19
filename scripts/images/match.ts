@@ -7,6 +7,10 @@
  * candidate before it is accepted.
  */
 
+/** The wiki's own aircraft classes — the same three the game itself sorts by. */
+export const VEHICLE_TYPES = ["fighter", "bomber", "assault"] as const;
+export type VehicleType = (typeof VEHICLE_TYPES)[number];
+
 export type WikiUnit = {
   id: string;
   name: string;
@@ -18,6 +22,8 @@ export type WikiUnit = {
    * green for.
    */
   rewardKind: 0 | 1 | 2;
+  /** Null for the handful of rows whose class the wiki itself leaves unset. */
+  vehicleType: VehicleType | null;
 };
 
 export type SheetAircraft = {
@@ -196,19 +202,30 @@ export function matchAircraft(
   return { matches, unmatched };
 }
 
+const isVehicleType = (value: unknown): value is VehicleType =>
+  typeof value === "string" && (VEHICLE_TYPES as readonly string[]).includes(value);
+
 /** Pulls the wiki's own unit table out of its aviation page. */
 export function parseUnitList(html: string): WikiUnit[] {
   const raw = html.match(/window\.WT_UnitList\s*=\s*'([\s\S]*?)';/)?.[1];
   if (!raw) throw new Error("WT_UnitList not found — the wiki page changed shape");
 
-  // The row carries several fields this project has no use for — battle ratings
-  // per mode, the research-tree position, a price block — read by position and
-  // left untyped past what is actually used.
-  const rows = JSON.parse(raw.replace(/\\'/g, "'")) as [string, string, string, ...unknown[]][];
-  return rows.map(([id, name, country, , , rewardKind]) => ({
-    id,
-    name,
-    country,
-    rewardKind: (typeof rewardKind === "number" ? rewardKind : 0) as 0 | 1 | 2,
-  }));
+  // Each row carries several fields this project has no use for — battle ratings
+  // per mode, the research-tree position, a price block — so it's read by
+  // position rather than typed as a whole. Index 5 is the reward kind; index 7
+  // is [[classSlug, classLabel, classColor], ...], the same class the wiki's
+  // own filter buttons and the game's tech tree group aircraft by.
+  const rows = JSON.parse(raw.replace(/\\'/g, "'")) as unknown[][];
+  return rows.map((row) => {
+    const [id, name, country] = row as [string, string, string];
+    const rewardKind = row[5];
+    const classSlug = (row[7] as [[string, string, string]] | undefined)?.[0]?.[0];
+    return {
+      id,
+      name,
+      country,
+      rewardKind: (typeof rewardKind === "number" ? rewardKind : 0) as 0 | 1 | 2,
+      vehicleType: isVehicleType(classSlug) ? classSlug : null,
+    };
+  });
 }

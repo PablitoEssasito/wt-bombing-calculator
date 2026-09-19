@@ -32,6 +32,7 @@ const unit = (id: string, name: string, country: string, rewardKind: 0 | 1 | 2 =
   name,
   country,
   rewardKind,
+  vehicleType: null,
 });
 
 const UNITS: WikiUnit[] = [
@@ -141,7 +142,7 @@ describe("parseUnitList", () => {
   it("reads the table the wiki embeds in its aviation page", () => {
     const html = `<script>window.WT_UnitList = '[["a-20g","A-20G-25","usa",2,{}]]';</script>`;
     expect(parseUnitList(html)).toEqual([
-      { id: "a-20g", name: "A-20G-25", country: "usa", rewardKind: 0 },
+      { id: "a-20g", name: "A-20G-25", country: "usa", rewardKind: 0, vehicleType: null },
     ]);
   });
 
@@ -153,6 +154,17 @@ describe("parseUnitList", () => {
       `]';</script>`;
     const units = parseUnitList(html);
     expect(units.map((u) => u.rewardKind)).toEqual([1, 2]);
+  });
+
+  it("reads the aircraft's class off the row's eighth field", () => {
+    const html =
+      `<script>window.WT_UnitList = '[` +
+      `["a-20g","A-20G-25","usa",2,{},0,[],[["assault","Strike aircraft","#bde9b5"],[],""]],` +
+      `["a5m4","A5M4","japan",1,{},0,[],[["fighter","Fighter","#ffac6f"],[],""]],` +
+      `["odd","Odd","usa",1,{},0,[],[["blimp","Blimp","#fff"],[],""]]` +
+      `]';</script>`;
+    const units = parseUnitList(html);
+    expect(units.map((u) => u.vehicleType)).toEqual(["assault", "fighter", null]);
   });
 
   it("fails loudly if the wiki stops publishing it", () => {
