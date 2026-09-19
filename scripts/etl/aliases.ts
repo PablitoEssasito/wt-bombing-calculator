@@ -17,6 +17,19 @@ export const BOMB_ALIASES: Record<string, string> = {
 };
 
 /**
+ * Aircraft names the sheet misspells against the game's own unit list.
+ *
+ * "Do 17 J-1" is not a vehicle War Thunder has ever shipped — the wiki's own
+ * unit list has no do_17j_1, only do_217j_1, which matches this row's
+ * nation, rank (I) and BR (2.0 RB) exactly (wiki.warthunder.com/unit/do_217j_1).
+ * A dropped "2", not a judgment call, so it's corrected here rather than left
+ * as a name nothing can match an image to.
+ */
+export const AIRCRAFT_NAME_CORRECTIONS: Record<string, string> = {
+  "Do 17 J-1": "Do 217 J-1",
+};
+
+/**
  * Bombs that appear in loadouts but carry no damage value in the source — the
  * chart is simply missing these two rows outright. Carried through so the
  * schedules stay complete, and flagged so nothing tries to price them.

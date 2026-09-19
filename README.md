@@ -124,7 +124,7 @@ scripts/etl/         import from the spreadsheet; run by hand, never during a bu
   parse-bombs.ts        the bomb chart, including its unlabelled nation blocks
   parse-nations.ts      ten nation tabs into aircraft and loadouts
   rockets.ts             rocket damage, checked by hand against the game's own stats
-  aliases.ts              the handful of names the two tabs spell differently
+  aliases.ts              names the sheet spells differently from the chart, or misspells outright
 scripts/armament/     the loadout creator's data, read from the datamine
 scripts/bomb-icons/   the bomb chart's own weapon-selector icons
 scripts/images/       aircraft renders and tech-tree icons, matched off the wiki
@@ -191,7 +191,7 @@ already the size they are shown at:
 - `icons/{unit}.webp` — the small tech-tree slot icon, ~120x66, for search tiles. This
   is the style the source spreadsheet itself uses next to each entry.
 
-638 aircraft, 16.4 MB total (14.1 MB renders, 2.4 MB icons) — down from over 60 MB of
+639 aircraft, 16.5 MB total (14.1 MB renders, 2.4 MB icons) — down from over 60 MB of
 PNG at the source resolution.
 
 Both come from Gaijin's own encyclopedia CDN,
@@ -206,9 +206,11 @@ The hard part is names. The sheet writes `Lancaster I`, the game calls it
 exact, prefix, token-subset ignoring filler words like *Mk* and *serie*, then the other
 nation's tree — and accepts a rule only when it lands on exactly one candidate,
 reserving the unit it lands on so a later, looser rule can never take it back. That
-reaches 647 of 648. The one it misses is `Do 17 J-1`, which does not exist: the game has
-`Do 217 J-1`, so the source has a typo, and guessing a picture for it would be worse
-than leaving the tile without one.
+reaches 648 of 648 — including one the sheet itself gets wrong, `Do 17 J-1`, which does
+not exist: the game has `Do 217 J-1`, rank and BR matching the sheet's row exactly
+(wiki.warthunder.com/unit/do_217j_1). That's a dropped digit, not a judgment call, so
+`AIRCRAFT_NAME_CORRECTIONS` in `aliases.ts` fixes the name before matching ever sees it,
+the same way `BOMB_ALIASES` does for a loadout cell that misnames a bomb.
 
 Names come from `window.WT_UnitList` on the wiki's aviation page, which also carries
 whether a vehicle is a premium purchase or a squadron reward — the same distinction the
@@ -258,7 +260,6 @@ loadout creator prefers the preset's own stated icon over this match — see
 
 ## Known gaps
 
-- **One aircraft has no render** — `Do 17 J-1`, above.
 - **Loadout availability.** Recalculated schedules assume any mix of the carried bombs
   can be taken, which the game does not always allow; the loadout creator's own mass and
   exclusion rules do not have that problem, but check per-wing/balance limits, which

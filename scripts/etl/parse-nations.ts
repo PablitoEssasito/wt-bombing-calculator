@@ -8,7 +8,12 @@ import type {
   LoadoutOption,
   Schedule,
 } from "../../src/domain/types";
-import { AMBIGUOUS_DEFAULT_NATION, BOMB_ALIASES, normalizeBombName } from "./aliases";
+import {
+  AIRCRAFT_NAME_CORRECTIONS,
+  AMBIGUOUS_DEFAULT_NATION,
+  BOMB_ALIASES,
+  normalizeBombName,
+} from "./aliases";
 import { NATION_COL } from "./config";
 import { cell, flatten, parseCsv } from "./csv";
 import { noteKey, type NoteGrid } from "./notes";
@@ -50,7 +55,8 @@ function parseNameAndBr(raw: string): { name: string; br: number } | null {
   const text = flatten(raw);
   const match = text.match(/^(.*?)\s+(\d+\.\d+)$/);
   if (!match || !match[1]) return null;
-  return { name: match[1].trim(), br: Number(match[2]) };
+  const name = match[1].trim();
+  return { name: AIRCRAFT_NAME_CORRECTIONS[name] ?? name, br: Number(match[2]) };
 }
 
 /**
