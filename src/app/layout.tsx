@@ -40,8 +40,8 @@ export const metadata: Metadata = {
   // leaves old tabs showing the old one indefinitely. Bump it whenever
   // scripts/pwa-icons's drawing changes.
   icons: {
-    icon: `${withBasePath("/icons/app-icon-32.png")}?v=4`,
-    apple: `${withBasePath("/icons/app-icon-180.png")}?v=4`,
+    icon: `${withBasePath("/icons/app-icon-32.png")}?v=5`,
+    apple: `${withBasePath("/icons/app-icon-180.png")}?v=5`,
   },
   // Correct for the home page, which sets no metadata of its own; every other
   // page restates it for its own path, for the same replace-not-deepen reason
@@ -80,8 +80,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="border-b border-line sticky top-0 z-30 bg-ground/85 backdrop-blur">
           <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-2 sm:gap-6">
             <Link href="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <BombMark size={18} className="text-accent shrink-0" />
-              <span className="font-semibold tracking-tight whitespace-nowrap">
+              <BombMark size={30} className="text-accent shrink-0" />
+              <span className="font-semibold text-lg tracking-tight whitespace-nowrap">
                 Bombing<span className="text-ink-dim">Calc</span>
               </span>
             </Link>
