@@ -110,7 +110,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               className="ml-auto flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-accent border border-accent/30 hover:bg-accent-dim hover:border-accent/60 transition-colors whitespace-nowrap shrink-0 text-sm font-medium"
             >
               <Coffee size={16} className="shrink-0" />
-              <span className="hidden sm:inline">Ko-fi</span>
+              <span className="hidden sm:inline">Buy me a coffee</span>
             </a>
           </div>
         </header>
