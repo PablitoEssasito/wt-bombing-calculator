@@ -330,8 +330,8 @@ export function LoadoutCreator({
 
         {unpriced.length > 0 ? (
           <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
-            Also carrying: {unpriced.map((s) => s.name).join(", ")} — the bomb chart doesn&apos;t
-            price these, so they&apos;re left out of the count above.
+            Also carrying: {unpriced.map((s) => s.name).join(", ")} — no base-damage figure for
+            these, so they&apos;re left out of the count above.
           </p>
         ) : null}
 

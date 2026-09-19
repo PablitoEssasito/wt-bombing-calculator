@@ -22,7 +22,8 @@ export default function BombsPage() {
         <p className="text-ink-dim max-w-2xl text-pretty">
           What one bomb does to a base, and how many of them a base takes. Set the conditions and
           the whole table answers at once. Damage here is base damage, not TNT equivalent — the
-          two do not track each other, which is the whole reason this chart exists.
+          two do not track each other, which is why both get their own column here instead of one
+          standing in for the other.
         </p>
       </header>
 
