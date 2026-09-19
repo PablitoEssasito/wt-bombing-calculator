@@ -2,6 +2,7 @@
   "name": "wt-bombing-calculator",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -19,7 +20,8 @@
     "armament:cache": "tsx scripts/armament/index.ts --cache",
     "stores": "tsx scripts/armament/stores.ts",
     "stores:cache": "tsx scripts/armament/stores.ts --cache",
-    "reward-icons": "tsx scripts/reward-icons/index.ts"
+    "reward-icons": "tsx scripts/reward-icons/index.ts",
+    "pwa-icons": "tsx scripts/pwa-icons/index.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

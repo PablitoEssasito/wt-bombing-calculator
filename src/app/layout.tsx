@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { withBasePath } from "@/lib/base-path";
 import { meta } from "@/lib/dataset";
 import { canonicalOf, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -15,6 +16,12 @@ const TITLE = "War Thunder Base Bombing Calculator";
 const DESCRIPTION =
   "How many bombs to take, and what to drop on each base, for every bomber and attacker in War Thunder.";
 
+// Matches --color-ground — the phone's own chrome (status bar, address bar)
+// should read as part of the page, not a lighter bar bolted on top of it.
+export const viewport: Viewport = {
+  themeColor: "#0b0f14",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -22,6 +29,13 @@ export const metadata: Metadata = {
     template: "%s · WT Bombing Calculator",
   },
   description: DESCRIPTION,
+  // Unlike alternates.canonical and openGraph/twitter's images, these hrefs
+  // don't compose against metadataBase — Next ships them exactly as given,
+  // so they need the same manual prefix every plain <Image src> does.
+  icons: {
+    icon: withBasePath("/icons/app-icon-32.png"),
+    apple: withBasePath("/icons/app-icon-180.png"),
+  },
   // Correct for the home page, which sets no metadata of its own; every other
   // page restates it for its own path, for the same replace-not-deepen reason
   // openGraph/twitter do below.
