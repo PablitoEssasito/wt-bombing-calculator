@@ -128,8 +128,8 @@ export function AircraftPlanner({
           value={String(baseCount)}
           onChange={(v) => setMapSize(Number(v))}
           options={[
-            { value: "4", label: "Four", hint: "most maps" },
-            { value: "3", label: "Three", hint: "half payload" },
+            { value: "4", label: "Four" },
+            { value: "3", label: "Three" },
           ]}
         />
 
