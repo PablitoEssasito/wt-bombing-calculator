@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { NATIONS, type Nation } from "../../src/domain/constants";
 import type { Aircraft, Bomb } from "../../src/domain/types";
 import { downloadIcons } from "../bomb-icons/fetch";
 import { parseArmament, presetPath, type Armament } from "./parse";
@@ -132,6 +133,22 @@ async function main() {
   const catalogue = JSON.parse(await readFile(STORES_FILE, "utf8")) as StoreRecord[];
   report(aircraft, unitIds, byUnit, missing, bombs, catalogue);
 
+  const usedBy = usedByNationsOf(aircraft, unitIds, byUnit, catalogue, bombs);
+  const enrichedBombs = bombs.map((bomb) => ({ ...bomb, usedByNations: usedBy.get(bomb.id) ?? [] }));
+  await writeFile(path.join(DATA_DIR, "bombs.json"), JSON.stringify(enrichedBombs), "utf8");
+  const unmatched = enrichedBombs.filter((b) => b.usedByNations.length === 0);
+  console.log(
+    `\nNation usage: ${enrichedBombs.length - unmatched.length}/${enrichedBombs.length} bombs matched ` +
+      `to at least one nation` +
+      (unmatched.length > 0
+        ? `; ${unmatched.length} matched none, so only "All nations" shows them: ` +
+          unmatched
+            .slice(0, 8)
+            .map((b) => b.chartName || b.fullName)
+            .join(", ")
+        : ""),
+  );
+
   // Every icon a missile, a gun or anything else states directly — the bomb
   // chart's own icons come from a separate match in scripts/bomb-icons, keyed
   // by bomb id rather than icon type, so this only ever pulls what that step
@@ -148,6 +165,85 @@ async function main() {
   const { downloaded, failed } = await downloadIcons(iconTypes);
   console.log(`Icons ready (${downloaded} newly downloaded, ${failed.length} failed)`);
   if (failed.length > 0) console.log(`  ${failed.slice(0, 10).join(", ")}`);
+}
+
+/**
+ * Which nations actually carry each bomb, from two sources unioned together.
+ *
+ * The Bomb Chart's own `nation` column names whichever nation's block a bomb
+ * was first catalogued under — not an exhaustive list of who can carry it.
+ * Neither source below is enough by itself:
+ *
+ * - The sheet's own bombing schedules (`aircraft[].options[].schedules`) never
+ *   mention a rocket at all — LEGION's Loadouts only prices bombs (see
+ *   scripts/etl/rockets.ts), so rockets carry no schedule entries whatsoever.
+ * - The game's own hardpoints (`byUnit`, resolved through the store catalogue
+ *   the same way `writePayload` resolves them) reach rockets, but only for
+ *   aircraft the datamine actually files hardpoints for.
+ *
+ * Unioning both catches a bomb the moment either one has seen it carried.
+ * Falls back to the chart's own `nation` only when a bomb turns up in
+ * neither — so nothing the chart named a nation for goes unfilterable, while
+ * everything with real usage data gets the fuller, more accurate picture
+ * (rockets, and ordinary bombs shared across nations through lend-lease or
+ * licence-built aircraft, that column was never able to state).
+ */
+function usedByNationsOf(
+  aircraft: Aircraft[],
+  unitIds: Record<string, string>,
+  byUnit: Record<string, Armament>,
+  catalogue: StoreRecord[],
+  bombs: Bomb[],
+): Map<string, Nation[]> {
+  const sets = new Map<string, Set<Nation>>();
+  const add = (bombId: string, nation: Nation) => {
+    const set = sets.get(bombId) ?? new Set<Nation>();
+    set.add(nation);
+    sets.set(bombId, set);
+  };
+
+  for (const plane of aircraft) {
+    for (const option of plane.options) {
+      for (const schedule of option.schedules) {
+        for (const base of schedule.bases) {
+          for (const item of base.items) add(item.bombId, plane.nation);
+        }
+      }
+    }
+  }
+
+  const byFile = new Map(catalogue.map((s) => [s.file, s]));
+  const nationsByUnit = new Map<string, Set<Nation>>();
+  for (const plane of aircraft) {
+    const unitId = unitIds[plane.id];
+    if (!unitId) continue;
+    const set = nationsByUnit.get(unitId) ?? new Set<Nation>();
+    set.add(plane.nation);
+    nationsByUnit.set(unitId, set);
+  }
+  for (const [unitId, armament] of Object.entries(byUnit)) {
+    const nations = nationsByUnit.get(unitId);
+    if (!nations) continue;
+    for (const slot of armament.slots) {
+      for (const option of slot.options) {
+        for (const store of option.stores) {
+          const bombId = byFile.get(store.file)?.bomb?.id;
+          if (!bombId) continue;
+          for (const nation of nations) add(bombId, nation);
+        }
+      }
+    }
+  }
+
+  return new Map(
+    bombs.map((bomb) => {
+      const found = sets.get(bomb.id);
+      // Ordered to match NATIONS, not insertion order, so the field reads the
+      // same way the nation chips are laid out.
+      const nations = found ? NATIONS.filter((n) => found.has(n)) : bomb.nation ? [bomb.nation] : [];
+      return [bomb.id, nations];
+    }),
+  );
 }
 
 /**

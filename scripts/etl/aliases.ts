@@ -61,6 +61,9 @@ export function unpricedBombs(): Bomb[] {
     damageValue: null,
     efficiency: null,
     sheetCounts: null,
+    // Placeholder — index.ts overwrites this once the loadouts are parsed and
+    // it can see who actually carries each bomb.
+    usedByNations: [],
   }));
 
   const rockets = ROCKET_ORDNANCE.map((r) => ({
@@ -75,6 +78,7 @@ export function unpricedBombs(): Bomb[] {
     damageValue: r.damageValue,
     efficiency: Math.round(r.damageValue / r.massKg),
     sheetCounts: null,
+    usedByNations: [],
   }));
 
   return [...bombs, ...rockets];

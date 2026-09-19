@@ -115,6 +115,9 @@ export function parseBombs(csvText: string): BombIndex {
         damageValue,
         efficiency: parseNumber(cell(row, BOMB_COL.efficiency)),
         sheetCounts: counts.every((c) => c !== null) ? (counts as number[]) : null,
+        // Placeholder — index.ts overwrites this once the loadouts are parsed
+        // and it can see who actually carries each bomb.
+        usedByNations: [],
       },
     });
   }

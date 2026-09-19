@@ -2,6 +2,7 @@
 
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { useDeferredValue, useMemo } from "react";
+import { Count } from "@/components/filter-count";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
 import {
   BASE_HP_TIERS,
@@ -142,7 +143,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
-      if (nation !== "all" && bomb.nation !== nation) return false;
+      if (nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
       if (kinds.size > 0 && !kinds.has(bomb.kind)) return false;
       if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
       if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
@@ -178,6 +179,51 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
     dmgMax,
   ]);
 
+  // Facet counts: how many rows each Nation/Type option would leave, holding
+  // every *other* axis fixed (search text and the mass/TNT/damage ranges, but
+  // not the axis's own filter) — same idea as the aircraft page's chip counts.
+  const withoutNation = useMemo(() => {
+    const needle = deferred.trim().toLowerCase();
+    return bombs.filter((bomb) => {
+      if (bomb.damageValue === null && bomb.kind !== "ROCKET") return false;
+      if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
+        return false;
+      }
+      if (kinds.size > 0 && !kinds.has(bomb.kind)) return false;
+      if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
+      if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
+      if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
+      if (tntMax !== null && (bomb.tntKg ?? Infinity) > tntMax) return false;
+      if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
+      if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
+      if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
+      return true;
+    });
+  }, [bombs, deferred, kinds, massMin, massMax, tntMin, tntMax, dmgMin, dmgMax]);
+
+  const withoutKind = useMemo(() => {
+    const needle = deferred.trim().toLowerCase();
+    return bombs.filter((bomb) => {
+      if (bomb.damageValue === null && bomb.kind !== "ROCKET") return false;
+      if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
+        return false;
+      }
+      if (nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
+      if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
+      if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
+      if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
+      if (tntMax !== null && (bomb.tntKg ?? Infinity) > tntMax) return false;
+      if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
+      if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
+      if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
+      return true;
+    });
+  }, [bombs, deferred, nation, massMin, massMax, tntMin, tntMax, dmgMin, dmgMax]);
+
+  const nationCount = (n: Nation | "all") =>
+    n === "all" ? withoutNation.length : withoutNation.filter((b) => b.usedByNations.includes(n)).length;
+  const kindCount = (k: BombKind) => withoutKind.filter((b) => b.kind === k).length;
+
   const handleSort = (column: Sort) => {
     if (column === sort) setDir(dir === "asc" ? "desc" : "asc");
     else {
@@ -193,6 +239,8 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
     setKinds(next);
   };
 
+  const rangesActive =
+    massMin !== null || massMax !== null || tntMin !== null || tntMax !== null || dmgMin !== null || dmgMax !== null;
   const clearRanges = () => {
     setMassMin(null);
     setMassMax(null);
@@ -201,8 +249,14 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
     setDmgMin(null);
     setDmgMax(null);
   };
-  const rangesActive =
-    massMin !== null || massMax !== null || tntMin !== null || tntMax !== null || dmgMin !== null || dmgMax !== null;
+
+  const filtersActive = query.trim() !== "" || nation !== "all" || kinds.size > 0 || rangesActive;
+  const clearFilters = () => {
+    setQuery("");
+    setNation("all");
+    setKinds(new Set());
+    clearRanges();
+  };
 
   return (
     <div className="space-y-6">
@@ -243,10 +297,12 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           <div className="flex flex-wrap gap-1.5">
             <FilterChip active={nation === "all"} onClick={() => setNation("all")}>
               <span aria-hidden>🌐</span> All nations
+              <Count>{nationCount("all")}</Count>
             </FilterChip>
             {NATIONS.map((n: Nation) => (
               <FilterChip key={n} active={nation === n} onClick={() => setNation(n)}>
                 <Flag nation={n} /> {NATION_LABELS[n]}
+                <Count>{nationCount(n)}</Count>
               </FilterChip>
             ))}
           </div>
@@ -258,6 +314,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
             {PRICED_KINDS.map((kind) => (
               <CheckChip key={kind} checked={kinds.has(kind)} onClick={() => toggleKind(kind)}>
                 {BOMB_KIND_LABELS[kind]}
+                <Count>{kindCount(kind)}</Count>
               </CheckChip>
             ))}
           </div>
@@ -290,15 +347,6 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           />
         </div>
 
-        {rangesActive ? (
-          <button
-            type="button"
-            onClick={clearRanges}
-            className="text-sm text-accent underline underline-offset-4"
-          >
-            clear mass / TNT / damage filters
-          </button>
-        ) : null}
       </section>
 
       <div className="space-y-3">
@@ -312,15 +360,26 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs uppercase tracking-wider text-ink-faint">Mass shown in</span>
-            <div role="group" aria-label="Mass unit" className="flex gap-1">
-              {MASS_UNITS.map((u) => (
-                <FilterChip key={u} active={massUnit === u} onClick={() => setMassUnit(u)}>
-                  {MASS_UNIT_LABELS[u]}
-                </FilterChip>
-              ))}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-wider text-ink-faint">Mass shown in</span>
+              <div role="group" aria-label="Mass unit" className="flex gap-1">
+                {MASS_UNITS.map((u) => (
+                  <FilterChip key={u} active={massUnit === u} onClick={() => setMassUnit(u)}>
+                    {MASS_UNIT_LABELS[u]}
+                  </FilterChip>
+                ))}
+              </div>
             </div>
+            {filtersActive ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-sm text-ink-faint hover:text-accent transition-colors underline underline-offset-4"
+              >
+                Clear filters
+              </button>
+            ) : null}
           </div>
           <p className="nums text-sm text-ink-dim">
             {rows.length} bombs against {formatCount(effectiveHp)} HP bases
@@ -536,7 +595,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "px-3 py-1.5 rounded-full text-sm border transition-colors",
+        "px-3 py-1.5 rounded-full text-sm border transition-colors flex items-center gap-1.5",
         active
           ? "border-accent text-accent bg-accent-dim"
           : "border-line text-ink-dim hover:text-ink hover:border-line-bright",

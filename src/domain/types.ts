@@ -46,6 +46,15 @@ export type Bomb = {
    * value. Kept so the test suite can check our formula against the source.
    */
   sheetCounts: number[] | null;
+  /**
+   * Every nation whose aircraft actually carry this bomb in their loadouts —
+   * read off the loadout data itself (`scripts/etl/index.ts`), not the chart's
+   * `nation` column above. That column is "first catalogued under", which
+   * leaves every rocket empty (the chart never priced them at all) and misses
+   * the ordinary bombs that cross nations through lend-lease and licence-built
+   * aircraft. This is the field the bomb chart's own nation filter reads.
+   */
+  usedByNations: Nation[];
 };
 
 export type LoadoutItem = { bombId: string; count: number };

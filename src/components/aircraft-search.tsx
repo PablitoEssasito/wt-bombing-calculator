@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import { BombRow } from "@/components/bomb-glyph";
+import { Count } from "@/components/filter-count";
 import { Flag } from "@/components/flag";
 import { RangeSlider } from "@/components/range-slider";
 import { VehicleTypeIcon } from "@/components/vehicle-type-icon";
@@ -555,11 +556,6 @@ function Tile({ plane, bomb }: { plane: AircraftSummary; bomb?: BombGlyphData })
       </div>
     </Link>
   );
-}
-
-/** How many results this option would leave, dimmed so the label still leads. */
-function Count({ children }: { children: number }) {
-  return <span className="opacity-60 tabular-nums">{children}</span>;
 }
 
 function Chip({

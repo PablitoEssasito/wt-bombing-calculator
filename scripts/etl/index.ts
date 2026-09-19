@@ -90,6 +90,10 @@ async function main() {
 
   const problems = validate(index, aircraft, unresolved, orphanRows);
 
+  // usedByNations starts empty here (see scripts/etl/parse-bombs.ts and
+  // aliases.ts) — `npm run armament` fills it in once it has both the sheet's
+  // own schedules and the game's hardpoint data to read, and overwrites this
+  // file again. See usedByNationsOf in scripts/armament/index.ts.
   await mkdir(OUT_DIR, { recursive: true });
   await writeFile(path.join(OUT_DIR, "bombs.json"), JSON.stringify(bombs));
   await writeFile(path.join(OUT_DIR, "aircraft.json"), JSON.stringify(aircraft));
