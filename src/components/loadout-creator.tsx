@@ -14,8 +14,10 @@ import { useMemo, useState } from "react";
 import { brLabelFor } from "@/components/aircraft-planner";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
 import { Segmented } from "@/components/segmented";
+import { ShareButton } from "@/components/share-button";
 import { reachableBaseHps } from "@/domain/base-hp";
 import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
+import { track } from "@/lib/analytics";
 import {
   blockedIn,
   bombsIn,
@@ -124,6 +126,12 @@ export function LoadoutCreator({
     : 4;
 
   const setSlot = (slot: number, option: string | null) => {
+    // Fired once per session, on the transition from an empty build to a
+    // real one — a click that means "I'm building my own loadout", not
+    // every pylon toggle after that.
+    if (build.size === 0 && option !== null) {
+      track("loadout_creator_used", { plane: plane.name });
+    }
     const next = new Map(build);
     if (option === null) next.delete(slot);
     else next.set(slot, option);
@@ -308,15 +316,18 @@ export function LoadoutCreator({
       <section className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-lg font-semibold">What it drops</h2>
-          {build.size > 0 ? (
-            <button
-              type="button"
-              onClick={() => setBuild(new Map())}
-              className="text-sm text-ink-faint hover:text-accent underline underline-offset-4"
-            >
-              clear the aircraft
-            </button>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {build.size > 0 ? (
+              <button
+                type="button"
+                onClick={() => setBuild(new Map())}
+                className="text-sm text-ink-faint hover:text-accent underline underline-offset-4"
+              >
+                clear the aircraft
+              </button>
+            ) : null}
+            {build.size > 0 ? <ShareButton surface="loadout_creator" /> : null}
+          </div>
         </div>
         <p className="text-sm text-ink-dim">
           {plan.basesDestroyed} base{plan.basesDestroyed === 1 ? "" : "s"}

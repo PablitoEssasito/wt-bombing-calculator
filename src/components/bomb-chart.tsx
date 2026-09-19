@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
-import { useDeferredValue, useMemo } from "react";
+import { useDeferredValue, useEffect, useMemo } from "react";
 import { Count } from "@/components/filter-count";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
 import {
@@ -17,6 +17,8 @@ import {
 import type { Bomb, BombKind } from "@/domain/types";
 import { Flag } from "@/components/flag";
 import { Segmented } from "@/components/segmented";
+import { ShareButton } from "@/components/share-button";
+import { track } from "@/lib/analytics";
 import { BOMB_KIND_LABELS } from "@/lib/labels";
 import {
   urlInteger,
@@ -114,6 +116,15 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const [dmgMax, setDmgMax] = useUrlState("dmgMax", urlOptionalInteger());
 
   const deferred = useDeferredValue(query);
+
+  // Debounced so a full search term is what lands in GA4, not one event per
+  // keystroke.
+  useEffect(() => {
+    const term = deferred.trim();
+    if (!term) return;
+    const id = setTimeout(() => track("search", { search_term: term, surface: "bombs" }), 700);
+    return () => clearTimeout(id);
+  }, [deferred]);
 
   const baseHp = (BASE_HP_TIERS as readonly number[]).includes(hp) ? (hp as BaseHp) : 25900;
   const baseCount = (mapSize === 3 ? 3 : 4) as BaseCount;
@@ -224,19 +235,27 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
     n === "all" ? withoutNation.length : withoutNation.filter((b) => b.usedByNations.includes(n)).length;
   const kindCount = (k: BombKind) => withoutKind.filter((b) => b.kind === k).length;
 
+  const selectNation = (n: Nation | "all") => {
+    setNation(n);
+    track("filter_applied", { surface: "bombs", filter: "nation", value: n });
+  };
+
   const handleSort = (column: Sort) => {
     if (column === sort) setDir(dir === "asc" ? "desc" : "asc");
     else {
       setSort(column);
       setDir(DEFAULT_DIR[column]);
     }
+    track("filter_applied", { surface: "bombs", filter: "sort", value: column });
   };
 
   const toggleKind = (kind: BombKind) => {
     const next = new Set(kinds);
+    const turningOn = !next.has(kind);
     if (next.has(kind)) next.delete(kind);
     else next.add(kind);
     setKinds(next);
+    track("filter_applied", { surface: "bombs", filter: "kind", value: kind, state: turningOn ? "on" : "off" });
   };
 
   const rangesActive =
@@ -295,12 +314,12 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
         <div className="space-y-1.5">
           <div className="text-xs uppercase tracking-wider text-ink-faint">Nation</div>
           <div className="flex flex-wrap gap-1.5">
-            <FilterChip active={nation === "all"} onClick={() => setNation("all")}>
+            <FilterChip active={nation === "all"} onClick={() => selectNation("all")}>
               <span aria-hidden>🌐</span> All nations
               <Count>{nationCount("all")}</Count>
             </FilterChip>
             {NATIONS.map((n: Nation) => (
-              <FilterChip key={n} active={nation === n} onClick={() => setNation(n)}>
+              <FilterChip key={n} active={nation === n} onClick={() => selectNation(n)}>
                 <Flag nation={n} /> {NATION_LABELS[n]}
                 <Count>{nationCount(n)}</Count>
               </FilterChip>
@@ -380,6 +399,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                 Clear filters
               </button>
             ) : null}
+            <ShareButton surface="bomb_chart" />
           </div>
           <p className="nums text-sm text-ink-dim">
             {rows.length} bombs against {formatCount(effectiveHp)} HP bases
@@ -669,7 +689,9 @@ function RangeField({
           onChange={(e) => onMinChange(parse(e.target.value))}
           placeholder={String(bounds.min)}
           aria-label={`${label} minimum`}
-          className="w-full min-w-0 card px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint focus:border-accent transition-colors"
+          // text-base, not text-sm — iOS Safari zooms the whole page in on
+          // focus for any input under 16px, which text-sm's 14px is.
+          className="w-full min-w-0 card px-2.5 py-1.5 text-base outline-none placeholder:text-ink-faint focus:border-accent transition-colors"
         />
         <span className="text-ink-faint text-sm shrink-0">–</span>
         <input
@@ -679,7 +701,7 @@ function RangeField({
           onChange={(e) => onMaxChange(parse(e.target.value))}
           placeholder={String(bounds.max)}
           aria-label={`${label} maximum`}
-          className="w-full min-w-0 card px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint focus:border-accent transition-colors"
+          className="w-full min-w-0 card px-2.5 py-1.5 text-base outline-none placeholder:text-ink-faint focus:border-accent transition-colors"
         />
       </div>
     </div>

@@ -3,7 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AircraftView } from "@/components/aircraft-view";
+import { FavoriteToggle } from "@/components/favorite-toggle";
 import { Flag } from "@/components/flag";
+import { RecordRecentlyViewed } from "@/components/record-recently-viewed";
 import { CATEGORY_LABELS, NATION_LABELS } from "@/domain/constants";
 import {
   aircraft,
@@ -90,7 +92,9 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
             {plane.name}
           </h1>
           <span className="nums text-2xl text-accent">{plane.br.toFixed(1)}</span>
+          <FavoriteToggle id={plane.id} />
         </div>
+        <RecordRecentlyViewed id={plane.id} />
         <p className="text-sm text-ink-dim">
           {NATION_LABELS[plane.nation]} · Rank {RANK_LABELS[plane.rank]} ·{" "}
           {CATEGORY_LABELS[plane.category]}

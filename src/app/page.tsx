@@ -1,4 +1,5 @@
 import { AircraftSearch } from "@/components/aircraft-search";
+import { QuickAccess } from "@/components/quick-access";
 import { BR_STEPS, RANK_STEPS, aircraftIndex, bombGlyphData, meta } from "@/lib/dataset";
 import { SITE_URL } from "@/lib/site";
 
@@ -36,6 +37,8 @@ export default function HomePage() {
           {meta.aircraftCount} aircraft and {meta.bombCount} bombs.
         </p>
       </header>
+
+      <QuickAccess index={aircraftIndex} />
 
       <AircraftSearch
         index={aircraftIndex}

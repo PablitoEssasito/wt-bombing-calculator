@@ -90,13 +90,17 @@ function RangeInput({
         "absolute inset-x-0 top-0 h-6 w-full appearance-none bg-transparent",
         // Only the handles should take the pointer, so the two inputs can overlap.
         "pointer-events-none",
+        // 24px, not the visually-tighter 16px this would default to — a
+        // two-handle slider already asks a lot of a touch screen (two close
+        // targets to tell apart), and 16px sits well under both Apple's and
+        // Google's minimum recommended touch target size.
         "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none",
-        "[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4",
+        "[&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6",
         "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent",
         "[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-ground",
         "[&::-webkit-slider-thumb]:cursor-grab",
         "[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none",
-        "[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4",
+        "[&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6",
         "[&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent",
         "[&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-ground",
       )}

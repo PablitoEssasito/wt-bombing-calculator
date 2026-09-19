@@ -3,7 +3,11 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { Coffee } from "lucide-react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import Script from "next/script";
 import { BombMark } from "@/components/bomb-mark";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { ErrorTracking } from "@/components/error-tracking";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { withBasePath } from "@/lib/base-path";
 import { meta } from "@/lib/dataset";
 import { canonicalOf, KOFI_URL, SITE_URL } from "@/lib/site";
@@ -91,11 +95,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="font-sans min-h-full flex flex-col">
+        {/* GA's own dataLayer only exists once next/third-parties' afterInteractive
+            script has actually run, which can lose a race against an error thrown
+            early in hydration — ErrorTracking/ErrorBoundary's track() calls would
+            silently drop. beforeInteractive runs ahead of hydration entirely, so
+            the array is always there first, GA_ID or not. (A direct child of
+            <body> is where next/script's docs place beforeInteractive scripts —
+            <html> itself, before <body>, isn't a supported spot: it produced a
+            real hydration error.) */}
+        <Script id="datalayer-init" strategy="beforeInteractive">
+          {"window.dataLayer = window.dataLayer || [];"}
+        </Script>
         <header className="border-b border-line sticky top-0 z-30 bg-ground/85 backdrop-blur">
           <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-2 sm:gap-6">
             <Link href="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <BombMark size={30} className="text-accent shrink-0" />
-              <span className="font-semibold text-lg tracking-tight whitespace-nowrap">
+              <span className="hidden sm:inline font-semibold text-lg tracking-tight whitespace-nowrap">
                 Bombing<span className="text-ink-dim">Calc</span>
               </span>
             </Link>
@@ -122,7 +137,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main className="flex-1">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
 
         <footer className="border-t border-line mt-16">
           <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-ink-faint space-y-2">
@@ -144,6 +161,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </p>
           </div>
         </footer>
+        <ErrorTracking />
+        <ServiceWorkerRegistration />
       </body>
       {GA_ID ? <GoogleAnalytics gaId={GA_ID} /> : null}
     </html>

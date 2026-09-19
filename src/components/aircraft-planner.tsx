@@ -16,7 +16,9 @@ import type { Aircraft, Bomb, LoadoutOption, Schedule } from "@/domain/types";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
 import { LoadoutNote } from "@/components/loadout-note";
 import { Segmented } from "@/components/segmented";
+import { ShareButton } from "@/components/share-button";
 
+import { track } from "@/lib/analytics";
 import { urlInteger, urlLiteral, useUrlState } from "@/lib/use-url-state";
 import { cn, formatCount } from "@/lib/utils";
 
@@ -105,6 +107,7 @@ export function AircraftPlanner({
           onChange={(v) => {
             setHp(Number(v));
             setPicked(RECOMMENDED);
+            track("planner_adjusted", { control: "match_br", value: v });
           }}
           options={tiers.map((tier) => ({
             value: String(tier),
@@ -116,7 +119,10 @@ export function AircraftPlanner({
         <Segmented
           label="Game mode"
           value={mode}
-          onChange={(v) => setMode(v as GameMode)}
+          onChange={(v) => {
+            setMode(v as GameMode);
+            track("planner_adjusted", { control: "game_mode", value: v });
+          }}
           options={[
             { value: "rb", label: "Realistic / Sim", hint: "bases respawn" },
             { value: "ab", label: "Arcade", hint: "double health" },
@@ -126,7 +132,10 @@ export function AircraftPlanner({
         <Segmented
           label="Bases on the map"
           value={String(baseCount)}
-          onChange={(v) => setMapSize(Number(v))}
+          onChange={(v) => {
+            setMapSize(Number(v));
+            track("planner_adjusted", { control: "map_size", value: v });
+          }}
           options={[
             { value: "4", label: "Four" },
             { value: "3", label: "Three" },
@@ -145,6 +154,7 @@ export function AircraftPlanner({
                 onClick={() => {
                   setTarget(n);
                   setPicked(RECOMMENDED);
+                  track("planner_adjusted", { control: "target_bases", value: n });
                 }}
                 aria-pressed={n === wanted}
                 className={cn(
@@ -187,6 +197,7 @@ export function AircraftPlanner({
               back to the default
             </button>
           ) : null}
+          <ShareButton surface="planner" className="ml-auto" />
         </header>
 
         {active.option.note || active.option.noteMarker ? (
@@ -260,7 +271,10 @@ export function AircraftPlanner({
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setPicked(entry.index)}
+                          onClick={() => {
+                            setPicked(entry.index);
+                            track("planner_adjusted", { control: "loadout_pick", value: entry.index });
+                          }}
                           className="text-xs text-ink-dim hover:text-accent underline underline-offset-4"
                         >
                           show

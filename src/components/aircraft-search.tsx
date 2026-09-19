@@ -4,11 +4,12 @@ import Fuse from "fuse.js";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { BombRow } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
 import { Flag } from "@/components/flag";
 import { RangeSlider } from "@/components/range-slider";
+import { ShareButton } from "@/components/share-button";
 import { VehicleTypeIcon } from "@/components/vehicle-type-icon";
 import {
   NATION_LABELS,
@@ -17,9 +18,11 @@ import {
   VEHICLE_TYPES,
   type VehicleType,
 } from "@/domain/constants";
+import { track } from "@/lib/analytics";
 import { iconUrl, TALISMAN_ICON_URL } from "@/lib/assets";
 import type { AircraftSummary, BombGlyphData } from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
+import { REWARD_TINT, rewardKindOf } from "@/lib/reward-kind";
 import { urlInteger, urlLiteral, urlStringSet, urlText, useUrlState } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +93,15 @@ export function AircraftSearch({
   const deferred = useDeferredValue(query);
   const bombsById = useMemo(() => new Map(bombs.map((b) => [b.id, b])), [bombs]);
 
+  // Debounced so a full search term is what lands in GA4, not one event per
+  // keystroke.
+  useEffect(() => {
+    const term = deferred.trim();
+    if (!term) return;
+    const id = setTimeout(() => track("search", { search_term: term, surface: "aircraft" }), 700);
+    return () => clearTimeout(id);
+  }, [deferred]);
+
   const from = Math.min(Math.max(brFrom, 0), brSteps.length - 1);
   const to = Math.min(Math.max(brTo, from), brSteps.length - 1);
   const rankLo = Math.min(Math.max(rankFrom, 0), rankSteps.length - 1);
@@ -100,18 +112,32 @@ export function AircraftSearch({
     [index],
   );
 
+  const selectNation = (n: "all" | (typeof NATIONS)[number]) => {
+    setNation(n);
+    track("filter_applied", { surface: "aircraft", filter: "nation", value: n });
+  };
+
   const toggleType = (t: VehicleType) => {
     const next = new Set(types);
+    const turningOn = !next.has(t);
     if (next.has(t)) next.delete(t);
     else next.add(t);
     setTypes(next);
+    track("filter_applied", { surface: "aircraft", filter: "type", value: t, state: turningOn ? "on" : "off" });
   };
 
   const toggleReward = (r: (typeof REWARD_KINDS)[number]) => {
     const next = new Set(rewards);
+    const turningOn = !next.has(r);
     if (next.has(r)) next.delete(r);
     else next.add(r);
     setRewards(next);
+    track("filter_applied", {
+      surface: "aircraft",
+      filter: "reward",
+      value: r,
+      state: turningOn ? "on" : "off",
+    });
   };
 
   const results = useMemo(() => {
@@ -255,12 +281,12 @@ export function AircraftSearch({
 
       <div className="card p-4 space-y-4">
         <FilterRow label="Nation">
-          <Chip active={nation === "all"} onClick={() => setNation("all")}>
+          <Chip active={nation === "all"} onClick={() => selectNation("all")}>
             <span aria-hidden>🌐</span> All nations
             <Count>{nationCount("all")}</Count>
           </Chip>
           {NATIONS.map((n) => (
-            <Chip key={n} active={nation === n} onClick={() => setNation(n)}>
+            <Chip key={n} active={nation === n} onClick={() => selectNation(n)}>
               <Flag nation={n} /> {NATION_LABELS[n]}
               <Count>{nationCount(n)}</Count>
             </Chip>
@@ -320,7 +346,11 @@ export function AircraftSearch({
             <span className="text-xs uppercase tracking-wider">Sort</span>
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as (typeof SORTS)[number])}
+              onChange={(e) => {
+                const next = e.target.value as (typeof SORTS)[number];
+                setSort(next);
+                track("filter_applied", { surface: "aircraft", filter: "sort", value: next });
+              }}
               className="bg-transparent text-ink border border-line rounded-md pl-2 pr-1 py-1 text-sm focus:border-accent outline-none"
             >
               {SORTS.map((s) => (
@@ -341,9 +371,18 @@ export function AircraftSearch({
             ) : null}
           </div>
 
+          <ShareButton surface="aircraft_search" />
+
           <div className="flex gap-1 ml-auto">
             {VIEWS.map((v) => (
-              <Chip key={v} active={view === v} onClick={() => setView(v)}>
+              <Chip
+                key={v}
+                active={view === v}
+                onClick={() => {
+                  setView(v);
+                  track("filter_applied", { surface: "aircraft", filter: "view", value: v });
+                }}
+              >
                 {v === "tiles" ? "Tiles" : "List"}
               </Chip>
             ))}
@@ -447,23 +486,6 @@ function FilterRow({ label, children }: { label: string; children: React.ReactNo
     </div>
   );
 }
-
-/**
- * How the game's own tile treats this aircraft: gold for a premium bought
- * outright, green for a squadron vehicle earned through a squadron's own
- * activity, neither for anything researched the ordinary way. The two never
- * overlap in the source data, but premium is checked first regardless — it is
- * the sheet's own per-row field, where squadron is read off the wiki's match
- * and so is the one more likely to be wrong for an aircraft this sees for the
- * first time.
- */
-function rewardKindOf(plane: AircraftSummary): "premium" | "squadron" | null {
-  if (plane.premium) return "premium";
-  if (plane.squadron) return "squadron";
-  return null;
-}
-
-const REWARD_TINT = { premium: "tile-premium", squadron: "tile-squadron" } as const;
 
 /**
  * The inline mark used where there's no tile to badge — the compact list
