@@ -15,6 +15,9 @@ import { BASE_PATH } from "./base-path";
 export const SITE_URL =
   (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "") + BASE_PATH;
 
+/** Shared so the header and /about link to the same place without repeating it. */
+export const KOFI_URL = "https://ko-fi.com/pablitoessasito";
+
 /**
  * The card every page falls back to when it has nothing more specific of its
  * own — generated at build time by app/opengraph-image.tsx. That file only

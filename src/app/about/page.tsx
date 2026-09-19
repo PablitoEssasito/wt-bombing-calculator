@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { Coffee } from "lucide-react";
 import { BASE_BLEED, BASE_HP_TIERS } from "@/domain/constants";
 import { meta } from "@/lib/dataset";
-import { canonicalOf, pageOpenGraph } from "@/lib/site";
+import { canonicalOf, KOFI_URL, pageOpenGraph } from "@/lib/site";
 import { formatCount } from "@/lib/utils";
 
 const TITLE = "About";
@@ -24,6 +25,22 @@ export default function AboutPage() {
           you&apos;re actually in.
         </p>
       </header>
+
+      <a
+        href={KOFI_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="card flex items-center gap-3 px-4 py-3.5 border-accent/30 hover:border-accent/60 hover:bg-accent-dim transition-colors"
+      >
+        <Coffee className="text-accent shrink-0" size={22} />
+        <div className="min-w-0">
+          <p className="font-medium">Buy me a coffee</p>
+          <p className="text-sm text-ink-dim">
+            Free, no ads — if it saved you a trip to the spreadsheet, a coffee is always
+            appreciated.
+          </p>
+        </div>
+      </a>
 
       <section className="space-y-3">
         <h2 className="text-lg font-medium text-accent">What&apos;s here</h2>

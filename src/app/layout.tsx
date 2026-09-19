@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { Coffee } from "lucide-react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { BombMark } from "@/components/bomb-mark";
 import { withBasePath } from "@/lib/base-path";
 import { meta } from "@/lib/dataset";
-import { canonicalOf, SITE_URL } from "@/lib/site";
+import { canonicalOf, KOFI_URL, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -102,6 +103,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </Link>
               ))}
             </nav>
+            <a
+              href={KOFI_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-accent border border-accent/30 hover:bg-accent-dim hover:border-accent/60 transition-colors whitespace-nowrap shrink-0 text-sm font-medium"
+            >
+              <Coffee size={16} className="shrink-0" />
+              <span className="hidden sm:inline">Ko-fi</span>
+            </a>
           </div>
         </header>
 
