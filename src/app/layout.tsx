@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { BombMark } from "@/components/bomb-mark";
@@ -16,6 +17,11 @@ const geistMono = Geist_Mono({
 const TITLE = "War Thunder Base Bombing Calculator";
 const DESCRIPTION =
   "How many bombs to take, and what to drop on each base, for every bomber and attacker in War Thunder.";
+
+// Unset locally and in any build that doesn't supply it, so `next dev` and a
+// plain `npm run build` never phone home — only the deploy workflow, which
+// reads this from a repository variable rather than a hardcoded id, sets it.
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 // Matches --color-ground — the phone's own chrome (status bar, address bar)
 // should read as part of the page, not a lighter bar bolted on top of it.
@@ -123,6 +129,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </footer>
       </body>
+      {GA_ID ? <GoogleAnalytics gaId={GA_ID} /> : null}
     </html>
   );
 }

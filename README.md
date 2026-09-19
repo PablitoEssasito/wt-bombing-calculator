@@ -49,6 +49,13 @@ origin before building for production — it is what the sitemap, `robots.txt` a
 Open Graph tag use to build an absolute URL; unset, it falls back to `localhost:3000`,
 which is only ever right for `next dev`.
 
+Set `NEXT_PUBLIC_GA_ID` to a GA4 measurement id (`G-XXXXXXXXXX`) to load Google
+Analytics (`@next/third-parties`); unset, the site ships with no analytics script at
+all, which is also what `next dev` and a plain `npm run build` get. The deploy workflow
+reads this from a `NEXT_PUBLIC_GA_ID` repository variable (Settings → Secrets and
+variables → Actions → Variables) rather than a hardcoded id — a measurement id isn't
+sensitive, but there is no reason to commit one either.
+
 ## How the drop schedule works
 
 Two numbers carry the whole thing, both recovered from the source spreadsheet:

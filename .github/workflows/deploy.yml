@@ -48,6 +48,12 @@ jobs:
           # Pages settings above.
           NEXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io
           NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          # A measurement id isn't sensitive — it's visible in any page's own
+          # source — so this is a repo variable (Settings > Secrets and
+          # variables > Actions > Variables), not a secret. Unset until one is
+          # added there, which layout.tsx treats as "no analytics" rather
+          # than an error.
+          NEXT_PUBLIC_GA_ID: ${{ vars.NEXT_PUBLIC_GA_ID }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
