@@ -2,18 +2,19 @@ import { describe, expect, it } from "vitest";
 import { canonicalOf, pageOpenGraph } from "../site";
 
 describe("pageOpenGraph", () => {
-  it("carries a plain title and description into both cards", () => {
+  it("falls back to the site's own share card when a page has no picture", () => {
     const meta = pageOpenGraph("Bomb chart", "Every bomb, priced.");
     expect(meta.openGraph).toMatchObject({ title: "Bomb chart", description: "Every bomb, priced." });
+    expect(meta.openGraph.images).toEqual([expect.objectContaining({ url: "/opengraph-image" })]);
     expect(meta.twitter).toMatchObject({
-      card: "summary",
+      card: "summary_large_image",
       title: "Bomb chart",
       description: "Every bomb, priced.",
+      images: ["/opengraph-image"],
     });
-    expect(meta.openGraph).not.toHaveProperty("images");
   });
 
-  it("switches to a large-image card once a page actually has a picture", () => {
+  it("uses a page's own picture over the site-wide default", () => {
     const image = { url: "/r.webp", width: 512, height: 256, alt: "a render" };
     const meta = pageOpenGraph("B-52H", "How many bombs.", image);
     expect(meta.openGraph.images).toEqual([image]);

@@ -16,6 +16,20 @@ export const SITE_URL =
   (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "") + BASE_PATH;
 
 /**
+ * The card every page falls back to when it has nothing more specific of its
+ * own — generated at build time by app/opengraph-image.tsx. That file only
+ * reaches a page for free when the page sets no metadata at all, which the
+ * home page is the only one that doesn't (see the "Merging" note below), so
+ * every other caller of `pageOpenGraph` gets it explicitly instead.
+ */
+const DEFAULT_OG_IMAGE = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: "War Thunder Base Bombing Calculator",
+};
+
+/**
  * The `openGraph`/`twitter` pair a page needs to carry its own title and
  * description into a link preview.
  *
@@ -28,20 +42,20 @@ export const SITE_URL =
 export function pageOpenGraph(
   title: string,
   description: string,
-  image?: { url: string; width: number; height: number; alt: string },
+  image: { url: string; width: number; height: number; alt: string } = DEFAULT_OG_IMAGE,
 ) {
   return {
     openGraph: {
       type: "website" as const,
       title,
       description,
-      ...(image ? { images: [image] } : {}),
+      images: [image],
     },
     twitter: {
-      card: (image ? "summary_large_image" : "summary") as "summary_large_image" | "summary",
+      card: "summary_large_image" as const,
       title,
       description,
-      ...(image ? { images: [image.url] } : {}),
+      images: [image.url],
     },
   };
 }
