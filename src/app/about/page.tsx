@@ -36,8 +36,7 @@ export default function AboutPage() {
         <div className="min-w-0">
           <p className="font-medium">Buy me a coffee</p>
           <p className="text-sm text-ink-dim">
-            Free, no ads — if it saved you a trip to the spreadsheet, a coffee is always
-            appreciated.
+            Free, no ads — if it helped you, a coffee is always appreciated.
           </p>
         </div>
       </a>
