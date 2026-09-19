@@ -30,11 +30,10 @@ export default function Image() {
       >
         {/* Same mark as src/components/bomb-mark.tsx and scripts/pwa-icons, scaled up. */}
         <svg viewBox="0 0 24 24" width={90} height={90} style={{ marginBottom: 28 }}>
-          <rect x="10.5" y="1" width="3" height="7" rx="1.5" fill="#ff9f43" />
-          <polygon points="8,8 2,12 8,13" fill="#ff9f43" />
-          <polygon points="16,8 22,12 16,13" fill="#ff9f43" />
-          <circle cx="12" cy="8" r="4" fill="#ff9f43" />
-          <polygon points="8,8 16,8 13.5,19 12,21 10.5,19" fill="#ff9f43" />
+          <g transform="rotate(-35 12 12)">
+            <polygon points="7,8 9,2 15,2 17,8" fill="#ff9f43" />
+            <ellipse cx="12" cy="14" rx="5.5" ry="8" fill="#ff9f43" />
+          </g>
         </svg>
         <div style={{ display: "flex", fontSize: 64, fontWeight: 600, color: "#e8eef6" }}>
           <span>Bombing</span>

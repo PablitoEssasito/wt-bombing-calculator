@@ -40,8 +40,8 @@ export const metadata: Metadata = {
   // leaves old tabs showing the old one indefinitely. Bump it whenever
   // scripts/pwa-icons's drawing changes.
   icons: {
-    icon: `${withBasePath("/icons/app-icon-32.png")}?v=3`,
-    apple: `${withBasePath("/icons/app-icon-180.png")}?v=3`,
+    icon: `${withBasePath("/icons/app-icon-32.png")}?v=4`,
+    apple: `${withBasePath("/icons/app-icon-180.png")}?v=4`,
   },
   // Correct for the home page, which sets no metadata of its own; every other
   // page restates it for its own path, for the same replace-not-deepen reason
