@@ -129,8 +129,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               >
                 LEGION&apos;s Loadouts
               </a>
-              {meta.sheetVersion ? ` (v${meta.sheetVersion})` : null}. This site
-              only makes it easier to read.
+              {meta.sheetVersion ? ` (v${meta.sheetVersion})` : null}.
             </p>
             <p>
               Not affiliated with or endorsed by Gaijin Entertainment. Imported{" "}
