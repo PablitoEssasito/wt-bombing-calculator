@@ -1,9 +1,31 @@
 import { AircraftSearch } from "@/components/aircraft-search";
 import { BR_STEPS, RANK_STEPS, aircraftIndex, bombGlyphData, meta } from "@/lib/dataset";
+import { SITE_URL } from "@/lib/site";
+
+// Tells Google what kind of thing this page is beyond its plain title and
+// description — a free web app, not an article or a store listing. Only the
+// entry page carries it; a copy on every aircraft page would just be noise
+// repeating the same site-level facts 648 times.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "War Thunder Base Bombing Calculator",
+  url: `${SITE_URL}/`,
+  description:
+    "How many bombs to take, and what to drop on each base, for every bomber and attacker in War Thunder.",
+  applicationCategory: "UtilitiesApplication",
+  operatingSystem: "Any",
+  isAccessibleForFree: true,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+};
 
 export default function HomePage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:py-14 space-y-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+      />
       <header className="space-y-3">
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
           How many bombs do you actually need?

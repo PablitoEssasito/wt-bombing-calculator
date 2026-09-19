@@ -50,6 +50,13 @@ export const metadata: Metadata = {
     icon: `${withBasePath("/icons/app-icon-32.png")}?v=5`,
     apple: `${withBasePath("/icons/app-icon-180.png")}?v=5`,
   },
+  // Search Console's "Google Analytics" ownership-verification method reads
+  // raw HTML without running JS — it can't see the gtag snippet below, since
+  // next/script's afterInteractive strategy only inserts that after
+  // hydration. The HTML-tag method sidesteps that entirely.
+  verification: {
+    google: "ahfYWOKM6KOdZ6kVxtzDFvuWdj7xXmByI1ASNROH4uU",
+  },
   // Correct for the home page, which sets no metadata of its own; every other
   // page restates it for its own path, for the same replace-not-deepen reason
   // openGraph/twitter do below.
