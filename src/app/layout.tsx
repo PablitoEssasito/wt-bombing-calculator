@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { BombMark } from "@/components/bomb-mark";
 import { withBasePath } from "@/lib/base-path";
 import { meta } from "@/lib/dataset";
 import { canonicalOf, SITE_URL } from "@/lib/site";
@@ -73,9 +74,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="border-b border-line sticky top-0 z-30 bg-ground/85 backdrop-blur">
           <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-2 sm:gap-6">
             <Link href="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <span aria-hidden className="text-accent text-lg leading-none">
-                ◆
-              </span>
+              <BombMark size={18} className="text-accent shrink-0" />
               <span className="font-semibold tracking-tight whitespace-nowrap">
                 Bombing<span className="text-ink-dim">Calc</span>
               </span>

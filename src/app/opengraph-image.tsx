@@ -28,15 +28,12 @@ export default function Image() {
           fontFamily: "sans-serif",
         }}
       >
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            background: "#ff9f43",
-            transform: "rotate(45deg)",
-            marginBottom: 40,
-          }}
-        />
+        {/* Same mark as src/components/bomb-mark.tsx and scripts/pwa-icons, scaled up. */}
+        <svg viewBox="0 0 24 24" width={80} height={80} style={{ marginBottom: 32 }}>
+          <circle cx="10" cy="15" r="7.2" fill="#ff9f43" />
+          <path d="M14.6 9.4 L18.2 5.8" stroke="#ff9f43" strokeWidth="2.3" strokeLinecap="round" />
+          <circle cx="19.2" cy="4.8" r="1.7" fill="#ff9f43" />
+        </svg>
         <div style={{ display: "flex", fontSize: 64, fontWeight: 600, color: "#e8eef6" }}>
           <span>Bombing</span>
           <span style={{ color: "#9fb0c4" }}>Calc</span>
