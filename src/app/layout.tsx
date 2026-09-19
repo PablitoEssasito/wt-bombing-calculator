@@ -33,9 +33,15 @@ export const metadata: Metadata = {
   // Unlike alternates.canonical and openGraph/twitter's images, these hrefs
   // don't compose against metadataBase — Next ships them exactly as given,
   // so they need the same manual prefix every plain <Image src> does.
+  //
+  // `?v=` is a manual cache-buster: the file lives at the same stable path
+  // across every deploy, and browsers cache a favicon far more stubbornly
+  // than a normal asset, so redrawing the icon without changing the URL
+  // leaves old tabs showing the old one indefinitely. Bump it whenever
+  // scripts/pwa-icons's drawing changes.
   icons: {
-    icon: withBasePath("/icons/app-icon-32.png"),
-    apple: withBasePath("/icons/app-icon-180.png"),
+    icon: `${withBasePath("/icons/app-icon-32.png")}?v=3`,
+    apple: `${withBasePath("/icons/app-icon-180.png")}?v=3`,
   },
   // Correct for the home page, which sets no metadata of its own; every other
   // page restates it for its own path, for the same replace-not-deepen reason

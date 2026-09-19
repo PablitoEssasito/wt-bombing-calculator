@@ -29,10 +29,12 @@ export default function Image() {
         }}
       >
         {/* Same mark as src/components/bomb-mark.tsx and scripts/pwa-icons, scaled up. */}
-        <svg viewBox="0 0 24 24" width={80} height={80} style={{ marginBottom: 32 }}>
-          <circle cx="10" cy="15" r="7.2" fill="#ff9f43" />
-          <path d="M14.6 9.4 L18.2 5.8" stroke="#ff9f43" strokeWidth="2.3" strokeLinecap="round" />
-          <circle cx="19.2" cy="4.8" r="1.7" fill="#ff9f43" />
+        <svg viewBox="0 0 24 24" width={90} height={90} style={{ marginBottom: 28 }}>
+          <rect x="10.5" y="1" width="3" height="7" rx="1.5" fill="#ff9f43" />
+          <polygon points="8,8 2,12 8,13" fill="#ff9f43" />
+          <polygon points="16,8 22,12 16,13" fill="#ff9f43" />
+          <circle cx="12" cy="8" r="4" fill="#ff9f43" />
+          <polygon points="8,8 16,8 13.5,19 12,21 10.5,19" fill="#ff9f43" />
         </svg>
         <div style={{ display: "flex", fontSize: 64, fontWeight: 600, color: "#e8eef6" }}>
           <span>Bombing</span>
