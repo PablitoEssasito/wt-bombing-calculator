@@ -44,3 +44,5 @@ next-env.d.ts
 /.cache
 
 TODOBYDEV
+CLAUDE.md
+AGENTS.md
