@@ -10,8 +10,9 @@ const DEFAULT_ICON = "bombs_middle";
 /**
  * War Thunder's own weapon-selector icon for a bomb.
  *
- * Every bomb in the dataset resolves to one — matched against the game's data
- * files by mass and ordnance kind (see scripts/bomb-icons) — so there is no
+ * Every bomb in the dataset resolves to one — the icon the loadout menu draws
+ * it with, else its data file's matched by mass and kind (see
+ * scripts/bomb-icons) — so there is no
  * drawn-from-scratch fallback here: the game already draws its icons at a size
  * and colour that read as small/large and GP/guided/incendiary at a glance,
  * which is exactly the cue a generated shape would only approximate.

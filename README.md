@@ -230,7 +230,7 @@ silently matching nothing.
 `npm run bomb-icons` fills `public/bombs/icons/` with the game's own weapon-selector
 icon for each bomb and rocket — the same small round renders (glossy orange for GP,
 silver for mines, red for incendiary, olive for guided) the source spreadsheet itself
-pastes into its cells. 40 distinct icon keys across the bomb chart, part of the 342 the
+pastes into its cells. 65 distinct icon keys across the bomb chart, part of the 342 the
 site ships in total once the loadout creator's own icons — missiles, gun pods, tanks —
 are added on top.
 
@@ -261,9 +261,19 @@ cutoff: the icon a bomb gets also reads its length and calibre, not mass alone, 
 on either side of a boundary). Every entry gets a real, plausible icon; none are left
 blank.
 
+That match is only the starting point. The weapon file's own icon and the one the
+game's loadout menu draws for it disagree for about half of all presets — the Mk 83's
+file says `bombs_special`, every preset carrying it draws `bombs_large` — and the menu's
+is the one a player actually sees. So wherever presets hang a bomb on its own, the
+icon they draw it with most often wins, cut back from the rack's drawing to a single
+round (`bombs_large_group_x4` → `bombs_large`), with a tie going to whichever icon's
+drag matches the bomb's kind. That also keeps a bomb's tile in a drop schedule the same
+as on the creator's pylon. It reads `src/data/armament.json`, so run `npm run armament`
+first.
+
 Where a hardpoint choice hangs a rack or a launcher rather than a bare weapon, the
-loadout creator prefers the preset's own stated icon over this match — see
-[The loadout creator](#the-loadout-creator) above for why the two can disagree.
+loadout creator still draws the preset's own stated icon on the pylon — see
+[The loadout creator](#the-loadout-creator) above for why that one counts rounds.
 
 ## Known gaps
 

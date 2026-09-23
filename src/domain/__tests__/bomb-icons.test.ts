@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import bombData from "../../data/bombs.json";
 import bombIconData from "../../data/bomb-icons.json";
-import { matchBombIcons, type WeaponDef } from "../../../scripts/bomb-icons/match";
+import { matchBombIcons, presetIcons, type PresetIcon, type WeaponDef } from "../../../scripts/bomb-icons/match";
 import type { Bomb } from "../types";
 
 const bombs = bombData as Bomb[];
@@ -136,6 +136,49 @@ describe("matchBombIcons", () => {
     const icon = matches.get("a")?.iconType ?? "";
     expect(icon.startsWith("rockets_")).toBe(false);
     expect(icon.startsWith("bombs_")).toBe(true);
+  });
+});
+
+describe("presetIcons", () => {
+  const known = new Set(["bombs_large", "bombs_special", "bombs_large_high_drag", "rockets_he_large"]);
+
+  it("takes the single-round icon the presets draw a bomb with most often", () => {
+    const icons = presetIcons(
+      [
+        { iconType: "bombs_large", bombIds: ["mk-83"] },
+        { iconType: "bombs_large_group_x4", bombIds: ["mk-83"] },
+        { iconType: "bombs_special", bombIds: ["mk-83"] },
+      ],
+      known,
+    );
+    expect(icons.get("mk-83")).toBe("bombs_large");
+  });
+
+  it("reads through the rack and pod suffixes to the round itself", () => {
+    const icons = presetIcons(
+      [{ iconType: "bombs_large_high_drag_maws_ltc_pod", bombIds: ["a"] }],
+      known,
+    );
+    expect(icons.get("a")).toBe("bombs_large_high_drag");
+  });
+
+  it("ignores presets that mix bombs, since their icon speaks for neither", () => {
+    const icons = presetIcons([{ iconType: "bombs_large", bombIds: ["a", "b"] }], known);
+    expect(icons.size).toBe(0);
+  });
+
+  it("settles a tie on the icon that matches the bomb's own kind", () => {
+    const tied: PresetIcon[] = [
+      { iconType: "bombs_large_high_drag", bombIds: ["a"] },
+      { iconType: "bombs_large", bombIds: ["a"] },
+    ];
+    expect(presetIcons(tied, known, new Map([["a", "GP"]])).get("a")).toBe("bombs_large");
+    expect(presetIcons(tied, known, new Map([["a", "DRAG"]])).get("a")).toBe("bombs_large_high_drag");
+  });
+
+  it("ignores a group icon with no single-round counterpart in the game's data", () => {
+    const icons = presetIcons([{ iconType: "rockets_large_group", bombIds: ["a"] }], known);
+    expect(icons.size).toBe(0);
   });
 });
 
