@@ -16,7 +16,14 @@ import { DropSchedule, ItemList } from "@/components/drop-schedule";
 import { Segmented } from "@/components/segmented";
 import { ShareButton } from "@/components/share-button";
 import { reachableBaseHps } from "@/domain/base-hp";
-import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
+import {
+  BASE_COUNTS,
+  GAME_MODES,
+  type BaseCount,
+  type BaseHp,
+  type GameMode,
+  type VehicleCategory,
+} from "@/domain/constants";
 import { track } from "@/lib/analytics";
 import {
   blockedIn,
@@ -35,6 +42,7 @@ import {
   type StoreKind,
   type Violation,
 } from "@/domain/loadout";
+import { rewardMultiplier } from "@/domain/reward";
 import { planPayload, type PlanItem } from "@/domain/schedule";
 import type { Bomb } from "@/domain/types";
 import { bombIconUrl, bombIconsById } from "@/lib/assets";
@@ -99,7 +107,7 @@ export function LoadoutCreator({
   armament,
   bombs,
 }: {
-  plane: { name: string; br: number };
+  plane: { name: string; br: number; category: VehicleCategory };
   armament: Armament;
   bombs: Bomb[];
 }) {
@@ -162,6 +170,8 @@ export function LoadoutCreator({
     () => planPayload(items, { baseHp, mode: mode as GameMode, baseCount }),
     [items, baseHp, mode, baseCount],
   );
+
+  const damage = items.reduce((sum, { bomb, count }) => sum + (bomb.damageValue ?? 0) * count, 0);
 
   return (
     <div className="space-y-6">
@@ -335,6 +345,12 @@ export function LoadoutCreator({
             <>
               {" "}
               · <ItemList items={items} />
+            </>
+          ) : null}
+          {damage > 0 ? (
+            <>
+              {" "}
+              · <span className="text-ink">≈{rewardMultiplier(damage, plane.category)}×</span> reward
             </>
           ) : null}
         </p>
