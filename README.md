@@ -35,13 +35,14 @@ npm run etl:cache      # re-parse cached responses without hitting the network
 npm run images         # re-match and re-download aircraft renders and tech-tree icons
 npm run stores         # re-catalogue every weapon the game's hardpoints can hang
 npm run armament       # re-derive the loadout creator's data from the datamine
+npm run armament:fetch # only pull the flight models, which stores reads — see below
 npm run bomb-icons     # re-match the bomb chart's own weapon-selector icons
 npm run battle-ratings # every mode's BR from the game's files; overwrites the sheet's Air RB
 npm run changelog      # record what this import changed, for /changelog — run last
 ```
 
-After an import, run the steps in order — `etl`, `stores`, `armament`, `bomb-icons`,
-`battle-ratings`, `changelog` — since each reads what the one before it wrote. `changelog` compares the data
+After an import, run the steps in order — `etl`, `images`, `armament:fetch`, `stores`,
+`armament:cache`, `bomb-icons`, `battle-ratings`, `changelog` — since each reads what the one before it wrote. `changelog` compares the data
 on disk against its last commit, so it belongs after everything else and before committing;
 running it again before the commit rewrites the same entry rather than adding another, and an
 import within a patch that already has an entry folds into it.

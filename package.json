@@ -18,6 +18,7 @@
     "bomb-icons:cache": "tsx scripts/bomb-icons/index.ts --cache",
     "armament": "tsx scripts/armament/index.ts",
     "armament:cache": "tsx scripts/armament/index.ts --cache",
+    "armament:fetch": "tsx scripts/armament/index.ts --fetch-only",
     "stores": "tsx scripts/armament/stores.ts",
     "stores:cache": "tsx scripts/armament/stores.ts --cache",
     "reward-icons": "tsx scripts/reward-icons/index.ts",

@@ -42,6 +42,8 @@ jobs:
       - name: Import
         env:
           GOOGLE_SHEETS_API_KEY: ${{ secrets.GOOGLE_SHEETS_API_KEY }}
+          # Lifts the changelog's GitHub API lookups off the anonymous rate limit.
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           if [ -z "$GOOGLE_SHEETS_API_KEY" ]; then
             echo "::error::Secret GOOGLE_SHEETS_API_KEY is not set"
@@ -49,11 +51,12 @@ jobs:
           fi
           npm run etl
           npm run images
+          npm run armament:fetch
           npm run stores
-          npm run armament
+          npm run armament:cache
           npm run bomb-icons
           npm run battle-ratings
-          npm run changelog | tee changelog-summary.txt
+          npm run --silent changelog | tee changelog-summary.txt
 
       - name: Anything changed?
         id: changes
@@ -62,7 +65,9 @@ jobs:
           # does unless the data really changed.
           if [ -n "$(git status --porcelain -- . ':(exclude)src/data/meta.json' ':(exclude)changelog-summary.txt')" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "patch=$(node -p 'require("./src/data/changelog.json")[0]?.gameVersion ?? "data"')" >> "$GITHUB_OUTPUT"
+            # The patch the datamine is at now — the changelog's newest entry can be
+            # an older one when what changed is something it doesn't track.
+            echo "patch=$(curl -fsSL https://raw.githubusercontent.com/gszabi99/War-Thunder-Datamine/master/version || echo data)" >> "$GITHUB_OUTPUT"
           else
             echo "Nothing changed."
           fi
@@ -104,4 +109,5 @@ jobs:
       - name: Checks failed
         if: steps.checks.outcome == 'failure'
         run: |
-          echo "::warning::Lint, tests or build failed on the new data — the pull request is open for a look, not merged."
+          echo "::error::Lint, tests or build failed on the new data — the pull request is open for a look, not merged."
+          exit 1

@@ -118,6 +118,14 @@ async function main() {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
+  // stores.ts builds its catalogue from these flight models, and this script
+  // reads that catalogue — so a fresh import pulls them first, stops, runs
+  // stores, then comes back with --cache.
+  if (process.argv.includes("--fetch-only")) {
+    console.log(`Pulled ${Object.keys(byUnit).length} flight models, ${missing.length} missing`);
+    return;
+  }
+
   const mounts: Record<string, "pylons" | "setups"> = {};
   for (const plane of aircraft) {
     const armament = byUnit[unitIds[plane.id]];

@@ -33,7 +33,11 @@ const versionFlag = process.argv.indexOf("--game-version");
 /** The day the datamine first shipped this version — close enough to its release to date it by. */
 async function releaseDate(version: string): Promise<string | null> {
   try {
-    const response = await fetch(VERSION_COMMITS_URL);
+    // Anonymous calls share a small hourly limit, which CI runners often hit.
+    const token = process.env.GITHUB_TOKEN;
+    const response = await fetch(VERSION_COMMITS_URL, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    });
     if (!response.ok) return null;
     type Commit = { commit: { message: string; committer: { date: string } } };
     const commits = (await response.json()) as Commit[];
