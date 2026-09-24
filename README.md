@@ -267,8 +267,27 @@ file says `bombs_special`, every preset carrying it draws `bombs_large` — and 
 is the one a player actually sees. So wherever presets hang a bomb on its own, the
 icon they draw it with most often wins, cut back from the rack's drawing to a single
 round (`bombs_large_group_x4` → `bombs_large`), with a tie going to whichever icon's
-drag matches the bomb's kind. That also keeps a bomb's tile in a drop schedule the same
-as on the creator's pylon. It reads `src/data/armament.json`, so run `npm run armament`
+drag matches the bomb's kind. That gives the one icon a bomb shows where there is no
+aircraft to go by, such as the search results.
+
+On an aircraft's own page it is that aircraft's menu instead, because the game draws
+one bomb a size apart from one aircraft to the next — the AN-M64 is `bombs_middle` on
+most, `bombs_large` on the A-26B-10, whose lighter AN-M30 and AN-M57 take the two
+smaller sizes. The icons are hand-set per aircraft, not derived from mass, and the game
+states them in one of three places, tried in order (`scripts/bomb-icons/aircraft.ts`):
+the pylon presets the loadout creator reads; the `weaponConfig` of a fixed-setup
+aircraft's presets; and, where neither says, the weapon file's own icon. Each aircraft's
+result is written to `src/data/aircraft-bomb-icons.json`, only where it differs from
+the site-wide one.
+
+LEGION's sheet pictures every loadout's menu row, so it served as the check, and in-game
+screenshots settled every pair the two disagreed on. Where the game files were right (the
+Mosquito B XVI, Do 217 E-2, P-61C-1 and more) they are pinned in `bomb-icons.test.ts`;
+where an aircraft hangs a weapon file the chart ties to no bomb, so none of the three
+sources reaches it, the screenshot's icon is set by hand in `AIRCRAFT_ICON_OVERRIDES`.
+The icons now match the sheet on 96.5% of the 513 pairs it shows unambiguously, and every
+remaining one is the sheet's own slip. This step reads
+`src/data/armament.json` and the flight models `npm run armament` caches, so run that
 first.
 
 Where a hardpoint choice hangs a rack or a launcher rather than a bare weapon, the

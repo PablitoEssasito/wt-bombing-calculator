@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { AircraftPlanner } from "@/components/aircraft-planner";
+import { AircraftBombIcons } from "@/components/bomb-glyph";
 import { LoadoutCreator } from "@/components/loadout-creator";
 import type { Armament } from "@/domain/loadout";
 import type { Aircraft, Bomb } from "@/domain/types";
@@ -28,36 +30,46 @@ export function AircraftView({
   sourceUrl,
   splittable,
   armament,
+  bombIcons,
 }: {
   plane: Aircraft;
   bombs: Bomb[];
   sourceUrl: string;
   splittable: boolean;
   armament: Armament | null;
+  /** This aircraft's own menu icons, from `bombIconsFor`. */
+  bombIcons: Record<string, string>;
 }) {
   const [view, setView] = useUrlState("view", urlLiteral(VIEWS, "schedule"));
+  const icons = useMemo(() => new Map(Object.entries(bombIcons)), [bombIcons]);
 
   if (!armament) {
-    return <AircraftPlanner plane={plane} bombs={bombs} sourceUrl={sourceUrl} splittable={splittable} />;
+    return (
+      <AircraftBombIcons.Provider value={icons}>
+        <AircraftPlanner plane={plane} bombs={bombs} sourceUrl={sourceUrl} splittable={splittable} />
+      </AircraftBombIcons.Provider>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div role="group" aria-label="View" className="flex gap-1">
-        <ViewTab active={view === "schedule"} onClick={() => setView("schedule")}>
-          Drop schedule
-        </ViewTab>
-        <ViewTab active={view === "build"} onClick={() => setView("build")}>
-          Build a loadout
-        </ViewTab>
-      </div>
+    <AircraftBombIcons.Provider value={icons}>
+      <div className="space-y-6">
+        <div role="group" aria-label="View" className="flex gap-1">
+          <ViewTab active={view === "schedule"} onClick={() => setView("schedule")}>
+            Drop schedule
+          </ViewTab>
+          <ViewTab active={view === "build"} onClick={() => setView("build")}>
+            Build a loadout
+          </ViewTab>
+        </div>
 
-      {view === "schedule" ? (
-        <AircraftPlanner plane={plane} bombs={bombs} sourceUrl={sourceUrl} splittable={splittable} />
-      ) : (
-        <LoadoutCreator plane={plane} armament={armament} bombs={bombs} />
-      )}
-    </div>
+        {view === "schedule" ? (
+          <AircraftPlanner plane={plane} bombs={bombs} sourceUrl={sourceUrl} splittable={splittable} />
+        ) : (
+          <LoadoutCreator plane={plane} armament={armament} bombs={bombs} />
+        )}
+      </div>
+    </AircraftBombIcons.Provider>
   );
 }
 

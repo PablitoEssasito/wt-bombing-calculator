@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import bombData from "../../data/bombs.json";
 import bombIconData from "../../data/bomb-icons.json";
-import { matchBombIcons, presetIcons, type PresetIcon, type WeaponDef } from "../../../scripts/bomb-icons/match";
+import { matchBombIcons, type WeaponDef } from "../../../scripts/bomb-icons/match";
+import { bombIconsFor } from "../../lib/dataset";
+import { presetIcons, type PresetIcon } from "../preset-icons";
 import type { Bomb } from "../types";
 
 const bombs = bombData as Bomb[];
@@ -179,6 +181,43 @@ describe("presetIcons", () => {
   it("ignores a group icon with no single-round counterpart in the game's data", () => {
     const icons = presetIcons([{ iconType: "rockets_large_group", bombIds: ["a"] }], known);
     expect(icons.size).toBe(0);
+  });
+});
+
+describe("each aircraft's own menu icons", () => {
+  const iconOn = (aircraftId: string, bombId: string) => bombIconsFor(aircraftId)[bombId] ?? bombIcons[bombId];
+
+  // Every row read off an in-game loadout menu screenshot; the game draws the
+  // same bomb a size apart from one aircraft to the next.
+  it.each([
+    ["usa-a-26b-10", { "an-m30a1": "bombs_small", "an-m57": "bombs_middle", "an-m64a1": "bombs_large", "an-m65a1": "bombs_special" }],
+    ["usa-f-84f", { "mk-81": "bombs_middle", "mk-82": "bombs_large", "mk-83": "bombs_heavy_middle", "mk-84": "bombs_special" }],
+    ["britain-mosquito-b-xvi", { "g-p-250": "bombs_small", "g-p-500": "bombs_middle" }],
+    ["germany-do-217-e-2", { sc50: "bombs_small", sc250: "bombs_middle", sc500: "bombs_large", sc1000: "bombs_heavy_middle" }],
+    ["usa-p-61c-1", { "an-m64a1": "bombs_middle", "an-m65a1": "bombs_large" }],
+    ["britain-corsair-f-ii", { "an-m65a1": "bombs_large" }],
+    ["usa-pbm-3", { "type-a": "air_mines" }],
+    ["britain-harrier-gr-3", { "1000-lb-h-e-m-c-mk-13": "bombs_large" }],
+    // These the game files cannot reach — see AIRCRAFT_ICON_OVERRIDES.
+    ["britain-tornado-gr-4", { "pgm-2000": "guided_bomb_grey" }],
+    ["china-su-30mkk", { "fab-1500": "bombs_heavy_middle" }],
+    ["ussr-tu-95m", { "fab-1500": "bombs_heavy_middle" }],
+    ["israel-m-d-450b", { "mk-2": "napalm_small" }],
+    ["israel-mystere-iva", { "mk-2": "napalm_small" }],
+    ["japan-h8k3", { "navy-250-25": "bombs_large" }],
+    ["usa-a-4b", { "mk-77": "napalm_middle" }],
+    ["usa-f-4j", { "mk-77": "napalm_small" }],
+    ["usa-f-15a", { "gbu-8": "guided_bomb_green" }],
+  ])("draws %s's bombs the way the game's menu does", (aircraftId, expected) => {
+    for (const [bombId, iconType] of Object.entries(expected)) expect(iconOn(aircraftId, bombId)).toBe(iconType);
+  });
+
+  it("reads a fixed-setup aircraft's per-preset icons, and the weapon file's where it states none", () => {
+    // From LEGION's sheet, which pictures each loadout's menu row: the B-29
+    // states its own icons, the PBJ-1J leaves the AN-M65 to its weapon file.
+    expect(iconOn("usa-b-29a-bn", "an-m65a1")).toBe("bombs_large");
+    expect(iconOn("usa-b-29a-bn", "an-m66a2")).toBe("bombs_special");
+    expect(iconOn("usa-pbj-1j", "an-m65a1")).toBe("bombs_special");
   });
 });
 

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { createContext, useContext } from "react";
 import { bombIconsById, bombIconUrl } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 
@@ -6,6 +7,13 @@ type BombLike = { id: string; chartName: string; fullName: string };
 
 /** The size class used when nothing in the datamine could be matched to this bomb. */
 const DEFAULT_ICON = "bombs_middle";
+
+/**
+ * How one aircraft's own loadout menu draws its bombs, where that differs from
+ * the site-wide pick — the game draws the same bomb a size apart from one
+ * aircraft to the next (see bombIconsFor). Empty anywhere but an aircraft page.
+ */
+export const AircraftBombIcons = createContext<Map<string, string>>(new Map());
 
 /**
  * War Thunder's own weapon-selector icon for a bomb.
@@ -18,7 +26,7 @@ const DEFAULT_ICON = "bombs_middle";
  * which is exactly the cue a generated shape would only approximate.
  */
 export function BombIcon({ bomb, size = 28 }: { bomb: BombLike; size?: number }) {
-  const iconType = bombIconsById[bomb.id] ?? DEFAULT_ICON;
+  const iconType = useContext(AircraftBombIcons).get(bomb.id) ?? bombIconsById[bomb.id] ?? DEFAULT_ICON;
   return (
     <Image
       src={bombIconUrl(iconType)}

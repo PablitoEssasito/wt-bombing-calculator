@@ -11,6 +11,7 @@ import {
   aircraft,
   aircraftById,
   armamentFor,
+  bombIconsFor,
   bombsById,
   carriesPartialLoad,
   imagesByAircraft,
@@ -123,6 +124,7 @@ export default async function AircraftPage({ params }: PageProps<"/aircraft/[id]
           sourceUrl={meta.sourceUrl}
           splittable={carriesPartialLoad(plane.id)}
           armament={armament}
+          bombIcons={bombIconsFor(plane.id)}
         />
       )}
     </div>

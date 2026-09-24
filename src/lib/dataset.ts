@@ -1,4 +1,5 @@
 import aircraftData from "@/data/aircraft.json";
+import aircraftBombIconData from "@/data/aircraft-bomb-icons.json";
 import armamentData from "@/data/armament.json";
 import bombData from "@/data/bombs.json";
 import imageData from "@/data/images.json";
@@ -129,6 +130,15 @@ export function armamentFor(aircraftId: string): Armament | null {
 }
 
 export { bombIconUrl, bombIconsById, iconUrl, renderUrl } from "./assets";
+
+/**
+ * How this aircraft's own loadout menu draws its bombs, where that differs
+ * from `bombIconsById` — the game draws one bomb a size apart from one
+ * aircraft to the next (see scripts/bomb-icons/aircraft.ts). Handed to the
+ * page as props, like `armamentFor`, rather than shipping every aircraft's.
+ */
+export const bombIconsFor = (aircraftId: string): Record<string, string> =>
+  (aircraftBombIconData as Record<string, Record<string, string>>)[aircraftId] ?? {};
 
 export const bombsById: Map<string, Bomb> = new Map(bombs.map((b) => [b.id, b]));
 
