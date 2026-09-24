@@ -12,6 +12,7 @@ import {
   AIRCRAFT_NAME_CORRECTIONS,
   AMBIGUOUS_DEFAULT_NATION,
   BOMB_ALIASES,
+  BOMB_ID_ALIASES,
   normalizeBombName,
 } from "./aliases";
 import { NATION_COL } from "./config";
@@ -182,6 +183,8 @@ export function parseNation(
    * carrying American bombs.
    */
   const resolve = (name: string, owner: string): string | null => {
+    const pinned = BOMB_ID_ALIASES[name];
+    if (pinned && bombs.bombs.some((b) => b.id === pinned)) return pinned;
     const spelling = BOMB_ALIASES[name] ?? name;
     const key = normalizeBombName(spelling);
     const own = bombs.byNation.get(nation);

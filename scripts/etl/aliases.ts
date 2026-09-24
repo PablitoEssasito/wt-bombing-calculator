@@ -17,6 +17,18 @@ export const BOMB_ALIASES: Record<string, string> = {
 };
 
 /**
+ * Loadout names pinned straight to a bomb id, for a chart row with no short
+ * name of its own to alias to. A pinned id the chart no longer has falls back
+ * to ordinary resolution, which then reports the name if it cannot place it.
+ */
+export const BOMB_ID_ALIASES: Record<string, string> = {
+  // The chart's H.E.1000 is the retarded Mk.13 No.117, but every loadout using
+  // it pictures the plain M.C. Mk.13 — a row listed with no short name, at the
+  // same 5279 damage. Confirmed in game on the Harrier GR.3, which offers both.
+  "H.E.1000": "1000-lb-h-e-m-c-mk-13",
+};
+
+/**
  * Aircraft names the sheet misspells against the game's own unit list.
  *
  * "Do 17 J-1" is not a vehicle War Thunder has ever shipped — the wiki's own
@@ -106,7 +118,13 @@ export function normalizeBombName(name: string): string {
  * AV-8C both take three against a 25 900 HP base, and since the schedules always
  * state the minimum, two must not be enough — which rules the British value out
  * (2 × 12 943 would already clear the 23 357 needed).
+ *
+ * G.P.500: since sheet 2.27 the British block lists a Mk.III and a Mk.IV under
+ * this one name, 1706 and 1711 damage, while the loadouts never say which. The
+ * USSR's Hampden TB I reads it the way the British tab's own loadouts already
+ * do — the block's first row, the Mk.III — though the game hangs it the Mk.IV.
  */
 export const AMBIGUOUS_DEFAULT_NATION: Record<string, Nation> = {
   "Mk 77": "usa",
+  "G.P.500": "britain",
 };
