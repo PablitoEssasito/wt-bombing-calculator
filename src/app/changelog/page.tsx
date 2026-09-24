@@ -35,7 +35,7 @@ export default function ChangelogPage() {
       {changelog.length === 0 ? (
         <p className="text-ink-dim">Nothing yet — the first entry lands with the next update.</p>
       ) : (
-        changelog.map((entry) => <Entry key={entry.date} entry={entry} />)
+        changelog.map((entry) => <Entry key={`${entry.gameVersion} ${entry.date}`} entry={entry} />)
       )}
     </div>
   );

@@ -62,8 +62,54 @@ export function diffData(
     },
   };
 
-  const empty =
-    Object.values(entry.aircraft).every((list) => list.length === 0) &&
-    Object.values(entry.bombs).every((list) => list.length === 0);
-  return empty ? null : entry;
+  return isEmpty(entry) ? null : entry;
+}
+
+const isEmpty = (entry: ChangelogEntry) =>
+  Object.values(entry.aircraft).every((list) => list.length === 0) &&
+  Object.values(entry.bombs).every((list) => list.length === 0);
+
+/** Both lists, keyed by id; where both hold one, `pick` decides — null drops it. */
+function mergeById<T extends { id: string }>(older: T[], newer: T[], pick: (o: T, n: T) => T | null = (_, n) => n) {
+  const merged = new Map(older.map((item) => [item.id, item]));
+  for (const item of newer) {
+    const old = merged.get(item.id);
+    const next = old ? pick(old, item) : item;
+    if (next) merged.set(item.id, next);
+    else merged.delete(item.id);
+  }
+  return [...merged.values()];
+}
+
+/**
+ * Folds a second import into the entry of the same patch, so a patch keeps one
+ * entry however many imports it takes. A value changed twice reads from its
+ * first value to its last, and drops out if it ends where it started.
+ */
+export function mergeEntries(older: ChangelogEntry, newer: ChangelogEntry): ChangelogEntry | null {
+  const merged: ChangelogEntry = {
+    date: older.date,
+    gameVersion: older.gameVersion,
+    aircraft: {
+      added: mergeById(older.aircraft.added, newer.aircraft.added),
+      removed: mergeById(older.aircraft.removed, newer.aircraft.removed),
+      br: mergeById(older.aircraft.br, newer.aircraft.br, (o, n) =>
+        o.from === n.to ? null : { ...n, from: o.from },
+      ),
+      loadouts: mergeById(older.aircraft.loadouts, newer.aircraft.loadouts),
+    },
+    bombs: {
+      added: mergeById(older.bombs.added, newer.bombs.added),
+      removed: mergeById(older.bombs.removed, newer.bombs.removed),
+      changed: mergeById(older.bombs.changed, newer.bombs.changed, (o, n) => {
+        const fields = mergeById(
+          o.fields.map((f) => ({ ...f, id: f.field })),
+          n.fields.map((f) => ({ ...f, id: f.field })),
+          (of, nf) => (rounded(of.from) === rounded(nf.to) ? null : { ...nf, from: of.from }),
+        ).map(({ field, from, to }) => ({ field, from, to }));
+        return fields.length > 0 ? { ...n, fields } : null;
+      }),
+    },
+  };
+  return isEmpty(merged) ? null : merged;
 }

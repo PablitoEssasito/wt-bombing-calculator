@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffData } from "../../../scripts/changelog/diff";
+import { diffData, mergeEntries } from "../../../scripts/changelog/diff";
 import type { Aircraft, Bomb } from "../types";
 
 const plane = (over: Partial<Aircraft>): Aircraft => ({
@@ -81,5 +81,35 @@ describe("diffData", () => {
     expect(entry?.bombs.changed).toEqual([
       { id: "g-p-1000-e", name: "1000 lb G.P. Mk.I", fields: [{ field: "damageValue", from: 3800, to: 2906 }] },
     ]);
+  });
+});
+
+describe("mergeEntries", () => {
+  const entry = (over: { br?: { from: number; to: number }[]; damage?: [number, number] }) =>
+    diffData(
+      {
+        aircraft: (over.br ?? []).map((b, i) => plane({ id: `usa-${i}`, br: b.from })),
+        bombs: over.damage ? [bomb({ damageValue: over.damage[0] })] : [],
+      },
+      {
+        aircraft: (over.br ?? []).map((b, i) => plane({ id: `usa-${i}`, br: b.to })),
+        bombs: over.damage ? [bomb({ damageValue: over.damage[1] })] : [],
+      },
+      label,
+    )!;
+
+  it("keeps a patch's earlier changes and adds the later ones", () => {
+    const merged = mergeEntries(entry({ damage: [3800, 2906] }), entry({ br: [{ from: 5, to: 4.7 }] }));
+    expect(merged?.bombs.changed).toHaveLength(1);
+    expect(merged?.aircraft.br).toEqual([{ id: "usa-0", name: "A", nation: "usa", from: 5, to: 4.7 }]);
+  });
+
+  it("reads a value changed twice from its first to its last", () => {
+    const merged = mergeEntries(entry({ damage: [3800, 3000] }), entry({ damage: [3000, 2906] }));
+    expect(merged?.bombs.changed[0].fields).toEqual([{ field: "damageValue", from: 3800, to: 2906 }]);
+  });
+
+  it("drops a change that ends where it started", () => {
+    expect(mergeEntries(entry({ br: [{ from: 5, to: 4.7 }] }), entry({ br: [{ from: 4.7, to: 5 }] }))).toBeNull();
   });
 });

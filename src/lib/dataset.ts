@@ -1,6 +1,7 @@
 import aircraftData from "@/data/aircraft.json";
 import aircraftBombIconData from "@/data/aircraft-bomb-icons.json";
 import armamentData from "@/data/armament.json";
+import battleRatingData from "@/data/battle-ratings.json";
 import bombData from "@/data/bombs.json";
 import changelogData from "@/data/changelog.json";
 import imageData from "@/data/images.json";
@@ -10,7 +11,15 @@ import squadronData from "@/data/squadron.json";
 import vehicleTypeData from "@/data/vehicle-types.json";
 import type { VehicleType } from "@/domain/constants";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
-import type { Aircraft, Bomb, ChangelogEntry, Meta } from "@/domain/types";
+import {
+  BATTLE_MODES,
+  type Aircraft,
+  type BattleMode,
+  type BattleRatings,
+  type Bomb,
+  type ChangelogEntry,
+  type Meta,
+} from "@/domain/types";
 
 export const aircraft = aircraftData as Aircraft[];
 export const bombs = bombData as Bomb[];
@@ -27,6 +36,24 @@ export const imagesByAircraft = imageData as Record<string, string>;
  * the sheet already states it per aircraft, in `category`.
  */
 const squadronIds = new Set(squadronData as string[]);
+
+/** Aircraft id to its battle ratings in every mode — see scripts/battle-ratings. */
+const battleRatingsByAircraft = battleRatingData as unknown as Record<string, BattleRatings>;
+
+/** An aircraft's BR per mode; with no game data, the Air RB alone. */
+function brsOf(plane: Aircraft): Record<BattleMode, number | null> {
+  const ratings = battleRatingsByAircraft[plane.id] ?? { air: [null, plane.br, null], ground: [null, null, null] };
+  const [airAb, airRb, airSb] = ratings.air;
+  const [groundAb, groundRb, groundSb] = ratings.ground;
+  return {
+    "air-ab": airAb,
+    "air-rb": airRb ?? plane.br,
+    "air-sb": airSb,
+    "ground-ab": groundAb,
+    "ground-rb": groundRb,
+    "ground-sb": groundSb,
+  };
+}
 
 /** Aircraft id to the wiki's own class — fighter, bomber, or strike aircraft. */
 const vehicleTypesByAircraft = vehicleTypeData as Record<string, VehicleType>;
@@ -154,6 +181,8 @@ export type AircraftSummary = {
   nation: Aircraft["nation"];
   rank: number;
   br: number;
+  /** Its BR in each mode, null where it can't be flown in that mode. */
+  brs: Record<BattleMode, number | null>;
   /** Most bases any of its loadouts flattens, which is what people sort by. */
   maxBases: number;
   /** The bulk of what it drops, for the glyph preview on a tile. */
@@ -206,6 +235,7 @@ export const aircraftIndex: AircraftSummary[] = aircraft
     nation: plane.nation,
     rank: plane.rank,
     br: plane.br,
+    brs: brsOf(plane),
     maxBases: Math.max(
       0,
       ...shownOptions(plane).map(
@@ -220,8 +250,13 @@ export const aircraftIndex: AircraftSummary[] = aircraft
   }))
   .sort((a, b) => a.br - b.br || a.name.localeCompare(b.name));
 
-/** Every battle rating actually present, so a slider can snap to real values. */
-export const BR_STEPS: number[] = [...new Set(aircraft.map((a) => a.br))].sort((a, b) => a - b);
+/** Every battle rating actually present in each mode, so a slider can snap to real values. */
+export const BR_STEPS = Object.fromEntries(
+  BATTLE_MODES.map((mode) => [
+    mode,
+    [...new Set(aircraftIndex.flatMap((a) => a.brs[mode] ?? []))].sort((a, b) => a - b),
+  ]),
+) as Record<BattleMode, number[]>;
 
 /** Every rank actually present, so a slider can snap to real values. */
 export const RANK_STEPS: number[] = [...new Set(aircraft.map((a) => a.rank))].sort((a, b) => a - b);

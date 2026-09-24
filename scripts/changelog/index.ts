@@ -2,16 +2,18 @@ import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ChangelogEntry, Meta } from "../../src/domain/types";
-import { diffData, type DataSnapshot } from "./diff";
+import { diffData, mergeEntries, type DataSnapshot } from "./diff";
 
 /**
  * Adds what the latest import changed to src/data/changelog.json.
  *
- * Runs last, after etl → stores → armament → bomb-icons (armament rewrites
- * bombs.json too), and compares the data now on disk against the last commit
- * of it — the previous import is simply what git already holds, so nothing
- * else needs keeping. Entries already committed are left as they are; the one
- * this import adds is rewritten on every run until it is committed too.
+ * Runs last, after etl → stores → armament → bomb-icons → battle-ratings
+ * (armament rewrites bombs.json, battle-ratings aircraft.json), and compares
+ * the data now on disk against the last commit of it — the previous import is
+ * simply what git already holds, so nothing else needs keeping. Entries already
+ * committed are left as they are, except that an import within the same patch
+ * folds into that patch's entry; the entry is rewritten on every run until it
+ * is committed.
  *
  * `--since <ref>` compares against another commit instead of HEAD. The entry
  * is labelled with the game patch the datamine is at, dated the day it went
@@ -80,11 +82,16 @@ async function main() {
   const released = version ? await releaseDate(version) : null;
   if (!version) console.log("note  could not read the game version — the entry goes unlabelled");
   else if (!released) console.log(`note  could not find when ${version} went live — dated by the import instead`);
-  const entry = diffData({ aircraft, bombs }, now, {
+  const diff = diffData({ aircraft, bombs }, now, {
     date: released ?? meta.generatedAt.slice(0, 10),
     gameVersion: version,
   });
-  await writeFile(OUT, JSON.stringify(entry ? [entry, ...committed] : committed, null, 1));
+  // A second import within one patch folds into that patch's entry.
+  const [latest, ...older] = committed;
+  const samePatch = diff && latest && version && latest.gameVersion === version;
+  const entry = samePatch ? mergeEntries(latest, diff) : diff;
+  const history = samePatch ? older : committed;
+  await writeFile(OUT, JSON.stringify(entry ? [entry, ...history] : history, null, 1));
 
   if (!entry) {
     console.log(`No changes since ${since} — changelog left at ${committed.length} entries`);

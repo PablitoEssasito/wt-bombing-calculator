@@ -109,7 +109,10 @@ async function main() {
     for (const [bombId, iconType] of Object.entries(AIRCRAFT_ICON_OVERRIDES[aircraftId] ?? {})) {
       icons.set(bombId, iconType);
     }
-    const own = [...icons].filter(([bombId, iconType]) => map[bombId] !== iconType);
+    // Sorted, so a rerun that finds the same icons writes the same file.
+    const own = [...icons]
+      .filter(([bombId, iconType]) => map[bombId] !== iconType)
+      .sort(([a], [b]) => a.localeCompare(b));
     if (own.length > 0) perAircraft[aircraftId] = Object.fromEntries(own);
   }
   await writeFile(OUT_AIRCRAFT, JSON.stringify(perAircraft));

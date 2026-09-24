@@ -36,13 +36,20 @@ npm run images         # re-match and re-download aircraft renders and tech-tree
 npm run stores         # re-catalogue every weapon the game's hardpoints can hang
 npm run armament       # re-derive the loadout creator's data from the datamine
 npm run bomb-icons     # re-match the bomb chart's own weapon-selector icons
+npm run battle-ratings # every mode's BR from the game's files; overwrites the sheet's Air RB
 npm run changelog      # record what this import changed, for /changelog — run last
 ```
 
 After an import, run the steps in order — `etl`, `stores`, `armament`, `bomb-icons`,
-`changelog` — since each reads what the one before it wrote. `changelog` compares the data
+`battle-ratings`, `changelog` — since each reads what the one before it wrote. `changelog` compares the data
 on disk against its last commit, so it belongs after everything else and before committing;
-running it again before the commit rewrites the same entry rather than adding another.
+running it again before the commit rewrites the same entry rather than adding another, and an
+import within a patch that already has an entry folds into it.
+
+`.github/workflows/data-import.yml` runs that whole import every morning and opens (or
+refreshes) one pull request when the game or the sheet changed anything; its header lists the
+one-time setup. With the repo variable `AUTO_MERGE_DATA_IMPORTS=true` it also merges and
+deploys, but only when lint, tests and build pass on the new data.
 
 The ETL reads an optional `GOOGLE_SHEETS_API_KEY` from `.env.local`. Without it
 everything still imports, minus the source's cell notes — see [Notes](#notes). Every

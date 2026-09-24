@@ -46,3 +46,6 @@ next-env.d.ts
 TODOBYDEV
 CLAUDE.md
 AGENTS.md
+
+# Playwright MCP snapshots and logs from browser checks
+/.playwright-mcp

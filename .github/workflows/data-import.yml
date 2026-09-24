@@ -1,0 +1,107 @@
+name: Daily data import
+
+# Runs the whole import every day and opens (or refreshes) one pull request when
+# the game or the sheet changed anything. Checking daily costs nothing: a day
+# with no new patch leaves only meta.json's timestamp behind, which is ignored.
+#
+# Setup, once:
+# - Secret GOOGLE_SHEETS_API_KEY (Settings > Secrets and variables > Actions).
+#   Without it the sheet's notes drop out and every loadout reads as changed,
+#   so the job stops instead.
+# - Settings > Actions > General > "Allow GitHub Actions to create and approve
+#   pull requests".
+# - Optional: variable AUTO_MERGE_DATA_IMPORTS = true merges the pull request
+#   and deploys by itself, but only when lint, tests and build all pass.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: data-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Import
+        env:
+          GOOGLE_SHEETS_API_KEY: ${{ secrets.GOOGLE_SHEETS_API_KEY }}
+        run: |
+          if [ -z "$GOOGLE_SHEETS_API_KEY" ]; then
+            echo "::error::Secret GOOGLE_SHEETS_API_KEY is not set"
+            exit 1
+          fi
+          npm run etl
+          npm run images
+          npm run stores
+          npm run armament
+          npm run bomb-icons
+          npm run battle-ratings
+          npm run changelog | tee changelog-summary.txt
+
+      - name: Anything changed?
+        id: changes
+        run: |
+          # meta.json always moves (it stamps the import time); nothing else
+          # does unless the data really changed.
+          if [ -n "$(git status --porcelain -- . ':(exclude)src/data/meta.json' ':(exclude)changelog-summary.txt')" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "patch=$(node -p 'require("./src/data/changelog.json")[0]?.gameVersion ?? "data"')" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing changed."
+          fi
+
+      - name: Lint, test, build
+        id: checks
+        if: steps.changes.outputs.changed == 'true'
+        continue-on-error: true
+        run: npm run lint && npm run test && npm run build
+
+      - name: Open or update the pull request
+        id: pr
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: auto/data-import
+          delete-branch: true
+          add-paths: |
+            src/data
+            public
+          commit-message: "data: import game patch ${{ steps.changes.outputs.patch }}"
+          title: "data: import game patch ${{ steps.changes.outputs.patch }}"
+          body-path: changelog-summary.txt
+          labels: data-import
+
+      - name: Merge and deploy
+        if: >-
+          vars.AUTO_MERGE_DATA_IMPORTS == 'true' &&
+          steps.checks.outcome == 'success' &&
+          steps.pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr merge "${{ steps.pr.outputs.pull-request-number }}" --squash --delete-branch
+          # A merge made with this job's token doesn't fire other workflows'
+          # push triggers, so the deploy is started by hand.
+          gh workflow run deploy.yml --ref main
+
+      - name: Checks failed
+        if: steps.checks.outcome == 'failure'
+        run: |
+          echo "::warning::Lint, tests or build failed on the new data — the pull request is open for a look, not merged."

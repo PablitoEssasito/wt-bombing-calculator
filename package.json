@@ -22,6 +22,8 @@
     "stores:cache": "tsx scripts/armament/stores.ts --cache",
     "reward-icons": "tsx scripts/reward-icons/index.ts",
     "pwa-icons": "tsx scripts/pwa-icons/index.ts",
+    "battle-ratings": "tsx scripts/battle-ratings/index.ts",
+    "battle-ratings:cache": "tsx scripts/battle-ratings/index.ts --cache",
     "changelog": "tsx scripts/changelog/index.ts"
   },
   "dependencies": {

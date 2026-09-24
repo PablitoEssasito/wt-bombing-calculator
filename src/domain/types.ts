@@ -111,6 +111,15 @@ export type Aircraft = {
   options: LoadoutOption[];
 };
 
+/** AB, RB, SB — null where the aircraft can't be flown in that mode. */
+type ModeRatings = [number | null, number | null, number | null];
+
+/** An aircraft's battle ratings in air and ground battles, read from the game's files. */
+export type BattleRatings = { air: ModeRatings; ground: ModeRatings };
+
+export const BATTLE_MODES = ["air-ab", "air-rb", "air-sb", "ground-ab", "ground-rb", "ground-sb"] as const;
+export type BattleMode = (typeof BATTLE_MODES)[number];
+
 type AircraftRef = { id: string; name: string; nation: Nation };
 type BombRef = { id: string; name: string };
 

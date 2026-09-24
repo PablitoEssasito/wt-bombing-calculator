@@ -1,6 +1,162 @@
 [
  {
   "date": "2026-09-24",
+  "gameVersion": "2.59.0.33",
+  "aircraft": {
+   "added": [],
+   "removed": [],
+   "br": [
+    {
+     "id": "usa-p-47d-28",
+     "name": "P-47D-28",
+     "nation": "usa",
+     "from": 5,
+     "to": 4.7
+    },
+    {
+     "id": "usa-pbm-5a",
+     "name": "PBM-5A",
+     "nation": "usa",
+     "from": 3.7,
+     "to": 3.3
+    },
+    {
+     "id": "usa-f-104c",
+     "name": "F-104C",
+     "nation": "usa",
+     "from": 9.3,
+     "to": 9.7
+    },
+    {
+     "id": "germany-hunter-f-58a",
+     "name": "Hunter F.58A",
+     "nation": "germany",
+     "from": 10,
+     "to": 9.3
+    },
+    {
+     "id": "germany-mig-21bis-sau",
+     "name": "MiG-21bis-SAU",
+     "nation": "germany",
+     "from": 11.3,
+     "to": 11
+    },
+    {
+     "id": "ussr-pe-3-e",
+     "name": "Pe-3 (e)",
+     "nation": "ussr",
+     "from": 2.3,
+     "to": 2
+    },
+    {
+     "id": "ussr-yer-2-m-105r",
+     "name": "Yer-2 (M-105R)",
+     "nation": "ussr",
+     "from": 3.7,
+     "to": 3.3
+    },
+    {
+     "id": "ussr-tis-ma",
+     "name": "TIS MA",
+     "nation": "ussr",
+     "from": 4.3,
+     "to": 4
+    },
+    {
+     "id": "britain-sea-harrier-frs",
+     "name": "Sea Harrier FRS",
+     "nation": "britain",
+     "from": 10.7,
+     "to": 11
+    },
+    {
+     "id": "britain-typhoon-aesa",
+     "name": "Typhoon AESA",
+     "nation": "britain",
+     "from": 14.3,
+     "to": 14.7
+    },
+    {
+     "id": "britain-f-a-18f",
+     "name": "F/A-18F",
+     "nation": "britain",
+     "from": 14.7,
+     "to": 14.3
+    },
+    {
+     "id": "japan-a-7e",
+     "name": "A-7E",
+     "nation": "japan",
+     "from": 10.7,
+     "to": 10.3
+    },
+    {
+     "id": "japan-f-15j",
+     "name": "F-15J",
+     "nation": "japan",
+     "from": 13,
+     "to": 12.7
+    },
+    {
+     "id": "italy-tornado-ids-95",
+     "name": "Tornado IDS'95",
+     "nation": "italy",
+     "from": 11.7,
+     "to": 11.3
+    },
+    {
+     "id": "france-potez-633",
+     "name": "Potez 633",
+     "nation": "france",
+     "from": 1.7,
+     "to": 1.3
+    },
+    {
+     "id": "france-pb4y-2",
+     "name": "PB4Y-2",
+     "nation": "france",
+     "from": 5,
+     "to": 4.7
+    },
+    {
+     "id": "france-vautour-iia-idf",
+     "name": "Vautour IIA IDF",
+     "nation": "france",
+     "from": 9,
+     "to": 8.7
+    },
+    {
+     "id": "france-f-16a-2",
+     "name": "F-16A",
+     "nation": "france",
+     "from": 12.3,
+     "to": 12.7
+    },
+    {
+     "id": "israel-netz-mod",
+     "name": "Netz (Mod)",
+     "nation": "israel",
+     "from": 12.7,
+     "to": 12.3
+    },
+    {
+     "id": "israel-kfir-c-10",
+     "name": "Kfir C.10",
+     "nation": "israel",
+     "from": 13,
+     "to": 13.3
+    }
+   ],
+   "loadouts": []
+  },
+  "bombs": {
+   "added": [],
+   "removed": [],
+   "changed": []
+  }
+ },
+ {
+  "date": "2026-09-24",
   "gameVersion": "2.59.0.32",
   "aircraft": {
    "added": [],

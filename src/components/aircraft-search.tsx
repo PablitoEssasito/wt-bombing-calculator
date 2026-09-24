@@ -4,7 +4,7 @@ import Fuse from "fuse.js";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { BombRow } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
 import { Flag } from "@/components/flag";
@@ -18,6 +18,7 @@ import {
   VEHICLE_TYPES,
   type VehicleType,
 } from "@/domain/constants";
+import { BATTLE_MODES, type BattleMode } from "@/domain/types";
 import { track } from "@/lib/analytics";
 import { iconUrl, TALISMAN_ICON_URL } from "@/lib/assets";
 import type { AircraftSummary, BombGlyphData } from "@/lib/dataset";
@@ -59,6 +60,15 @@ const PAGE_SIZE = 90;
 
 const VIEWS = ["tiles", "list"] as const;
 
+const MODE_LABELS: Record<BattleMode, string> = {
+  "air-ab": "Air AB",
+  "air-rb": "Air RB",
+  "air-sb": "Air SB",
+  "ground-ab": "Ground AB",
+  "ground-rb": "Ground RB",
+  "ground-sb": "Ground SB",
+};
+
 export function AircraftSearch({
   index,
   brSteps,
@@ -66,8 +76,8 @@ export function AircraftSearch({
   bombs,
 }: {
   index: AircraftSummary[];
-  /** Every battle rating present, ascending — the slider snaps to these. */
-  brSteps: number[];
+  /** Every battle rating present in each mode, ascending — the slider snaps to these. */
+  brSteps: Record<BattleMode, number[]>;
   /** Every rank present, ascending — the slider snaps to these. */
   rankSteps: number[];
   bombs: BombGlyphData[];
@@ -85,8 +95,10 @@ export function AircraftSearch({
   const [sort, setSort] = useUrlState("sort", urlLiteral(SORTS, "br"));
   const [sortDir, setSortDir] = useUrlState("dir", urlLiteral(SORT_DIRS, "asc"));
   const [view, setView] = useUrlState("view", urlLiteral(VIEWS, "tiles"));
+  const [mode, setMode] = useUrlState("mode", urlLiteral(BATTLE_MODES, "air-rb"));
+  const steps = brSteps[mode];
   const [brFrom, setBrFrom] = useUrlState("brFrom", urlInteger(0));
-  const [brTo, setBrTo] = useUrlState("brTo", urlInteger(brSteps.length - 1));
+  const [brTo, setBrTo] = useUrlState("brTo", urlInteger(steps.length - 1));
   const [rankFrom, setRankFrom] = useUrlState("rankFrom", urlInteger(0));
   const [rankTo, setRankTo] = useUrlState("rankTo", urlInteger(rankSteps.length - 1));
 
@@ -102,8 +114,8 @@ export function AircraftSearch({
     return () => clearTimeout(id);
   }, [deferred]);
 
-  const from = Math.min(Math.max(brFrom, 0), brSteps.length - 1);
-  const to = Math.min(Math.max(brTo, from), brSteps.length - 1);
+  const from = Math.min(Math.max(brFrom, 0), steps.length - 1);
+  const to = Math.min(Math.max(brTo, from), steps.length - 1);
   const rankLo = Math.min(Math.max(rankFrom, 0), rankSteps.length - 1);
   const rankHi = Math.min(Math.max(rankTo, rankLo), rankSteps.length - 1);
 
@@ -111,6 +123,33 @@ export function AircraftSearch({
     () => new Fuse(index, { keys: ["name"], threshold: 0.35, ignoreLocation: true }),
     [index],
   );
+
+  // The index comes ordered by Air RB; any other mode needs its own order, and
+  // drops the aircraft that can't be flown in it.
+  const byMode = useMemo(
+    () =>
+      mode === "air-rb"
+        ? index
+        : index
+            .filter((a) => a.brs[mode] !== null)
+            .sort((x, y) => x.brs[mode]! - y.brs[mode]! || x.name.localeCompare(y.name)),
+    [index, mode],
+  );
+  const inBrRange = useCallback(
+    (a: AircraftSummary) => {
+      const br = a.brs[mode];
+      return br !== null && br >= steps[from] && br <= steps[to];
+    },
+    [mode, steps, from, to],
+  );
+
+  // Slider positions index into the mode's own steps, so a new mode starts at its full range.
+  const selectMode = (m: BattleMode) => {
+    setBrFrom(0);
+    setBrTo(steps.length - 1);
+    setMode(m);
+    track("filter_applied", { surface: "aircraft", filter: "mode", value: m });
+  };
 
   const selectNation = (n: "all" | (typeof NATIONS)[number]) => {
     setNation(n);
@@ -141,7 +180,7 @@ export function AircraftSearch({
   };
 
   const results = useMemo(() => {
-    const matched = deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : index;
+    const matched = deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : byMode;
     let filtered = matched.filter(
       (a) =>
         (nation === "all" || a.nation === nation) &&
@@ -149,8 +188,7 @@ export function AircraftSearch({
         (rewards.size === 0 ||
           (rewards.has("premium") && a.premium) ||
           (rewards.has("squadron") && a.squadron)) &&
-        a.br >= brSteps[from] &&
-        a.br <= brSteps[to] &&
+        inBrRange(a) &&
         a.rank >= rankSteps[rankLo] &&
         a.rank <= rankSteps[rankHi],
     );
@@ -166,15 +204,13 @@ export function AircraftSearch({
   }, [
     deferred,
     fuse,
-    index,
+    byMode,
     nation,
     types,
     rewards,
     sort,
     sortDir,
-    brSteps,
-    from,
-    to,
+    inBrRange,
     rankSteps,
     rankLo,
     rankHi,
@@ -186,46 +222,43 @@ export function AircraftSearch({
   // rows), but memoized anyway since three chip rows read from it per render.
   const withoutNation = useMemo(
     () =>
-      (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : index).filter(
+      (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : byMode).filter(
         (a) =>
           (types.size === 0 || (a.vehicleType !== null && types.has(a.vehicleType))) &&
           (rewards.size === 0 ||
             (rewards.has("premium") && a.premium) ||
             (rewards.has("squadron") && a.squadron)) &&
-          a.br >= brSteps[from] &&
-          a.br <= brSteps[to] &&
+          inBrRange(a) &&
           a.rank >= rankSteps[rankLo] &&
           a.rank <= rankSteps[rankHi],
       ),
-    [deferred, fuse, index, types, rewards, brSteps, from, to, rankSteps, rankLo, rankHi],
+    [deferred, fuse, byMode, types, rewards, inBrRange, rankSteps, rankLo, rankHi],
   );
   const withoutType = useMemo(
     () =>
-      (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : index).filter(
+      (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : byMode).filter(
         (a) =>
           (nation === "all" || a.nation === nation) &&
           (rewards.size === 0 ||
             (rewards.has("premium") && a.premium) ||
             (rewards.has("squadron") && a.squadron)) &&
-          a.br >= brSteps[from] &&
-          a.br <= brSteps[to] &&
+          inBrRange(a) &&
           a.rank >= rankSteps[rankLo] &&
           a.rank <= rankSteps[rankHi],
       ),
-    [deferred, fuse, index, nation, rewards, brSteps, from, to, rankSteps, rankLo, rankHi],
+    [deferred, fuse, byMode, nation, rewards, inBrRange, rankSteps, rankLo, rankHi],
   );
   const withoutReward = useMemo(
     () =>
-      (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : index).filter(
+      (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : byMode).filter(
         (a) =>
           (nation === "all" || a.nation === nation) &&
           (types.size === 0 || (a.vehicleType !== null && types.has(a.vehicleType))) &&
-          a.br >= brSteps[from] &&
-          a.br <= brSteps[to] &&
+          inBrRange(a) &&
           a.rank >= rankSteps[rankLo] &&
           a.rank <= rankSteps[rankHi],
       ),
-    [deferred, fuse, index, nation, types, brSteps, from, to, rankSteps, rankLo, rankHi],
+    [deferred, fuse, byMode, nation, types, inBrRange, rankSteps, rankLo, rankHi],
   );
   const nationCount = (n: (typeof NATIONS)[number] | "all") =>
     n === "all" ? withoutNation.length : withoutNation.filter((a) => a.nation === n).length;
@@ -238,8 +271,9 @@ export function AircraftSearch({
     nation !== "all" ||
     types.size > 0 ||
     rewards.size > 0 ||
+    mode !== "air-rb" ||
     from !== 0 ||
-    to !== brSteps.length - 1 ||
+    to !== steps.length - 1 ||
     rankLo !== 0 ||
     rankHi !== rankSteps.length - 1;
 
@@ -249,7 +283,8 @@ export function AircraftSearch({
     setTypes(new Set());
     setRewards(new Set());
     setBrFrom(0);
-    setBrTo(brSteps.length - 1);
+    setBrTo(steps.length - 1);
+    setMode("air-rb");
     setRankFrom(0);
     setRankTo(rankSteps.length - 1);
   };
@@ -257,7 +292,7 @@ export function AircraftSearch({
   // Reset the reveal count when the filters change, without an effect —
   // adjusting state during render is the pattern React itself recommends for
   // "this derived value resets when its inputs change".
-  const filterKey = `${deferred} ${nation} ${[...types].sort().join(",")} ${[...rewards].sort().join(",")} ${sort} ${sortDir} ${from} ${to} ${rankLo} ${rankHi}`;
+  const filterKey = `${deferred} ${nation} ${[...types].sort().join(",")} ${[...rewards].sort().join(",")} ${sort} ${sortDir} ${mode} ${from} ${to} ${rankLo} ${rankHi}`;
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [seenFilterKey, setSeenFilterKey] = useState(filterKey);
   if (filterKey !== seenFilterKey) {
@@ -319,7 +354,7 @@ export function AircraftSearch({
         <div className="grid gap-4 sm:grid-cols-2">
           <RangeSlider
             label="Battle rating"
-            steps={brSteps}
+            steps={steps}
             from={from}
             to={to}
             format={(v) => v.toFixed(1)}
@@ -342,6 +377,22 @@ export function AircraftSearch({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-line">
+          <div className="flex items-center gap-1.5 text-sm text-ink-faint">
+            <span className="text-xs uppercase tracking-wider">Mode</span>
+            <select
+              value={mode}
+              onChange={(e) => selectMode(e.target.value as BattleMode)}
+              aria-label="Battle rating for game mode"
+              className="bg-transparent text-ink border border-line rounded-md pl-2 pr-1 py-1 text-sm focus:border-accent outline-none"
+            >
+              {BATTLE_MODES.map((m) => (
+                <option key={m} value={m} className="bg-surface text-ink">
+                  {MODE_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center gap-1.5 text-sm text-ink-faint">
             <span className="text-xs uppercase tracking-wider">Sort</span>
             <select
@@ -411,6 +462,7 @@ export function AircraftSearch({
             <li key={plane.id}>
               <Tile
                 plane={plane}
+                br={plane.brs[mode]}
                 bomb={plane.preview ? bombsById.get(plane.preview.bombId) : undefined}
               />
             </li>
@@ -442,7 +494,7 @@ export function AircraftSearch({
                     />
                   ) : null}
                   <span className="font-medium truncate">{plane.name}</span>
-                  <span className="nums text-sm text-accent shrink-0">{plane.br.toFixed(1)}</span>
+                  <span className="nums text-sm text-accent shrink-0">{plane.brs[mode]?.toFixed(1)}</span>
                   <span className="ml-auto flex items-center gap-3 shrink-0 text-sm text-ink-faint">
                     <span className="hidden sm:inline">
                       <Flag nation={plane.nation} /> {NATION_LABELS[plane.nation]}
@@ -513,7 +565,7 @@ function RewardBadge() {
   );
 }
 
-function Tile({ plane, bomb }: { plane: AircraftSummary; bomb?: BombGlyphData }) {
+function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; bomb?: BombGlyphData }) {
   const reward = rewardKindOf(plane);
   return (
     <Link
@@ -554,7 +606,7 @@ function Tile({ plane, bomb }: { plane: AircraftSummary; bomb?: BombGlyphData })
           </div>
           <span className="flex items-center gap-1.5 shrink-0">
             {plane.vehicleType ? <VehicleTypeIcon type={plane.vehicleType} size={16} /> : null}
-            <span className="nums text-accent">{plane.br.toFixed(1)}</span>
+            <span className="nums text-accent">{br?.toFixed(1)}</span>
           </span>
         </div>
 
