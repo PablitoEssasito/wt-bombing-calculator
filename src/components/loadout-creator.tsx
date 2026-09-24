@@ -67,6 +67,14 @@ function urlBuild(): UrlCodec<Build> {
   };
 }
 
+const MASS_UNITS = ["kg", "lb"] as const;
+type MassUnit = (typeof MASS_UNITS)[number];
+
+/** A mass in the unit picked — most bombs are named in pounds, the airframe's limit comes in kilograms. */
+function formatMass(kg: number, unit: MassUnit): string {
+  return `${formatCount(Math.round(unit === "lb" ? kg * 2.20462 : kg))} ${unit}`;
+}
+
 /** The headings the game's own loadout menu groups its list under, in its order. */
 const GROUPS: { kind: StoreKind[]; label: string }[] = [
   { kind: ["bomb", "mine", "torpedo"], label: "Bombs" },
@@ -118,6 +126,7 @@ export function LoadoutCreator({
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
   const [mapSize, setMapSize] = useUrlState("map", urlInteger(4));
   const [rawBuild, setBuild] = useUrlState("build", urlBuild());
+  const [unit, setUnit] = useUrlState("unit", urlLiteral(MASS_UNITS, "kg"));
   const [editing, setEditing] = useState(armament.hardpoints[0]?.index ?? 1);
 
   // A link can name a choice this aircraft no longer offers — an old build after
@@ -211,15 +220,33 @@ export function LoadoutCreator({
           <p className="text-sm text-ink-dim">
             Editing <span className="text-ink">pylon {editing}</span>
           </p>
-          <p className="nums text-sm">
-            <span className="text-ink-faint">Mass: </span>
-            <span className={cn("font-semibold", overweight ? "text-danger" : "text-ink")}>
-              {formatCount(Math.round(massKg))}
-            </span>
-            {armament.maxLoadKg !== null ? (
-              <span className="text-ink-faint"> / {formatCount(armament.maxLoadKg)} kg</span>
-            ) : null}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="nums text-sm">
+              <span className="text-ink-faint">Mass: </span>
+              <span className={cn("font-semibold", overweight ? "text-danger" : "text-ink")}>
+                {formatMass(massKg, unit)}
+              </span>
+              {armament.maxLoadKg !== null ? (
+                <span className="text-ink-faint"> / {formatMass(armament.maxLoadKg, unit)}</span>
+              ) : null}
+            </p>
+            <div role="group" aria-label="Mass unit" className="flex rounded-md border border-line text-xs">
+              {MASS_UNITS.map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setUnit(u)}
+                  aria-pressed={unit === u}
+                  className={cn(
+                    "px-2 py-0.5 transition-colors",
+                    unit === u ? "bg-accent-dim text-accent" : "text-ink-faint hover:text-ink",
+                  )}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
         </header>
 
         <div className="max-h-[26rem] overflow-y-auto px-2 py-2">
@@ -243,10 +270,10 @@ export function LoadoutCreator({
                     <OptionRow
                       key={option.name}
                       label={labelForOption(option)}
-                      detail={`Mass: ${formatCount(Math.round(massOfOption(option)))} kg`}
+                      detail={`Mass: ${formatMass(massOfOption(option), unit)}`}
                       glyph={<StoreGlyph option={option} size={18} />}
                       selected={build.get(editing) === option.name}
-                      blocked={blocker ? describeBlocker(blocker, armament) : null}
+                      blocked={blocker ? describeBlocker(blocker, armament, unit) : null}
                       onSelect={() => setSlot(editing, option.name)}
                     />
                   );
@@ -304,7 +331,7 @@ export function LoadoutCreator({
           <p className="text-xs uppercase tracking-wider text-danger">Can&apos;t be flown</p>
           {violations.map((violation, i) => (
             <p key={i} className="text-ink-dim">
-              {describeViolation(violation, armament)}
+              {describeViolation(violation, armament, unit)}
             </p>
           ))}
         </div>
@@ -455,17 +482,17 @@ function OptionRow({
   );
 }
 
-function describeBlocker(blocker: Blocker, armament: Armament): string {
+function describeBlocker(blocker: Blocker, armament: Armament, unit: MassUnit): string {
   if (blocker.reason === "weight") {
-    return `${formatCount(Math.round(blocker.overBy))} kg over the limit`;
+    return `${formatMass(blocker.overBy, unit)} over the limit`;
   }
   return `clashes with pylon ${blocker.withSlot}'s ${labelFor(armament, blocker.withSlot, blocker.withOption)}`;
 }
 
-function describeViolation(violation: Violation, armament: Armament): string {
+function describeViolation(violation: Violation, armament: Armament, unit: MassUnit): string {
   if (violation.kind === "overweight") {
-    const over = Math.round(violation.kg - violation.limitKg);
-    return `${formatCount(Math.round(violation.kg))} kg carried — ${formatCount(over)} kg past the ${formatCount(violation.limitKg)} kg the airframe can lift.`;
+    const over = violation.kg - violation.limitKg;
+    return `${formatMass(violation.kg, unit)} carried — ${formatMass(over, unit)} past the ${formatMass(violation.limitKg, unit)} the airframe can lift.`;
   }
   const a = `pylon ${violation.a.slot}'s ${labelFor(armament, violation.a.slot, violation.a.option)}`;
   const b = `pylon ${violation.b.slot}'s ${labelFor(armament, violation.b.slot, violation.b.option)}`;
