@@ -148,7 +148,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-ink-faint space-y-2">
             <p>
               Loadout creator, recalculated schedules, rocket figures and in-game icons built from
-              War Thunder&apos;s own game files. Hand-tuned drop schedules and bomb damage figures
+              War Thunder&apos;s own game files.<br/> Hand-tuned drop schedules and bomb damage figures
               from{" "}
               <a
                 href={meta.sourceUrl}
@@ -161,7 +161,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               {meta.sheetVersion ? ` (v${meta.sheetVersion})` : null}.
             </p>
             <p>
-              Not affiliated with or endorsed by Gaijin Entertainment. Imported{" "}
+              Not affiliated with or endorsed by Gaijin Entertainment. Last update:{" "}
               {new Date(meta.generatedAt).toISOString().slice(0, 10)}.
             </p>
           </div>
