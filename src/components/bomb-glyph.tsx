@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { createContext, useContext } from "react";
 import { bombIconsById, bombIconUrl } from "@/lib/assets";

@@ -111,6 +111,34 @@ export type Aircraft = {
   options: LoadoutOption[];
 };
 
+type AircraftRef = { id: string; name: string; nation: Nation };
+type BombRef = { id: string; name: string };
+
+/**
+ * What one import changed, worked out by `npm run changelog` from the data it
+ * replaced — see scripts/changelog/diff.ts.
+ */
+export type ChangelogEntry = {
+  /** The day that patch went live, YYYY-MM-DD — the import's own date where it cannot be found. */
+  date: string;
+  /** The War Thunder patch the data was read at, e.g. "2.59.0.32". */
+  gameVersion: string | null;
+  aircraft: {
+    added: AircraftRef[];
+    removed: AircraftRef[];
+    br: (AircraftRef & { from: number; to: number })[];
+    /** Any change to the loadouts, their schedules or their notes. */
+    loadouts: AircraftRef[];
+  };
+  bombs: {
+    added: BombRef[];
+    removed: BombRef[];
+    changed: (BombRef & {
+      fields: { field: "damageValue" | "tntKg" | "massKg"; from: number | null; to: number | null }[];
+    })[];
+  };
+};
+
 export type Meta = {
   sourceUrl: string;
   /** The source's own commentary on a nation's bombing, keyed by nation. */

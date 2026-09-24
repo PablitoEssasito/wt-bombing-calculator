@@ -21,7 +21,8 @@
     "stores": "tsx scripts/armament/stores.ts",
     "stores:cache": "tsx scripts/armament/stores.ts --cache",
     "reward-icons": "tsx scripts/reward-icons/index.ts",
-    "pwa-icons": "tsx scripts/pwa-icons/index.ts"
+    "pwa-icons": "tsx scripts/pwa-icons/index.ts",
+    "changelog": "tsx scripts/changelog/index.ts"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.5",

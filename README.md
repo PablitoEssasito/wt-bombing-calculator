@@ -36,7 +36,13 @@ npm run images         # re-match and re-download aircraft renders and tech-tree
 npm run stores         # re-catalogue every weapon the game's hardpoints can hang
 npm run armament       # re-derive the loadout creator's data from the datamine
 npm run bomb-icons     # re-match the bomb chart's own weapon-selector icons
+npm run changelog      # record what this import changed, for /changelog — run last
 ```
+
+After an import, run the steps in order — `etl`, `stores`, `armament`, `bomb-icons`,
+`changelog` — since each reads what the one before it wrote. `changelog` compares the data
+on disk against its last commit, so it belongs after everything else and before committing;
+running it again before the commit rewrites the same entry rather than adding another.
 
 The ETL reads an optional `GOOGLE_SHEETS_API_KEY` from `.env.local`. Without it
 everything still imports, minus the source's cell notes — see [Notes](#notes). Every

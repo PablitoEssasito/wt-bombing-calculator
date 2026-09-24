@@ -2,6 +2,7 @@ import aircraftData from "@/data/aircraft.json";
 import aircraftBombIconData from "@/data/aircraft-bomb-icons.json";
 import armamentData from "@/data/armament.json";
 import bombData from "@/data/bombs.json";
+import changelogData from "@/data/changelog.json";
 import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
@@ -9,11 +10,13 @@ import squadronData from "@/data/squadron.json";
 import vehicleTypeData from "@/data/vehicle-types.json";
 import type { VehicleType } from "@/domain/constants";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
-import type { Aircraft, Bomb, Meta } from "@/domain/types";
+import type { Aircraft, Bomb, ChangelogEntry, Meta } from "@/domain/types";
 
 export const aircraft = aircraftData as Aircraft[];
 export const bombs = bombData as Bomb[];
 export const meta = metaData as Meta;
+/** What each import changed, newest first — see scripts/changelog. */
+export const changelog = changelogData as ChangelogEntry[];
 
 /** Aircraft id to the wiki unit whose render illustrates it. */
 export const imagesByAircraft = imageData as Record<string, string>;

@@ -13,8 +13,9 @@ describe("sitemap", () => {
     expect(new Set(urls).size).toBe(urls.length);
     expect(urls).toContain("http://localhost:3000/");
     expect(urls).toContain("http://localhost:3000/bombs/");
+    expect(urls).toContain("http://localhost:3000/changelog/");
     expect(urls).toContain("http://localhost:3000/about/");
-    expect(entries.length).toBe(3 + aircraft.length);
+    expect(entries.length).toBe(4 + aircraft.length);
   });
 
   it("matches the trailing-slash URLs the static export actually serves", () => {

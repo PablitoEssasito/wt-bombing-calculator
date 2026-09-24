@@ -82,10 +82,12 @@ export const metadata: Metadata = {
   },
 };
 
+/** `short` is what fits four links beside the logo and coffee button on a phone. */
 const NAV = [
-  { href: "/", label: "Aircraft" },
-  { href: "/bombs", label: "Bomb chart" },
-  { href: "/about", label: "About" },
+  { href: "/", label: "Aircraft", short: "Aircraft" },
+  { href: "/bombs", label: "Bomb chart", short: "Bombs" },
+  { href: "/changelog", label: "Changelog", short: "Changes" },
+  { href: "/about", label: "About", short: "About" },
 ];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -119,9 +121,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="px-2 sm:px-3 py-1.5 rounded-md text-ink-dim hover:text-ink hover:bg-surface-2 transition-colors whitespace-nowrap"
+                  className="px-1.5 sm:px-3 py-1.5 rounded-md text-ink-dim hover:text-ink hover:bg-surface-2 transition-colors whitespace-nowrap"
                 >
-                  {item.label}
+                  <span className="sm:hidden">{item.short}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               ))}
             </nav>
@@ -144,7 +147,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <footer className="border-t border-line mt-16">
           <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-ink-faint space-y-2">
             <p>
-              All loadout and bomb data comes from{" "}
+              Loadout creator, recalculated schedules, rocket figures and in-game icons built from
+              War Thunder&apos;s own game files. Hand-tuned drop schedules and bomb damage figures
+              from{" "}
               <a
                 href={meta.sourceUrl}
                 target="_blank"

@@ -70,7 +70,9 @@ export default function AboutPage() {
           <li>Every control lives in the URL, so a specific setup is one link to share.</li>
         </ul>
         <p className="text-ink-faint text-sm">
-          Loadouts and bomb figures started from{" "}
+          The loadout creator, every recalculated schedule, the rocket damage figures (checked in
+          game, one by one) and the icons are built here from War Thunder&apos;s own game files.
+          The hand-tuned drop schedules and bomb damage figures come from{" "}
           <a
             href={meta.sourceUrl}
             target="_blank"

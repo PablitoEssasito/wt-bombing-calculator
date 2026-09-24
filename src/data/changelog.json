@@ -1,0 +1,265 @@
+[
+ {
+  "date": "2026-09-24",
+  "gameVersion": "2.59.0.32",
+  "aircraft": {
+   "added": [],
+   "removed": [],
+   "br": [
+    {
+     "id": "japan-f-1",
+     "name": "F-1",
+     "nation": "japan",
+     "from": 10.3,
+     "to": 10
+    }
+   ],
+   "loadouts": [
+    {
+     "id": "usa-a-7d",
+     "name": "A-7D",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-7k",
+     "name": "A-7K",
+     "nation": "usa"
+    },
+    {
+     "id": "ussr-hampden-tb-i",
+     "name": "Hampden TB I",
+     "nation": "ussr"
+    },
+    {
+     "id": "britain-blenheim-iv",
+     "name": "Blenheim IV",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-beaufort-viii",
+     "name": "Beaufort VIII",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-swordfish-i",
+     "name": "Swordfish I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hampden-i",
+     "name": "Hampden I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hampden-tb-i",
+     "name": "Hampden TB I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-swordfish-ii",
+     "name": "Swordfish II",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sunderland-iiia",
+     "name": "Sunderland IIIa",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sunderland-v",
+     "name": "Sunderland V",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-ic",
+     "name": "Wellington Ic",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-ic-l",
+     "name": "Wellington Ic/L",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-iii",
+     "name": "Wellington III",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-x",
+     "name": "Wellington X",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-stirling-b-i",
+     "name": "Stirling B I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-stirling-b-iii",
+     "name": "Stirling B III",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-jaguar-gr-1",
+     "name": "Jaguar GR.1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-harrier-gr-3",
+     "name": "Harrier GR.3",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-buccaneer-2",
+     "name": "Buccaneer 2",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-harrier-gr-1",
+     "name": "Harrier GR.1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-phantom-fgr-2",
+     "name": "Phantom FGR.2",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sea-harrier-frs",
+     "name": "Sea Harrier FRS",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-phantom-fg-1",
+     "name": "Phantom FG.1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-buccaneer-2b",
+     "name": "Buccaneer 2B",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sea-harrier-frs-2",
+     "name": "Sea Harrier FRS",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-f-4j-uk",
+     "name": "F-4J (UK)",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-jaguar-is",
+     "name": "Jaguar IS",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-harrier-gr-7",
+     "name": "Harrier GR.7",
+     "nation": "britain"
+    },
+    {
+     "id": "japan-a-7e",
+     "name": "A-7E",
+     "nation": "japan"
+    },
+    {
+     "id": "france-milan",
+     "name": "Milan",
+     "nation": "france"
+    },
+    {
+     "id": "sweden-f-a-18c-mlu-2",
+     "name": "F/A-18C MLU 2",
+     "nation": "sweden"
+    }
+   ]
+  },
+  "bombs": {
+   "added": [
+    {
+     "id": "g-p-250-lb-mk-iv",
+     "name": "G.P. 250 lb Mk.IV"
+    },
+    {
+     "id": "g-p-500-2",
+     "name": "G.P.500 lb Mk.IV"
+    }
+   ],
+   "removed": [],
+   "changed": [
+    {
+     "id": "g-p-250",
+     "name": "G.P. 250 lb Mk.III",
+     "fields": [
+      {
+       "field": "damageValue",
+       "from": 1252,
+       "to": 1195
+      },
+      {
+       "field": "tntKg",
+       "from": 31,
+       "to": 29
+      },
+      {
+       "field": "massKg",
+       "from": 104.32624510000001,
+       "to": 109.76935354000001
+      }
+     ]
+    },
+    {
+     "id": "g-p-500",
+     "name": "G.P.500 lb Mk.III",
+     "fields": [
+      {
+       "field": "damageValue",
+       "from": 1755,
+       "to": 1706
+      },
+      {
+       "field": "tntKg",
+       "from": 66,
+       "to": 61
+      },
+      {
+       "field": "massKg",
+       "from": 213.1884139,
+       "to": 226.34259263
+      }
+     ]
+    },
+    {
+     "id": "g-p-1000-e",
+     "name": "1000 lb G.P. Mk.I",
+     "fields": [
+      {
+       "field": "damageValue",
+       "from": 3800,
+       "to": 2906
+      },
+      {
+       "field": "tntKg",
+       "from": 219,
+       "to": 151
+      }
+     ]
+    },
+    {
+     "id": "m-c-1000",
+     "name": "M.C.1000 lb Mk.I",
+     "fields": [
+      {
+       "field": "massKg",
+       "from": 463.11780977,
+       "to": 474.45761902000004
+      }
+     ]
+    }
+   ]
+  }
+ }
+]

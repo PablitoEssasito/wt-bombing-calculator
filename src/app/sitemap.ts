@@ -7,7 +7,7 @@ import { SITE_URL } from "@/lib/site";
 export const dynamic = "force-static";
 
 /**
- * Every URL the static export actually serves: the three fixed pages and one
+ * Every URL the static export actually serves: the four fixed pages and one
  * per aircraft. Well under the 50,000-URL point a sitemap would need
  * splitting at, so one file is all this ever needs.
  *
@@ -22,6 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: `${SITE_URL}/`, lastModified, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE_URL}/bombs/`, lastModified, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/changelog/`, lastModified, changeFrequency: "weekly", priority: 0.4 },
     { url: `${SITE_URL}/about/`, lastModified, changeFrequency: "yearly", priority: 0.3 },
     ...aircraft.map((plane) => ({
       url: `${SITE_URL}/aircraft/${plane.id}/`,
