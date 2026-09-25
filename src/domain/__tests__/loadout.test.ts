@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyDrop,
   blockedIn,
   bombsIn,
+  equivalentOption,
   massOf,
   unmetIn,
   unpricedIn,
   violationsOf,
+  weaponDamageOf,
   type Armament,
   type Build,
   type SlotOption,
@@ -19,6 +22,7 @@ const store = (over: Partial<Store> & { name: string }): Store => ({
   bomb: null,
   holds: over.bomb?.count ?? 1,
   iconType: null,
+  damage: null,
   ...over,
 });
 
@@ -169,6 +173,36 @@ describe("bombsIn", () => {
   });
 });
 
+describe("weaponDamageOf", () => {
+  const priced: Armament = {
+    ...armament,
+    hardpoints: [
+      {
+        index: 1,
+        options: [
+          option({
+            name: "rack",
+            stores: [{ store: store({ name: "six-rack", damage: 14783 }), count: 2 }],
+          }),
+        ],
+      },
+      {
+        index: 2,
+        options: [option({ name: "gun", stores: [{ store: store({ name: "gun pod", kind: "gun" }), count: 1 }] })],
+      },
+    ],
+  };
+
+  it("sums the game's price for each store as many times as it is hung", () => {
+    expect(weaponDamageOf(build([[1, "rack"]]), priced)).toBe(29566);
+  });
+
+  it("counts what the game doesn't price as nothing", () => {
+    expect(weaponDamageOf(build([[1, "rack"], [2, "gun"]]), priced)).toBe(29566);
+    expect(weaponDamageOf(build([[2, "gun"]]), priced)).toBe(0);
+  });
+});
+
 describe("unpricedIn", () => {
   it("names the bombs carried that nothing can count", () => {
     expect(unpricedIn(build([[2, "jdam"]]), armament).map((s) => s.name)).toEqual(["GBU-38 JDAM"]);
@@ -196,5 +230,89 @@ describe("unmetIn", () => {
 
   it("is never blocked on — a build can carry an unmet dependency", () => {
     expect(violationsOf(build([[2, "jdam"]]), armament)).toEqual([]);
+  });
+});
+
+describe("dragging a choice between pylons", () => {
+  const mk82 = store({ name: "Mk 82", massKg: 240, bomb: { id: "mk82", count: 1 } });
+  const mk84 = store({ name: "Mk 84", massKg: 900, bomb: { id: "mk84", count: 1 } });
+  const jdam = store({ name: "GBU-38", massKg: 253 });
+  /**
+   * Four stations: the inner one names its Mk 82 differently, the way the game
+   * does, and the outer one takes a JDAM the others can't. An Mk 82 on 2 rules
+   * out an Mk 84 on 3.
+   */
+  const wing: Armament = {
+    maxLoadKg: 2000,
+    perWingKg: null,
+    disbalanceKg: null,
+    hardpoints: [
+      { index: 1, options: [option({ name: "mk82_inner", stores: [{ store: mk82, count: 1 }] }), option({ name: "mk84", stores: [{ store: mk84, count: 1 }] })] },
+      { index: 2, options: [option({ name: "mk82", stores: [{ store: mk82, count: 1 }] })] },
+      { index: 3, options: [option({ name: "mk82", stores: [{ store: mk82, count: 1 }] }), option({ name: "mk84", stores: [{ store: mk84, count: 1 }] })] },
+      { index: 4, options: [option({ name: "jdam", stores: [{ store: jdam, count: 1 }] }), option({ name: "mk82", stores: [{ store: mk82, count: 1 }] })] },
+    ],
+    exclusions: [{ slot: 2, option: "mk82", otherSlot: 3, otherOption: "mk84" }],
+    dependencies: [],
+  };
+  const fromPylon = (slot: number, name: string) => ({ from: "pylon" as const, slot, option: name });
+  const fromMenu = (slot: number, name: string) => ({ from: "menu" as const, slot, option: name });
+
+  it("finds the same choice under the same name", () => {
+    expect(equivalentOption(wing, 2, "mk82", 3)?.name).toBe("mk82");
+  });
+
+  it("finds it under another name when it hangs the same thing", () => {
+    expect(equivalentOption(wing, 2, "mk82", 1)?.name).toBe("mk82_inner");
+  });
+
+  it("finds nothing on a pylon that can't hang it", () => {
+    expect(equivalentOption(wing, 1, "mk84", 4)).toBeNull();
+  });
+
+  it("mounts a choice dragged out of the menu, under the target's own name", () => {
+    const result = applyDrop(build([]), wing, fromMenu(1, "mk82_inner"), { to: "pylon", slot: 2 });
+    expect([...result!.build]).toEqual([[2, "mk82"]]);
+  });
+
+  it("moves a choice from one pylon to another", () => {
+    const result = applyDrop(build([[1, "mk82_inner"]]), wing, fromPylon(1, "mk82_inner"), { to: "pylon", slot: 3 });
+    expect([...result!.build]).toEqual([[3, "mk82"]]);
+    expect(result!.displaced).toEqual([]);
+  });
+
+  it("swaps two pylons when each can take the other's choice", () => {
+    const result = applyDrop(build([[1, "mk82_inner"], [3, "mk84"]]), wing, fromPylon(3, "mk84"), { to: "pylon", slot: 1 });
+    expect(new Map(result!.build)).toEqual(new Map([[1, "mk84"], [3, "mk82"]]));
+    expect(result!.displaced).toEqual([]);
+  });
+
+  it("replaces what can't swap back, and says what came off", () => {
+    const result = applyDrop(build([[2, "mk82"], [4, "jdam"]]), wing, fromPylon(2, "mk82"), { to: "pylon", slot: 4 });
+    expect([...result!.build]).toEqual([[4, "mk82"]]);
+    expect(result!.displaced).toEqual([{ slot: 4, option: "jdam" }]);
+  });
+
+  it("refuses a drop the rules bar", () => {
+    // Clash: an Mk 82 on 2 rules out the Mk 84 already on 3.
+    expect(applyDrop(build([[3, "mk84"]]), wing, fromMenu(2, "mk82"), { to: "pylon", slot: 2 })).toBeNull();
+    // Weight: 900 + 900 + 240 is past the 2000 kg limit.
+    expect(applyDrop(build([[1, "mk84"], [3, "mk84"]]), wing, fromMenu(4, "mk82"), { to: "pylon", slot: 4 })).toBeNull();
+  });
+
+  it("refuses a pylon that can't hang the choice at all", () => {
+    expect(applyDrop(build([[1, "mk84"]]), wing, fromPylon(1, "mk84"), { to: "pylon", slot: 4 })).toBeNull();
+  });
+
+  it("takes a choice off when it is dropped off the aircraft", () => {
+    const result = applyDrop(build([[2, "mk82"]]), wing, fromPylon(2, "mk82"), { to: "remove" });
+    expect([...result!.build]).toEqual([]);
+    expect(result!.displaced).toEqual([{ slot: 2, option: "mk82" }]);
+  });
+
+  it("fills every empty pylon that takes it, skipping those the rules bar", () => {
+    const result = applyDrop(build([[3, "mk84"]]), wing, fromMenu(2, "mk82"), { to: "all" });
+    // 2 is barred by the Mk 84 on 3, which itself is left alone.
+    expect(new Map(result!.build)).toEqual(new Map([[1, "mk82_inner"], [3, "mk84"], [4, "mk82"]]));
   });
 });

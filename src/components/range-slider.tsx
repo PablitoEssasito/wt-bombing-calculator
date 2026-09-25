@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,6 +25,7 @@ export function RangeSlider({
   format: (value: number) => string;
   onChange: (from: number, to: number) => void;
 }) {
+  const { m } = useI18n();
   const last = steps.length - 1;
   const pct = (i: number) => (last === 0 ? 0 : (i / last) * 100);
 
@@ -33,7 +35,7 @@ export function RangeSlider({
         <span className="text-xs uppercase tracking-wider text-ink-faint">{label}</span>
         <span className="nums text-sm">
           {from === 0 && to === last ? (
-            <span className="text-ink-faint">all</span>
+            <span className="text-ink-faint">{m.common.all}</span>
           ) : (
             <span className="text-accent">
               {format(steps[from])} – {format(steps[to])}

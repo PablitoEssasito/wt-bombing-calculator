@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Flag } from "@/components/flag";
+import { useI18n } from "@/i18n/client";
 import type { AircraftSummary } from "@/lib/dataset";
 import { useFavoriteAircraft, useRecentAircraft } from "@/lib/local-list";
 import { rewardKindOf } from "@/lib/reward-kind";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
  * thing renders nothing rather than an empty-state message on a first visit.
  */
 export function QuickAccess({ index }: { index: AircraftSummary[] }) {
+  const { m } = useI18n();
   const favoriteIds = useFavoriteAircraft();
   const recentIds = useRecentAircraft();
 
@@ -25,13 +27,14 @@ export function QuickAccess({ index }: { index: AircraftSummary[] }) {
 
   return (
     <div className="space-y-3">
-      {favorites.length > 0 ? <Row label="Favorites" planes={favorites} /> : null}
-      {recent.length > 0 ? <Row label="Recently viewed" planes={recent} /> : null}
+      {favorites.length > 0 ? <Row label={m.common.favorites} planes={favorites} /> : null}
+      {recent.length > 0 ? <Row label={m.common.recentlyViewed} planes={recent} /> : null}
     </div>
   );
 }
 
 function Row({ label, planes }: { label: string; planes: AircraftSummary[] }) {
+  const { path } = useI18n();
   return (
     <div className="space-y-1.5">
       <p className="text-xs uppercase tracking-wider text-ink-faint">{label}</p>
@@ -41,7 +44,8 @@ function Row({ label, planes }: { label: string; planes: AircraftSummary[] }) {
           return (
             <Link
               key={plane.id}
-              href={`/aircraft/${plane.id}`}
+              href={path(`/aircraft/${plane.id}/`)}
+              transitionTypes={["nav-forward"]}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-colors whitespace-nowrap shrink-0",
                 reward === "premium"

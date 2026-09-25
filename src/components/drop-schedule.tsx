@@ -2,14 +2,15 @@
 
 import { BombRow } from "@/components/bomb-glyph";
 import type { Plan, PlanBase, PlanItem } from "@/domain/schedule";
-import { cn, formatCount } from "@/lib/utils";
+import { useI18n } from "@/i18n/client";
+import { cn } from "@/lib/utils";
 
 export function DropSchedule({ plan }: { plan: Plan }) {
+  const { m, number, count, fill } = useI18n();
   if (plan.bases.length === 0) {
     return (
       <p className="card p-6 text-ink-dim text-center">
-        This payload cannot flatten a single {formatCount(plan.effectiveHp)} HP base. Take a
-        heavier loadout, or drop the match BR.
+        {fill(m.drop.cannotFlatten, { hp: number(plan.effectiveHp) })}
       </p>
     );
   }
@@ -26,22 +27,21 @@ export function DropSchedule({ plan }: { plan: Plan }) {
 
       {plan.unlistedBases > 0 ? (
         <p className="text-sm text-ink-dim">
-          <span className="text-ink-faint">
-            {`Plus ${plan.unlistedBases} more base${plan.unlistedBases === 1 ? "" : "s"}: `}
-          </span>
-          the source counts {plan.basesDestroyed} for this loadout but writes the load for{" "}
-          {plan.bases.length}, so what to drop on the rest is left unsaid.
+          <span className="text-ink-faint">{count(m.drop.plusMore, plan.unlistedBases)}</span>
+          {fill(m.drop.unlisted, { counted: plan.basesDestroyed, written: plan.bases.length })}
         </p>
       ) : null}
 
       {plan.leftover.length > 0 ? (
         <p className="text-sm text-ink-dim">
-          <span className="text-ink-faint">{plan.trimmed ? "Leave behind: " : "Left over: "}</span>
+          <span className="text-ink-faint">{plan.trimmed ? m.drop.leaveBehind : m.drop.leftOver}</span>
           <ItemList items={plan.leftover} />
           <span className="text-ink-faint">
             {plan.trimmed
-              ? ` — surplus for ${plan.bases.length} base${plan.bases.length === 1 ? "" : "s"}. This aircraft mounts pylon by pylon, so leaving it off is worth a higher multiplier.`
-              : ` — not enough for another base${plan.respawns ? "." : " on a map where bases do not come back."}`}
+              ? count(m.drop.surplus, plan.bases.length)
+              : plan.respawns
+                ? m.drop.notEnoughRespawn
+                : m.drop.notEnoughNoRespawn}
           </span>
         </p>
       ) : null}
@@ -58,6 +58,7 @@ function BaseTile({
   index: number;
   threshold: number;
 }) {
+  const { m, number, fill } = useI18n();
   const ratio = Math.min(base.damage / threshold, 1);
 
   return (
@@ -68,9 +69,11 @@ function BaseTile({
       )}
     >
       <header className="flex items-center justify-between gap-2">
-        <span className="text-xs uppercase tracking-wider text-ink-faint">Base {index + 1}</span>
+        <span className="text-xs uppercase tracking-wider text-ink-faint">
+          {fill(m.drop.base, { n: index + 1 })}
+        </span>
         <span className={cn("text-xs", base.destroys ? "text-live" : "text-warn")}>
-          {base.destroys ? "destroyed" : "leftovers"}
+          {base.destroys ? m.drop.destroyed : m.drop.leftovers}
         </span>
       </header>
 
@@ -96,8 +99,11 @@ function BaseTile({
           />
         </div>
         <p className="nums text-xs text-ink-faint">
-          {formatCount(Math.round(base.damage))} of {formatCount(Math.round(threshold))} damage
-          {base.hasUnpriced ? " (plus unpriced ordnance)" : ""}
+          {fill(m.drop.damageOf, {
+            damage: number(Math.round(base.damage)),
+            threshold: number(Math.round(threshold)),
+          })}
+          {base.hasUnpriced ? m.drop.unpriced : ""}
         </p>
       </div>
     </article>

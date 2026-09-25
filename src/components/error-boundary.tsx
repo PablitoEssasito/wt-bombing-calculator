@@ -3,7 +3,8 @@
 import { Component, type ReactNode } from "react";
 import { describeError, track } from "@/lib/analytics";
 
-type Props = { children: ReactNode };
+/** The message comes in already translated — a class component can't read the i18n context by hook. */
+type Props = { children: ReactNode; heading: string; text: string };
 type State = { broke: boolean };
 
 /**
@@ -30,8 +31,8 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.broke) {
       return (
         <div className="mx-auto max-w-2xl px-4 py-16 text-center space-y-2">
-          <p className="text-lg font-semibold">Something broke on this page.</p>
-          <p className="text-ink-dim text-sm">Reloading usually fixes it.</p>
+          <p className="text-lg font-semibold">{this.props.heading}</p>
+          <p className="text-ink-dim text-sm">{this.props.text}</p>
         </div>
       );
     }

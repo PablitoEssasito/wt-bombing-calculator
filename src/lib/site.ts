@@ -1,3 +1,4 @@
+import { LOCALES, localePath, OG_LOCALES, type Locale } from "@/i18n/locales";
 import { BASE_PATH } from "./base-path";
 
 /**
@@ -46,12 +47,14 @@ export function pageOpenGraph(
   title: string,
   description: string,
   image: { url: string; width: number; height: number; alt: string } = DEFAULT_OG_IMAGE,
+  locale: Locale = "en",
 ) {
   return {
     openGraph: {
       type: "website" as const,
       title,
       description,
+      locale: OG_LOCALES[locale],
       images: [image],
     },
     twitter: {
@@ -63,13 +66,30 @@ export function pageOpenGraph(
   };
 }
 
+/** A path in the trailing-slash shape every link on the site uses. */
+const withSlash = (pathname: string) => (pathname === "/" ? "/" : `${pathname.replace(/\/+$/, "")}/`);
+
+/** The absolute URL of a page in each language, keyed the way hreflang wants it. */
+export function languageUrls(pathname: string): Record<Locale | "x-default", string> {
+  const path = withSlash(pathname);
+  const urls = Object.fromEntries(LOCALES.map((l) => [l, `${SITE_URL}${localePath(l, path)}`]));
+  return { ...urls, "x-default": `${SITE_URL}${path}` } as Record<Locale | "x-default", string>;
+}
+
 /**
  * The one true URL for a page, trailing slash and all — the same shape
  * `next.config.ts`'s `trailingSlash` makes every link on the site use, and
  * the one `sitemap.ts` lists. Stating it keeps a search engine from treating
  * `/bombs` and `/bombs/` as two different pages that happen to agree.
+ * Alongside it, the same page in every other language (hreflang), with the
+ * English one as the default for anyone else.
  */
-export function canonicalOf(pathname: string) {
-  const path = pathname === "/" ? "/" : `${pathname.replace(/\/+$/, "")}/`;
-  return { alternates: { canonical: `${SITE_URL}${path}` } };
+export function canonicalOf(pathname: string, locale: Locale = "en") {
+  const path = withSlash(pathname);
+  return {
+    alternates: {
+      canonical: `${SITE_URL}${localePath(locale, path)}`,
+      languages: languageUrls(path),
+    },
+  };
 }

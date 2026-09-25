@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 
 const RECENT_KEY = "wtbc:recent";
 const FAVORITES_KEY = "wtbc:favorites";
+const TALISMANS_KEY = "wtbc:talismans";
 const RECENT_LIMIT = 8;
 
 /**
@@ -79,8 +80,23 @@ export function useFavoriteAircraft(): string[] {
   return useSyncExternalStore(subscribe, () => read(FAVORITES_KEY), readServer);
 }
 
+/** The favourites as they stand, for code that runs outside a render. */
+export function favoriteAircraft(): string[] {
+  return read(FAVORITES_KEY);
+}
+
 export function toggleFavoriteAircraft(id: string): void {
   const current = read(FAVORITES_KEY);
   const next = current.includes(id) ? current.filter((existing) => existing !== id) : [id, ...current];
   write(FAVORITES_KEY, next);
+}
+
+/** Tech-tree aircraft the player has put a talisman on — one's bought per aircraft. */
+export function useTalismanAircraft(): string[] {
+  return useSyncExternalStore(subscribe, () => read(TALISMANS_KEY), readServer);
+}
+
+export function setTalisman(id: string, on: boolean): void {
+  const current = read(TALISMANS_KEY).filter((existing) => existing !== id);
+  write(TALISMANS_KEY, on ? [id, ...current] : current);
 }

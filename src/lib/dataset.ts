@@ -4,13 +4,18 @@ import armamentData from "@/data/armament.json";
 import battleRatingData from "@/data/battle-ratings.json";
 import bombData from "@/data/bombs.json";
 import changelogData from "@/data/changelog.json";
+import economyData from "@/data/economy.json";
 import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
+import nameData from "@/data/names.json";
 import squadronData from "@/data/squadron.json";
 import vehicleTypeData from "@/data/vehicle-types.json";
 import type { VehicleType } from "@/domain/constants";
+import type { Locale } from "@/i18n/locales";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
+import rewardConstantsData from "@/data/reward-constants.json";
+import { loadoutRewardMul, type AircraftEconomy, type ModeTriple, type RewardConstants } from "@/domain/reward";
 import {
   BATTLE_MODES,
   type Aircraft,
@@ -21,11 +26,30 @@ import {
   type Meta,
 } from "@/domain/types";
 
-export const aircraft = aircraftData as Aircraft[];
 export const bombs = bombData as Bomb[];
 export const meta = metaData as Meta;
 /** What each import changed, newest first — see scripts/changelog. */
 export const changelog = changelogData as ChangelogEntry[];
+
+/** Identifies a changelog entry across builds — a patch can have one entry at most, dated once. */
+export const changelogKey = (entry: ChangelogEntry) => `${entry.gameVersion ?? ""}|${entry.date}`;
+
+/**
+ * The latest entries, cut down to what "what's new" needs on every page: which
+ * patch, and which aircraft it touched (so a returning player can be told
+ * their favourites changed). Ten is more than anyone stays away for.
+ */
+export const recentChanges = changelog.slice(0, 10).map((entry) => ({
+  key: changelogKey(entry),
+  version: entry.gameVersion,
+  touched: [
+    ...new Set([
+      ...entry.aircraft.added.map((a) => a.id),
+      ...entry.aircraft.br.map((a) => a.id),
+      ...entry.aircraft.loadouts.map((a) => a.id),
+    ]),
+  ],
+}));
 
 /** Aircraft id to the wiki unit whose render illustrates it. */
 export const imagesByAircraft = imageData as Record<string, string>;
@@ -54,6 +78,40 @@ function brsOf(plane: Aircraft): Record<BattleMode, number | null> {
     "ground-sb": groundSb,
   };
 }
+
+/**
+ * What each aircraft earns with, and what each custom-slot weapon counts for
+ * towards the bombing reward — see scripts/battle-ratings. Read at build time;
+ * a page is handed one aircraft's figures, not the table.
+ */
+const economy = economyData as unknown as {
+  aircraft: Record<string, AircraftEconomy>;
+  weaponDamage: Record<string, number>;
+};
+
+export const economyFor = (aircraftId: string): AircraftEconomy | null => economy.aircraft[aircraftId] ?? null;
+
+const bombDamage = new Map(bombs.map((b) => [b.id, b.damageValue]));
+
+/**
+ * Each loadout's reward multiplier as the game works it out (`loadoutRewardMul`,
+ * with the aircraft's class from wpcost.blkx), in place of the sheet's. The
+ * sheet's differs on about one loadout in ten, from damage values it predates
+ * and 14 aircraft filed under the wrong class: the F-4J's 12 × Mk 82 is 6.6
+ * there and 5.6 in the game, which a real battle paid by. The sheet's figure
+ * stays where the game's can't be had.
+ */
+function gameMultiplier(plane: Aircraft, option: Aircraft["options"][number]): number | null {
+  const unit = economy.aircraft[plane.id];
+  if (!unit || option.rewardMultiplier === null) return option.rewardMultiplier;
+  const mul = loadoutRewardMul(option, (id) => bombDamage.get(id), unit, (rewardConstantsData as RewardConstants).bombing);
+  return mul === null ? option.rewardMultiplier : Math.round(mul * 100) / 10;
+}
+
+export const aircraft: Aircraft[] = (aircraftData as Aircraft[]).map((plane) => ({
+  ...plane,
+  options: plane.options.map((option) => ({ ...option, rewardMultiplier: gameMultiplier(plane, option) })),
+}));
 
 /** Aircraft id to the wiki's own class — fighter, bomber, or strike aircraft. */
 const vehicleTypesByAircraft = vehicleTypeData as Record<string, VehicleType>;
@@ -127,6 +185,7 @@ export function armamentFor(aircraftId: string): Armament | null {
       bomb: raw.b ? { id: raw.b[0], count: raw.b[1] } : null,
       holds: raw.h ?? 1,
       iconType: raw.i ?? null,
+      damage: economy.weaponDamage[armamentSource.files[index]] ?? null,
     };
   };
 
@@ -195,6 +254,8 @@ export type AircraftSummary = {
   squadron: boolean;
   /** The wiki's own class — null for the few rows it never matched to a unit. */
   vehicleType: VehicleType | null;
+  /** Its SL multiplier per air mode and its RP multiplier, for sorting; null with no game data. */
+  reward: { sl: ModeTriple; rp: number } | null;
 };
 
 /** Just enough of a bomb to show it; the full records are far heavier. */
@@ -247,6 +308,9 @@ export const aircraftIndex: AircraftSummary[] = aircraft
     premium: plane.category.startsWith("premium"),
     squadron: squadronIds.has(plane.id),
     vehicleType: vehicleTypesByAircraft[plane.id] ?? null,
+    reward: economy.aircraft[plane.id]
+      ? { sl: economy.aircraft[plane.id].sl, rp: economy.aircraft[plane.id].rp }
+      : null,
   }))
   .sort((a, b) => a.br - b.br || a.name.localeCompare(b.name));
 
@@ -266,3 +330,39 @@ export const bombGlyphData: BombGlyphData[] = bombs.map((b) => ({
   chartName: b.chartName,
   fullName: b.fullName,
 }));
+
+/**
+ * Aircraft and weapon names in each translated language, as the game's own
+ * client shows them — see scripts/localize. Anything missing stays English.
+ */
+const names = nameData as Record<Exclude<Locale, "en">, { aircraft: Record<string, string>; weapons: Record<string, string> }>;
+
+/** An aircraft's name in a language. */
+export function aircraftName(locale: Locale, plane: { id: string; name: string }): string {
+  return locale === "en" ? plane.name : (names[locale].aircraft[plane.id] ?? plane.name);
+}
+
+/** The aircraft list with its names in a language; order unchanged. */
+export function aircraftIndexFor(locale: Locale): AircraftSummary[] {
+  if (locale === "en") return aircraftIndex;
+  return aircraftIndex.map((plane) => ({ ...plane, name: aircraftName(locale, plane) }));
+}
+
+/**
+ * English weapon name to the language's, for one aircraft's loadout creator —
+ * only the names its hardpoints can hang, not the whole game's, since the map
+ * travels with every page. Null in English.
+ */
+export function weaponNamesFor(locale: Locale, armament: Armament | null): Record<string, string> | null {
+  if (locale === "en" || !armament) return null;
+  const all = names[locale].weapons;
+  const used: Record<string, string> = {};
+  for (const hardpoint of armament.hardpoints) {
+    for (const option of hardpoint.options) {
+      for (const { store } of option.stores) {
+        if (all[store.name]) used[store.name] = all[store.name];
+      }
+    }
+  }
+  return used;
+}

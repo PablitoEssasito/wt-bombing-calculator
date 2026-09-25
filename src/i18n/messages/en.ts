@@ -1,0 +1,362 @@
+import type { Plural } from "@/i18n/format";
+
+/** Marks a count's forms, so the dictionary's type keeps every form a language may add. */
+const forms = (value: Plural): Plural => value;
+
+/**
+ * Every word the site shows, in English — the source the other languages are
+ * checked against (see messages/index.ts). Plain data only: `{name}` marks a
+ * value filled in at render time, and a `forms(...)` entry is a count that
+ * reads differently by number (see format.ts).
+ *
+ * These are the words the browser needs too, shipped as one small script per
+ * language (see i18n/words). Everything only the server renders — page chrome,
+ * headings, metadata, the About page — lives in en.server.ts.
+ */
+export const en = {
+
+  nav: {
+    aircraft: "Aircraft",
+    bombs: "Bomb chart",
+    bombsShort: "Bombs",
+    changelog: "Changelog",
+    changelogShort: "Changes",
+    about: "About",
+    aboutShort: "About",
+    coffee: "Buy me a coffee",
+    search: "Search aircraft, bombs and pages",
+    newChanges: "new changes",
+    language: "Language",
+    chooseLanguage: "Choose your language",
+    chooseLanguageHint: "You can change it any time, at the top of every page.",
+  },
+
+  nations: {
+    usa: "USA",
+    germany: "Germany",
+    ussr: "USSR",
+    britain: "Great Britain",
+    japan: "Japan",
+    china: "China",
+    italy: "Italy",
+    france: "France",
+    sweden: "Sweden",
+    israel: "Israel",
+  },
+
+  vehicleTypes: { fighter: "Fighter", bomber: "Bomber", assault: "Strike aircraft" },
+
+  bombKinds: {
+    GP: "General purpose",
+    AP: "Armour piercing",
+    DRAG: "Retarded",
+    INC: "Incendiary",
+    MINE: "Mine",
+    GNSS: "Satellite guided",
+    LAS: "Laser guided",
+    TV: "TV guided",
+    IR: "IR guided",
+    RC: "Radio guided",
+    ROCKET: "Rocket",
+    OTHER: "Other",
+  },
+
+  common: {
+    rank: "Rank {rank}",
+    bases: forms({ one: "{n} base", other: "{n} bases" }),
+    clearFilters: "Clear filters",
+    all: "all",
+    nation: "Nation",
+    allNations: "All nations",
+    type: "Type",
+    undo: "Undo",
+    premiumVehicle: "Premium vehicle",
+    favorites: "Favorites",
+    recentlyViewed: "Recently viewed",
+    copyLink: "Copy link",
+    copied: "Copied!",
+    linkCopied: "Link copied",
+    linkCopiedDetail: "Everything you set is in it.",
+    copyFailed: "Couldn't copy the link",
+    copyFailedDetail: "Copy it from the address bar instead.",
+    addFavorite: "Add to favorites",
+    removeFavorite: "Remove from favorites",
+    addedFavorite: "Added to favorites",
+    removedFavorite: "Removed from favorites",
+    sourceLanguage: "EN",
+    sourceLanguageTitle: "Written by the sheet's author, in English",
+  },
+
+  conditions: {
+    matchBr: "Match BR",
+    gameMode: "Game mode",
+    realistic: "Realistic / Sim",
+    arcade: "Arcade",
+    basesRespawn: "bases respawn",
+    doubleHealth: "double health",
+    basesOnMap: "Bases on the map",
+    four: "Four",
+    three: "Three",
+    mostMaps: "most maps",
+    hpBases: "{hp} HP bases",
+    hp: "{hp} HP",
+    noUptier: "No uptier",
+    uptiered: "Uptiered",
+    andUp: "{br} and up",
+    brRanges: {
+      4000: "up to 2.0",
+      6000: "2.3 – 3.3",
+      10000: "3.7 – 4.7",
+      16000: "5.0 – 6.3",
+      22000: "6.7 – 7.7",
+      25900: "8.0 and up",
+    },
+  },
+
+  search: {
+    placeholder: "Search {count} aircraft — try “Pe-8”, “Ju 88”, “A-10”",
+    label: "Search aircraft",
+    class: "Class",
+    premium: "Premium",
+    squadron: "Squadron",
+    battleRating: "Battle rating",
+    rank: "Rank",
+    mode: "Mode",
+    modeLabel: "Battle rating for game mode",
+    modes: {
+      "air-ab": "Air AB",
+      "air-rb": "Air RB",
+      "air-sb": "Air SB",
+      "ground-ab": "Ground AB",
+      "ground-rb": "Ground RB",
+      "ground-sb": "Ground SB",
+    },
+    sort: "Sort",
+    sorts: {
+      br: "Battle rating",
+      name: "Name",
+      "premium-first": "Premium first",
+      "squadron-first": "Squadron first",
+      "sl-first": "Highest SL multiplier",
+      "rp-first": "Highest RP multiplier",
+    },
+    sortAscending: "Sort ascending",
+    sortDescending: "Sort descending",
+    tiles: "Tiles",
+    list: "List",
+    empty:
+      "Nothing matches these filters. Coverage includes bombers, attackers and any fighter that can carry bombs — pure interceptors aren't included.",
+    showMore: "Show more",
+    shownOf: "{shown} of {total}",
+    count: "{count} aircraft.",
+    basesShort: forms({ one: "{n} base", other: "{n} bases" }),
+  },
+
+  bombChart: {
+    title: "Bomb chart",
+    metaDescription:
+      "Every bomb in War Thunder with its damage against bases, and how many it takes to flatten one at any battle rating.",
+    massKg: "Mass (kg)",
+    tntKg: "TNT equivalent (kg)",
+    damage: "Damage",
+    minimum: "{label} minimum",
+    maximum: "{label} maximum",
+    filterPlaceholder: "Filter bombs…",
+    filterLabel: "Filter bombs",
+    massShownIn: "Mass shown in",
+    massUnit: "Mass unit",
+    original: "Original",
+    summary: "{count} bombs against {hp} HP bases",
+    empty: "Nothing matches these filters.",
+    columns: {
+      name: "Bomb",
+      needed: "Per base",
+      damage: "Damage",
+      mass: "Mass",
+      tnt: "TNT",
+      efficiency: "Dmg / kg",
+      kind: "Type",
+    },
+  },
+
+  aircraftPage: {
+    back: "← All aircraft",
+    metaTitle: "{name} bomb loadout",
+    metaDescription:
+      "How many bombs to take on the {name} ({nation}, BR {br}) in War Thunder, and what to drop on each base.",
+    renderAlt: "{name} in War Thunder",
+    noLoadout: "No bombing loadout is listed for this aircraft.",
+    viewGroup: "View",
+    schedule: "Drop schedule",
+    build: "Build a loadout",
+  },
+
+  planner: {
+    basesToHit: "Bases you want to hit",
+    recommendedHeading: "Recommended loadout",
+    thisLoadout: "This loadout",
+    whatToTake: "What to take",
+    bestFor: forms({ one: "Best for {n} base", other: "Best for {n} bases" }),
+    recommendedTag: "★ Recommended",
+    advisedAgainst: "Advised against",
+    reward: "reward",
+    onFullLoad: " on the full load",
+    backToDefault: "back to the default",
+    recalculated:
+      "Recalculated for {conditions}: {hp} HP bases{map}. Same payload, redistributed — only realistic battles on four-base maps are spelled out directly above.",
+    arcadeConditions: "arcade conditions",
+    theseConditions: "these conditions",
+    onThreeBaseMap: " on a three-base map",
+    fixedSetup:
+      "The {name} offers this as a fixed setup rather than pylon by pylon, so there is no way to carry part of it. The whole load comes along whether you drop it or not.",
+    everyLoadout: "Every loadout",
+    everyLoadoutHint: "Lighter loadouts earn a higher multiplier per base, so take only what the job needs.",
+    columns: { bases: "Bases", reward: "Reward", status: "Status", payload: "Payload" },
+    shownAbove: "shown above",
+    show: "show",
+  },
+
+  notes: {
+    headings: { "?": "Worth knowing", "!": "Heads up", star: "Recommended", none: "Note" },
+    fallbacks: {
+      "?": "This loadout carries a caveat.",
+      "!": "Something about this loadout is worth knowing before you take it.",
+      star: "This is the recommended loadout.",
+    },
+    notRecommended: "Not recommended",
+    seeSheet: "See the sheet",
+    forWhatItSays: " for what it says.",
+  },
+
+  drop: {
+    cannotFlatten:
+      "This payload cannot flatten a single {hp} HP base. Take a heavier loadout, or drop the match BR.",
+    plusMore: forms({ one: "Plus {n} more base: ", other: "Plus {n} more bases: " }),
+    unlisted:
+      "the source counts {counted} for this loadout but writes the load for {written}, so what to drop on the rest is left unsaid.",
+    leaveBehind: "Leave behind: ",
+    leftOver: "Left over: ",
+    surplus: forms({
+      one: " — surplus for {n} base. This aircraft mounts pylon by pylon, so leaving it off is worth a higher multiplier.",
+      other:
+        " — surplus for {n} bases. This aircraft mounts pylon by pylon, so leaving it off is worth a higher multiplier.",
+    }),
+    notEnoughRespawn: " — not enough for another base.",
+    notEnoughNoRespawn: " — not enough for another base on a map where bases do not come back.",
+    base: "Base {n}",
+    destroyed: "destroyed",
+    leftovers: "leftovers",
+    damageOf: "{damage} of {threshold} damage",
+    unpriced: " (plus unpriced ordnance)",
+  },
+
+  creator: {
+    editing: "Editing",
+    pylon: "pylon {n}",
+    alsoOnEveryFree: "also on every free pylon ({n})",
+    alsoHung: forms({ one: "Also hung on {n} more pylon", other: "Also hung on {n} more pylons" }),
+    takenOff: "Taken off pylon {n}",
+    replaced: "Replaced {what} on pylon {n}",
+    cleared: "Aircraft cleared",
+    mass: "Mass: ",
+    massDetail: "Mass: {mass}",
+    massUnit: "Mass unit",
+    loadMeter: "Load against the airframe's limit",
+    tapAPylon: "Tap a pylon below to choose what it carries.",
+    howTo: "How to build",
+    hideHowTo: "Hide the instructions",
+    howToPick: "Click a pylon below, then pick what it carries from this list.",
+    howToDrag:
+      "Or drag a choice straight onto a pylon. Drop it on the strip that shows up over the list to hang it on every free pylon that takes it.",
+    howToMove:
+      "Drag from one pylon to another to move or swap, or onto the strip that shows up to take it off. Anything replaced or taken off can be undone from the message that pops up.",
+    howToHoldChoice:
+      "Or hold a choice in the list that slides up, then drag it onto a pylon — or onto the strip that shows up, to hang it on every free pylon that takes it.",
+    howToHold:
+      "Hold a pylon for a moment, then drag it onto another to move or swap, or onto the strip that shows up to take it off. Anything replaced or taken off can be undone from the message that pops up.",
+    pylonSheetTitle: "Pylon {n}",
+    pickWhatItCarries: "Pick what it carries.",
+    dropOnAll: "Drop here to hang it on every free pylon that takes it",
+    dropToRemove: "Drop here to take it off",
+    cantHang: "Pylon {n} can't hang this",
+    emptyPylon: "Pylon {n} — empty",
+    empty: "Empty",
+    nothingOnPylon: "nothing on this pylon",
+    groups: {
+      bombs: "Bombs",
+      rockets: "Rockets",
+      missiles: "Missiles",
+      guns: "Cannons & machine guns",
+      tanks: "Fuel tanks",
+      other: "Pods & other",
+    },
+    overLimit: "{mass} over the limit",
+    clashesWith: "clashes with pylon {n}'s {what}",
+    cantBeFlown: "Can't be flown",
+    overweight: "{carried} carried — {over} past the {limit} the airframe can lift.",
+    pylonsChoice: "pylon {n}'s {what}",
+    cantCarryWith: "{a} can't be carried with {b}.",
+    worthChecking: "Worth checking",
+    usuallyWith:
+      "Pylon {n}'s {what} usually comes with pylon {other}'s {otherWhat}, which isn't mounted.",
+    whatItDrops: "What it drops",
+    clearAircraft: "clear the aircraft",
+    reward: "reward",
+    alsoCarrying:
+      "Also carrying: {stores} — no base-damage figure for these, so they're left out of the count above.",
+  },
+
+  changelog: {
+    title: "Changelog",
+    metaDescription: "What each data update changed: new aircraft and bombs, BR moves, and bomb values.",
+    empty: "Nothing yet — the first entry lands with the next update.",
+    patch: "Patch {version}",
+    new: "New",
+    groups: {
+      bombValues: "Bomb values changed",
+      newBombs: "New bombs & rockets",
+      bombsRemoved: "Bombs removed",
+      newAircraft: "New aircraft",
+      brChanges: "BR changes",
+      loadouts: "Loadouts updated",
+      aircraftRemoved: "Aircraft removed",
+    },
+    showAll: "Show all {n}",
+    fields: { damageValue: "Damage", tntKg: "TNT", massKg: "Mass" },
+    favoritesChanged: forms({
+      one: "{n} of your favorites changed{patch}",
+      other: "{n} of your favorites changed{patch}",
+    }),
+    inPatch: " in patch {version}",
+    see: "See",
+  },
+
+  rewards: {
+    title: "Rewards",
+    reward: "Reward",
+    sl: "SL",
+    rp: "RP",
+    mode: "Mode",
+    premiumAccount: "Premium account",
+    talisman: "Talisman",
+    talismanBuiltIn: "Comes with a premium aircraft",
+    boostersSl: "SL boosters",
+    boostersRp: "RP boosters",
+    addBooster: "Add a booster",
+    removeBooster: "Remove the {n}% booster",
+    multipliers: "Multipliers ({mode})",
+    perSortie: "Per sortie",
+    rbOnly: "Amounts per sortie: Air RB only.",
+    accuracy: "Estimate: SL ±2%, RP ±6%; less certain below BR 5.0.",
+  },
+
+  palette: {
+    placeholder: "Search aircraft, bombs, pages…",
+    loading: "Loading…",
+    empty: "Nothing by that name.",
+    aircraft: "Aircraft",
+    bombs: "Bombs & rockets",
+    pages: "Pages",
+  },
+
+};

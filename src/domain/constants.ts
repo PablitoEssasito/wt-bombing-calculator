@@ -30,6 +30,22 @@ export const BASE_HP_BRACKETS: readonly { maxBr: number; hp: BaseHp }[] = [
   { maxBr: Infinity, hp: 25900 },
 ];
 
+/**
+ * Three-base maps set their own base hitpoints, by the battle's balance level —
+ * whose steps fall on the same BR brackets — and their own arcade multiplier:
+ * `destroy_bomb_areas_template.blk` (mis.vromfs.bin_u › gamedata/missions/templates),
+ * which Kursk, Norway and the other three-zone missions import. Keyed here by
+ * the four-base tier of the same bracket.
+ */
+export const THREE_BASE_HP: Record<BaseHp, { hp: number; arcadeMul: number }> = {
+  4000: { hp: 6000, arcadeMul: 2.5 },
+  6000: { hp: 8000, arcadeMul: 3.2 },
+  10000: { hp: 10000, arcadeMul: 3.2 },
+  16000: { hp: 12000, arcadeMul: 4.2 },
+  22000: { hp: 12000, arcadeMul: 4.2 },
+  25900: { hp: 12000, arcadeMul: 4.2 },
+};
+
 /** How far above its own BR a vehicle can be pulled into a match. */
 export const MAX_UPTIER = 1.0;
 
@@ -48,19 +64,6 @@ export const NATIONS = [
 
 export type Nation = (typeof NATIONS)[number];
 
-export const NATION_LABELS: Record<Nation, string> = {
-  usa: "USA",
-  germany: "Germany",
-  ussr: "USSR",
-  britain: "Great Britain",
-  japan: "Japan",
-  china: "China",
-  italy: "Italy",
-  france: "France",
-  sweden: "Sweden",
-  israel: "Israel",
-};
-
 /**
  * Reward-multiplier curve a vehicle sits on, from the trailing letter column of
  * the nation tabs: X / F / P / PF.
@@ -74,13 +77,6 @@ export const VEHICLE_CATEGORIES = [
 
 export type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
 
-export const CATEGORY_LABELS: Record<VehicleCategory, string> = {
-  "tt-bomber": "Tech tree · bomber/attacker",
-  "tt-fighter": "Tech tree · fighter",
-  "premium-bomber": "Premium · bomber/attacker",
-  "premium-fighter": "Premium · fighter",
-};
-
 /**
  * The wiki's own aircraft class — fighter, bomber, or strike aircraft — the
  * same grouping the game's tech tree filters by. Independent of `category`
@@ -89,12 +85,6 @@ export const CATEGORY_LABELS: Record<VehicleCategory, string> = {
  */
 export const VEHICLE_TYPES = ["fighter", "bomber", "assault"] as const;
 export type VehicleType = (typeof VEHICLE_TYPES)[number];
-
-export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = {
-  fighter: "Fighter",
-  bomber: "Bomber",
-  assault: "Strike aircraft",
-};
 
 /** The wiki's own colour for each class — the diamond it marks a unit row with. */
 export const VEHICLE_TYPE_COLORS: Record<VehicleType, string> = {

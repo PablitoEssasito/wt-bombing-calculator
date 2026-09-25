@@ -1,6 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import type { Nation } from "@/domain/constants";
-import { NATION_LABELS } from "@/domain/constants";
+import { useI18n } from "@/i18n/client";
 import { withBasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 
@@ -36,13 +38,14 @@ export function Flag({
   size?: number;
   className?: string;
 }) {
+  const { m } = useI18n();
   return (
     <Image
       src={withBasePath(`/flags/${nation}.svg`)}
       alt=""
       width={Math.round(size * (FLAG_ASPECT[nation] ?? 4 / 3))}
       height={size}
-      title={NATION_LABELS[nation]}
+      title={m.nations[nation]}
       className={cn("inline-block rounded-[2px] shrink-0 align-middle", className)}
     />
   );

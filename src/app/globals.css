@@ -33,10 +33,16 @@
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* One tempo for every hover and press on the site. */
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 :root {
   color-scheme: dark;
+  /* Lets <details> animate to and from its natural height. */
+  interpolate-size: allow-keywords;
 }
 
 body {
@@ -86,4 +92,149 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/*
+ * Motion. Everything here is short (under a quarter second) because the site
+ * gets opened mid-queue, and all of it is dropped under reduced motion at the
+ * bottom. Browsers without view transitions simply swap content, as before.
+ */
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-slide {
+  from {
+    translate: var(--slide-offset) 0;
+  }
+}
+@keyframes vt-via-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+
+/* A page's first sections settle in on the first load only; after that,
+   navigation has its own transition (see PageTransition). */
+html:not([data-ready]) .enter {
+  animation: rise 220ms ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+/* Tiles that appear — search results, "Show more" — rise in, a few at a time. */
+.tile-in {
+  animation: rise 200ms ease-out backwards;
+  animation-delay: calc(min(var(--i, 0), 12) * 20ms);
+}
+
+/* Clicks go to the live page while a transition plays. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* The site header holds still while the page under it moves. */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+/* Into an aircraft: the old page leaves left, the new one arrives from the right. */
+::view-transition-old(.nav-forward) {
+  --slide-offset: -40px;
+  animation:
+    150ms ease-in both vt-fade reverse,
+    300ms ease-in-out both vt-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --slide-offset: 40px;
+  animation:
+    200ms ease-out 120ms both vt-fade,
+    300ms ease-in-out both vt-slide;
+}
+::view-transition-old(.nav-back) {
+  --slide-offset: 40px;
+  animation:
+    150ms ease-in both vt-fade reverse,
+    300ms ease-in-out both vt-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --slide-offset: -40px;
+  animation:
+    200ms ease-out 120ms both vt-fade,
+    300ms ease-in-out both vt-slide;
+}
+/* Between sections: a plain crossfade — same level, nowhere deeper. */
+::view-transition-old(.nav-fade) {
+  animation: 150ms ease-in both vt-fade reverse;
+}
+::view-transition-new(.nav-fade) {
+  animation: 200ms ease-out 100ms both vt-fade;
+}
+
+/* The tile's icon grows into the aircraft page's render. */
+::view-transition-group(.morph) {
+  animation-duration: 300ms;
+}
+::view-transition-image-pair(.morph) {
+  animation-name: vt-via-blur;
+}
+
+/*
+ * Filtering, sorting and planner changes (withViewTransition): only while one
+ * runs does each marked element get a name, so tiles glide to their new place
+ * without taking part in page navigation.
+ */
+html[data-vt] .vt-item {
+  view-transition-name: match-element;
+  view-transition-class: item;
+}
+::view-transition-group(.item) {
+  animation-duration: 220ms;
+}
+/* A panel changing height keeps its contents unstretched, clipped to the top. */
+::view-transition-old(.item),
+::view-transition-new(.item) {
+  height: 100%;
+  object-fit: none;
+  object-position: top;
+}
+
+details::details-content {
+  block-size: 0;
+  overflow-y: clip;
+  transition:
+    block-size 200ms ease-out,
+    content-visibility 200ms allow-discrete;
+}
+details[open]::details-content {
+  block-size: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  .enter,
+  .tile-in {
+    animation: none !important;
+  }
+  details::details-content {
+    transition: none !important;
+  }
 }

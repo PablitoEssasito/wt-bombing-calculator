@@ -4,21 +4,18 @@ import Fuse from "fuse.js";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, ViewTransition } from "react";
+import { AnimatedNumber } from "@/components/animated-number";
 import { BombRow } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
+import { Filled } from "@/components/filled";
 import { Flag } from "@/components/flag";
 import { RangeSlider } from "@/components/range-slider";
 import { ShareButton } from "@/components/share-button";
 import { VehicleTypeIcon } from "@/components/vehicle-type-icon";
-import {
-  NATION_LABELS,
-  NATIONS,
-  VEHICLE_TYPE_LABELS,
-  VEHICLE_TYPES,
-  type VehicleType,
-} from "@/domain/constants";
+import { NATIONS, VEHICLE_TYPES, type VehicleType } from "@/domain/constants";
 import { BATTLE_MODES, type BattleMode } from "@/domain/types";
+import { useI18n } from "@/i18n/client";
 import { track } from "@/lib/analytics";
 import { iconUrl, TALISMAN_ICON_URL } from "@/lib/assets";
 import type { AircraftSummary, BombGlyphData } from "@/lib/dataset";
@@ -26,26 +23,32 @@ import { RANK_LABELS } from "@/lib/labels";
 import { REWARD_TINT, rewardKindOf } from "@/lib/reward-kind";
 import { urlInteger, urlLiteral, urlStringSet, urlText, useUrlState } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
+import { withViewTransition } from "@/lib/view-transition";
 
 /** Reward class a tile is picked out for — the same two the game colours. */
 const REWARD_KINDS = ["premium", "squadron"] as const;
-const REWARD_LABELS: Record<(typeof REWARD_KINDS)[number], string> = {
-  premium: "Premium",
-  squadron: "Squadron",
-};
 
 /**
  * Ordering results moves premium or squadron aircraft to the front of their
  * battle rating — nothing drops out of the list, so "sort by class" is a way
  * to actually see the premium/squadron and the ordinary tech-tree vehicles
- * side by side rather than a filter that hides two of the three.
+ * side by side rather than a filter that hides two of the three. The two
+ * reward sorts put the best earners first, by the game's own multipliers.
  */
-const SORTS = ["br", "name", "premium-first", "squadron-first"] as const;
-const SORT_LABELS: Record<(typeof SORTS)[number], string> = {
-  br: "Battle rating",
-  name: "Name",
-  "premium-first": "Premium first",
-  "squadron-first": "Squadron first",
+const SORTS = ["br", "name", "premium-first", "squadron-first", "sl-first", "rp-first"] as const;
+
+/**
+ * Which air mode's SL multiplier a battle mode sorts by. The game prices an
+ * aircraft's Silver Lions per air mode only — wpcost.blkx has no ground-battle
+ * figure for it — so a ground mode reads the air one of the same difficulty.
+ */
+const SL_MODE: Record<BattleMode, 0 | 1 | 2> = {
+  "air-ab": 0,
+  "air-rb": 1,
+  "air-sb": 2,
+  "ground-ab": 0,
+  "ground-rb": 1,
+  "ground-sb": 2,
 };
 
 /** Direction only means anything for the two sorts with an inherent order. */
@@ -60,14 +63,6 @@ const PAGE_SIZE = 90;
 
 const VIEWS = ["tiles", "list"] as const;
 
-const MODE_LABELS: Record<BattleMode, string> = {
-  "air-ab": "Air AB",
-  "air-rb": "Air RB",
-  "air-sb": "Air SB",
-  "ground-ab": "Ground AB",
-  "ground-rb": "Ground RB",
-  "ground-sb": "Ground SB",
-};
 
 export function AircraftSearch({
   index,
@@ -82,6 +77,7 @@ export function AircraftSearch({
   rankSteps: number[];
   bombs: BombGlyphData[];
 }) {
+  const { m, fill, path, count } = useI18n();
   const [query, setQuery] = useUrlState("q", urlText());
   const [nation, setNation] = useUrlState(
     "nation",
@@ -198,6 +194,10 @@ export function AircraftSearch({
       // A stable sort, so ties keep the underlying battle-rating order.
       const key = sort === "premium-first" ? "premium" : "squadron";
       filtered = [...filtered].sort((x, y) => Number(y[key]) - Number(x[key]));
+    } else if (sort === "sl-first" || sort === "rp-first") {
+      const earns = (a: AircraftSummary) =>
+        a.reward === null ? -1 : sort === "sl-first" ? a.reward.sl[SL_MODE[mode]] : a.reward.rp;
+      filtered = [...filtered].sort((x, y) => earns(y) - earns(x));
     }
     if (sortDir === "desc" && DIRECTIONAL_SORTS.has(sort)) filtered = [...filtered].reverse();
     return filtered;
@@ -210,6 +210,7 @@ export function AircraftSearch({
     rewards,
     sort,
     sortDir,
+    mode,
     inBrRange,
     rankSteps,
     rankLo,
@@ -308,44 +309,44 @@ export function AircraftSearch({
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={`Search ${index.length} aircraft — try “Pe-8”, “Ju 88”, “A-10”`}
-        aria-label="Search aircraft"
+        placeholder={fill(m.search.placeholder, { count: index.length })}
+        aria-label={m.search.label}
         autoComplete="off"
         className="w-full card px-4 py-3.5 text-base outline-none placeholder:text-ink-faint focus:border-accent transition-colors"
       />
 
       <div className="card p-4 space-y-4">
-        <FilterRow label="Nation">
-          <Chip active={nation === "all"} onClick={() => selectNation("all")}>
-            <span aria-hidden>🌐</span> All nations
+        <FilterRow label={m.common.nation}>
+          <Chip active={nation === "all"} onClick={() => withViewTransition(() => selectNation("all"))}>
+            <span aria-hidden>🌐</span> {m.common.allNations}
             <Count>{nationCount("all")}</Count>
           </Chip>
           {NATIONS.map((n) => (
-            <Chip key={n} active={nation === n} onClick={() => selectNation(n)}>
-              <Flag nation={n} /> {NATION_LABELS[n]}
+            <Chip key={n} active={nation === n} onClick={() => withViewTransition(() => selectNation(n))}>
+              <Flag nation={n} /> {m.nations[n]}
               <Count>{nationCount(n)}</Count>
             </Chip>
           ))}
         </FilterRow>
 
-        <FilterRow label="Type">
+        <FilterRow label={m.common.type}>
           {VEHICLE_TYPES.map((t) => (
-            <Chip key={t} active={types.has(t)} onClick={() => toggleType(t)}>
+            <Chip key={t} active={types.has(t)} onClick={() => withViewTransition(() => toggleType(t))}>
               <VehicleTypeIcon type={t} size={18} />
-              {VEHICLE_TYPE_LABELS[t]}
+              {m.vehicleTypes[t]}
               <Count>{typeCount(t)}</Count>
             </Chip>
           ))}
         </FilterRow>
 
-        <FilterRow label="Class">
+        <FilterRow label={m.search.class}>
           {REWARD_KINDS.map((r) => (
-            <Chip key={r} active={rewards.has(r)} onClick={() => toggleReward(r)}>
+            <Chip key={r} active={rewards.has(r)} onClick={() => withViewTransition(() => toggleReward(r))}>
               <span
                 aria-hidden
                 className={cn("size-2 rounded-full", r === "premium" ? "bg-premium" : "bg-squadron")}
               />
-              {REWARD_LABELS[r]}
+              {m.search[r]}
               <Count>{rewardCount(r)}</Count>
             </Chip>
           ))}
@@ -353,7 +354,7 @@ export function AircraftSearch({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <RangeSlider
-            label="Battle rating"
+            label={m.search.battleRating}
             steps={steps}
             from={from}
             to={to}
@@ -364,7 +365,7 @@ export function AircraftSearch({
             }}
           />
           <RangeSlider
-            label="Rank"
+            label={m.search.rank}
             steps={rankSteps}
             from={rankLo}
             to={rankHi}
@@ -377,45 +378,48 @@ export function AircraftSearch({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-line">
-          <div className="flex items-center gap-1.5 text-sm text-ink-faint">
-            <span className="text-xs uppercase tracking-wider">Mode</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-sm text-ink-faint">
+            <span className="text-xs uppercase tracking-wider">{m.search.mode}</span>
             <select
               value={mode}
-              onChange={(e) => selectMode(e.target.value as BattleMode)}
-              aria-label="Battle rating for game mode"
+              onChange={(e) => {
+                const next = e.target.value as BattleMode;
+                withViewTransition(() => selectMode(next));
+              }}
+              aria-label={m.search.modeLabel}
               className="bg-transparent text-ink border border-line rounded-md pl-2 pr-1 py-1 text-sm focus:border-accent outline-none"
             >
-              {BATTLE_MODES.map((m) => (
-                <option key={m} value={m} className="bg-surface text-ink">
-                  {MODE_LABELS[m]}
+              {BATTLE_MODES.map((mode_) => (
+                <option key={mode_} value={mode_} className="bg-surface text-ink">
+                  {m.search.modes[mode_]}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-1.5 text-sm text-ink-faint">
-            <span className="text-xs uppercase tracking-wider">Sort</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-sm text-ink-faint">
+            <span className="text-xs uppercase tracking-wider">{m.search.sort}</span>
             <select
               value={sort}
               onChange={(e) => {
                 const next = e.target.value as (typeof SORTS)[number];
-                setSort(next);
+                withViewTransition(() => setSort(next));
                 track("filter_applied", { surface: "aircraft", filter: "sort", value: next });
               }}
               className="bg-transparent text-ink border border-line rounded-md pl-2 pr-1 py-1 text-sm focus:border-accent outline-none"
             >
               {SORTS.map((s) => (
                 <option key={s} value={s} className="bg-surface text-ink">
-                  {SORT_LABELS[s]}
+                  {m.search.sorts[s]}
                 </option>
               ))}
             </select>
             {DIRECTIONAL_SORTS.has(sort) ? (
               <button
                 type="button"
-                onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
-                aria-label={sortDir === "asc" ? "Sort ascending" : "Sort descending"}
-                className="p-1.5 rounded-md border border-line text-ink-dim hover:text-ink hover:border-line-bright transition-colors"
+                onClick={() => withViewTransition(() => setSortDir(sortDir === "asc" ? "desc" : "asc"))}
+                aria-label={sortDir === "asc" ? m.search.sortAscending : m.search.sortDescending}
+                className="p-1.5 rounded-md border border-line text-ink-dim hover:text-ink hover:border-line-bright transition motion-safe:active:scale-[0.97]"
               >
                 {sortDir === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
               </button>
@@ -430,11 +434,11 @@ export function AircraftSearch({
                 key={v}
                 active={view === v}
                 onClick={() => {
-                  setView(v);
+                  withViewTransition(() => setView(v));
                   track("filter_applied", { surface: "aircraft", filter: "view", value: v });
                 }}
               >
-                {v === "tiles" ? "Tiles" : "List"}
+                {v === "tiles" ? m.search.tiles : m.search.list}
               </Chip>
             ))}
           </div>
@@ -442,10 +446,10 @@ export function AircraftSearch({
           {filtersActive ? (
             <button
               type="button"
-              onClick={clearFilters}
+              onClick={() => withViewTransition(clearFilters)}
               className="text-sm text-ink-faint hover:text-accent transition-colors underline underline-offset-4"
             >
-              Clear filters
+              {m.common.clearFilters}
             </button>
           ) : null}
         </div>
@@ -453,13 +457,12 @@ export function AircraftSearch({
 
       {results.length === 0 ? (
         <p className="text-ink-dim py-12 text-center">
-          Nothing matches these filters. Coverage includes bombers, attackers and any fighter that
-          can carry bombs — pure interceptors aren&apos;t included.
+          {m.search.empty}
         </p>
       ) : view === "tiles" ? (
         <ul className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(270px,1fr))]">
-          {shown.map((plane) => (
-            <li key={plane.id}>
+          {shown.map((plane, i) => (
+            <li key={plane.id} className="vt-item tile-in" style={{ "--i": i % PAGE_SIZE } as React.CSSProperties}>
               <Tile
                 plane={plane}
                 br={plane.brs[mode]}
@@ -470,12 +473,13 @@ export function AircraftSearch({
         </ul>
       ) : (
         <ul className="card divide-y divide-line overflow-hidden">
-          {shown.map((plane) => {
+          {shown.map((plane, i) => {
             const reward = rewardKindOf(plane);
             return (
-              <li key={plane.id}>
+              <li key={plane.id} className="vt-item tile-in" style={{ "--i": i % PAGE_SIZE } as React.CSSProperties}>
                 <Link
-                  href={`/aircraft/${plane.id}`}
+                  href={path(`/aircraft/${plane.id}/`)}
+                  transitionTypes={["nav-forward"]}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2.5 border-l-2 hover:bg-surface-2 transition-colors",
                     reward === "premium"
@@ -497,10 +501,10 @@ export function AircraftSearch({
                   <span className="nums text-sm text-accent shrink-0">{plane.brs[mode]?.toFixed(1)}</span>
                   <span className="ml-auto flex items-center gap-3 shrink-0 text-sm text-ink-faint">
                     <span className="hidden sm:inline">
-                      <Flag nation={plane.nation} /> {NATION_LABELS[plane.nation]}
+                      <Flag nation={plane.nation} /> {m.nations[plane.nation]}
                     </span>
-                    <span className="hidden sm:inline">Rank {RANK_LABELS[plane.rank]}</span>
-                    <span className="nums text-ink-dim">{plane.maxBases} bases</span>
+                    <span className="hidden sm:inline">{fill(m.common.rank, { rank: RANK_LABELS[plane.rank] })}</span>
+                    <span className="nums text-ink-dim">{count(m.search.basesShort, plane.maxBases)}</span>
                   </span>
                 </Link>
               </li>
@@ -514,16 +518,21 @@ export function AircraftSearch({
           <button
             type="button"
             onClick={() => setVisible((v) => v + PAGE_SIZE)}
-            className="card px-3 py-1.5 text-ink-dim hover:text-ink hover:border-line-bright transition-colors"
+            className="card px-3 py-1.5 text-ink-dim hover:text-ink hover:border-line-bright transition motion-safe:active:scale-[0.97]"
           >
-            Show more
+            {m.search.showMore}
           </button>
-          <span>
-            {shown.length} of {results.length}
+          <span className="nums">
+            <Filled
+              template={m.search.shownOf}
+              slots={{ shown: <AnimatedNumber value={shown.length} />, total: <AnimatedNumber value={results.length} /> }}
+            />
           </span>
         </div>
       ) : (
-        <p className="text-sm text-ink-faint">{results.length} aircraft.</p>
+        <p className="nums text-sm text-ink-faint">
+          <Filled template={m.search.count} slots={{ count: <AnimatedNumber value={results.length} /> }} />
+        </p>
       )}
     </div>
   );
@@ -545,7 +554,8 @@ function FilterRow({ label, children }: { label: string; children: React.ReactNo
  * than a marker, so squadron gets the tile's green tint and nothing else.
  */
 function RewardMark() {
-  return <Image src={TALISMAN_ICON_URL} alt="Premium vehicle" width={14} height={14} className="shrink-0" />;
+  const { m } = useI18n();
+  return <Image src={TALISMAN_ICON_URL} alt={m.common.premiumVehicle} width={14} height={14} className="shrink-0" />;
 }
 
 /**
@@ -554,10 +564,11 @@ function RewardMark() {
  * sitting inline with the name.
  */
 function RewardBadge() {
+  const { m } = useI18n();
   return (
     <Image
       src={TALISMAN_ICON_URL}
-      alt="Premium vehicle"
+      alt={m.common.premiumVehicle}
       width={22}
       height={22}
       className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 drop-shadow-md"
@@ -566,12 +577,15 @@ function RewardBadge() {
 }
 
 function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; bomb?: BombGlyphData }) {
+  const { m, fill, path, count } = useI18n();
   const reward = rewardKindOf(plane);
   return (
     <Link
-      href={`/aircraft/${plane.id}`}
+      href={path(`/aircraft/${plane.id}/`)}
+      transitionTypes={["nav-forward"]}
       className={cn(
-        "relative card p-2.5 flex gap-3 hover:border-line-bright hover:bg-surface-2 transition-colors",
+        "relative card p-2.5 flex gap-3 hover:border-line-bright hover:bg-surface-2 transition-[color,background-color,border-color,translate,box-shadow]",
+        "motion-safe:hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-14px] hover:shadow-accent/50",
         reward && REWARD_TINT[reward],
       )}
     >
@@ -579,19 +593,22 @@ function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; 
           the tile's own top edge the way the tech tree's does. */}
       {reward === "premium" ? <RewardBadge /> : null}
 
-      {/* Tech-tree style icon in a fixed box, so row height never depends on image shape. */}
-      <div className="relative w-20 h-14 shrink-0 rounded-md bg-surface-2 overflow-hidden">
-        {plane.imageId ? (
-          <Image
-            src={iconUrl(plane.imageId)}
-            alt=""
-            fill
-            sizes="120px"
-            loading="lazy"
-            className="object-contain"
-          />
-        ) : null}
-      </div>
+      {/* Tech-tree style icon in a fixed box, so row height never depends on image shape.
+          Paired with the aircraft page's render, so one grows into the other. */}
+      <ViewTransition name={`aircraft-${plane.id}`} share="morph" default="none">
+        <div className="relative w-20 h-14 shrink-0 rounded-md bg-surface-2 overflow-hidden">
+          {plane.imageId ? (
+            <Image
+              src={iconUrl(plane.imageId)}
+              alt=""
+              fill
+              sizes="120px"
+              loading="lazy"
+              className="object-contain"
+            />
+          ) : null}
+        </div>
+      </ViewTransition>
 
       <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
         <div className="flex items-start justify-between gap-2">
@@ -599,7 +616,7 @@ function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; 
             <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-ink-faint">
               <Flag nation={plane.nation} size={11} />
               <span className="truncate">
-                {NATION_LABELS[plane.nation]} · Rank {RANK_LABELS[plane.rank]}
+                {m.nations[plane.nation]} · {fill(m.common.rank, { rank: RANK_LABELS[plane.rank] })}
               </span>
             </p>
             <h3 className="font-medium text-sm truncate">{plane.name}</h3>
@@ -625,7 +642,7 @@ function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; 
               <span className="text-ink-faint"> · </span>
             </>
           ) : null}
-          {plane.maxBases} base{plane.maxBases === 1 ? "" : "s"}
+          {count(m.common.bases, plane.maxBases)}
         </p>
       </div>
     </Link>
@@ -647,7 +664,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "px-3 py-1.5 rounded-full text-sm border transition-colors flex items-center gap-1.5",
+        "px-3 py-1.5 rounded-full text-sm border transition motion-safe:active:scale-[0.97] flex items-center gap-1.5",
         active
           ? "border-accent text-accent bg-accent-dim"
           : "border-line text-ink-dim hover:text-ink hover:border-line-bright",

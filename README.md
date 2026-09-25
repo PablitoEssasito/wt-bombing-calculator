@@ -37,12 +37,15 @@ npm run stores         # re-catalogue every weapon the game's hardpoints can han
 npm run armament       # re-derive the loadout creator's data from the datamine
 npm run armament:fetch # only pull the flight models, which stores reads — see below
 npm run bomb-icons     # re-match the bomb chart's own weapon-selector icons
-npm run battle-ratings # every mode's BR from the game's files; overwrites the sheet's Air RB
+npm run battle-ratings # every mode's BR and the reward figures from the game's files; overwrites the sheet's Air RB
+npm run localize       # Polish and Russian aircraft and weapon names, from the game's own lang files
 npm run changelog      # record what this import changed, for /changelog — run last
+
+npm run reward-logs    # local only: reward samples from this machine's War Thunder logs — see Rewards
 ```
 
 After an import, run the steps in order — `etl`, `images`, `armament:fetch`, `stores`,
-`armament:cache`, `bomb-icons`, `battle-ratings`, `changelog` — since each reads what the one before it wrote. `changelog` compares the data
+`armament:cache`, `bomb-icons`, `battle-ratings`, `localize`, `changelog` — since each reads what the one before it wrote. `changelog` compares the data
 on disk against its last commit, so it belongs after everything else and before committing;
 running it again before the commit rewrites the same entry rather than adding another, and an
 import within a patch that already has an entry folds into it.
@@ -90,7 +93,11 @@ bombs per base = ceil(base health × 0.9018 ÷ bomb damage)
 | 6.7 – 7.7 | 22 000 |
 | 8.0 and up | 25 900 |
 
-Arcade bases carry double health; three-base maps take about half the payload.
+Arcade bases carry double health. Three-base maps (Kursk, Norway and the other missions
+built on the game's `destroy_bomb_areas_template.blk`) set their own, by the same brackets:
+6 000, 8 000, 10 000, then 12 000 from BR 5.0 up — and in arcade ×2.5, ×3.2, ×3.2 and ×4.2
+of that. The source spreadsheet halves the payload instead; real battles side with the
+game's file (a BR 3.7 Kursk base paid for a 1000 lb bomb exactly as a 10 000 HP one does).
 
 ### Why the drop schedules are imported rather than computed
 
@@ -149,9 +156,14 @@ scripts/etl/         import from the spreadsheet; run by hand, never during a bu
 scripts/armament/     the loadout creator's data, read from the datamine
 scripts/bomb-icons/   the bomb chart's own weapon-selector icons
 scripts/images/       aircraft renders and tech-tree icons, matched off the wiki
+scripts/localize/     Polish and Russian names, from the game's own localisation files
+scripts/battle-ratings/  BRs, reward multipliers and constants, from wpcost/warpoints/rank/items
+scripts/reward-logs/  local only: in-battle rewards read out of the game's own logs
 src/data/             the committed output — the app reads only this
 src/domain/           the formula and the redistribution logic, free of React
-src/app/               pages; /aircraft/[id] is prerendered per aircraft
+src/i18n/             languages: the dictionaries, plural rules and number formats
+src/views/            each page, once, taking the language it renders in
+src/app/               routes: (en)/ at the site's own addresses, pl/ and ru/ under their prefix
 ```
 
 ### Re-importing
@@ -307,6 +319,70 @@ first.
 Where a hardpoint choice hangs a rack or a launcher rather than a bare weapon, the
 loadout creator still draws the preset's own stated icon on the pylon — see
 [The loadout creator](#the-loadout-creator) above for why that one counts rounds.
+
+## Languages
+
+English lives at the site's own addresses; Polish and Russian under `/pl/` and `/ru/`,
+every page in all three, each naming the others for search engines (hreflang). A static
+export has no server to redirect by browser language, so the first visit decides it in the
+browser, once: a browser set to Polish or Russian moves to that version, one set to none of
+the three is asked, and the choice is remembered. Arriving on a `/pl/` or `/ru/` address
+keeps it, and crawlers of the English addresses always get English. After that, the header
+(from tablet width), the Ctrl+K palette and the footer all switch any page.
+
+Every word is in `src/i18n/messages/`: English is the source, and the other two must match
+its keys and `{placeholders}` exactly — the type system and `src/i18n/__tests__` both check.
+A count is a set of plural forms (`one`/`few`/`many`/`other`), picked by `Intl.PluralRules`,
+since Polish and Russian decline a noun three ways by number.
+
+Aircraft and weapon names in Polish and Russian are the game's own, read by
+`npm run localize` from its localisation files into `src/data/names.json` — the same names
+the game's client shows, with the little nation marks its font draws stripped. The sheet's
+loadout notes stay in English, marked as such.
+
+## Rewards
+
+Every reward figure is the game's own, computed the way its client computes it — each
+function in `src/domain/reward.ts` names the script in the datamine it ports:
+
+- **The loadout's multiplier for bases** (`getPresetRewardMul`): falls once a payload's
+  damage passes `presetDmgMin`; gold-priced aircraft get ×1.2 before the cap, fighters ×0.8
+  after it, and the loadout screen shows it ×10. The creator prices a build by each store's
+  own `weaponDamage` from `wpcost.blkx`, so rockets and incendiaries count as in the game.
+- **The aircraft's reward lines** (the game's aircraft card): SL = multiplier [× 2.0 for a
+  gold tile] × (100% + premium account 50% + boosters); RP = multiplier × (100% + premium
+  account 100% + talisman 100% + boosters). A gold tile always has its talisman.
+- **Boosters** of one currency stack for less each: 100%, 60%, 40%, 20%, 10% of their size,
+  strongest first (`calc_public_boost`).
+
+`npm run battle-ratings` writes the per-aircraft figures to `src/data/economy.json` and the
+game-wide ones — from `warpoints.blkx`, `rank.blkx` and the booster sizes in `items.blkx` —
+to `src/data/reward-constants.json`. Premium account, talisman and boosters are the player's
+own and stay in their browser.
+
+What a destroyed base actually pays isn't in any file, so the per-sortie amount is fitted
+to real battles. `npm run reward-logs` reads the rewards the HUD announced from the game's
+own logs on this machine (they are XOR-scrambled; the key is recovered from the text), keeps
+Air RB only, and writes samples to `.cache/reward-samples.json` — never the repository,
+since a raw log holds addresses, tokens and other players' names. In them a base pays twice,
+with no kill-feed line: `et:17` for damage dealt (in ticks, while napalm burns) and `et:3`
+for destroying it — 4/7 of the damage figure in Silver Lions, half in research points. Both
+scale with the base's hitpoints: one figure per hitpoint (`BASE_REWARD_PER_HP` in
+`src/domain/reward.ts`) lands every clean Silver Lion sample on the lion — Su-25K and F-5C
+against 25 900 HP bases, the Su-17M4 and F-4J too, the A-26B-10 against 16 000 HP ones and 12 000 HP
+ones on a three-base map, six payloads, with and without boosters — once the aircraft's multiplier,
+the payload's, the premium account and boosters are applied. The one miss is the B-25J-30
+at BR 3.7: its battle results put the base itself 14% above it for damage and 19% for
+destroying it, premium account and booster as usual. It's the only `exp_bomber` sampled
+(the A-26B-10 is `exp_assault`), so class or bracket — nothing corrects for it yet. Research points vary about 6% from battle to battle, and in battle the premium
+account's bonus counts the talisman's share too, so the two make ×4 where the card sums
+×3 — the battle results (Ctrl+C in the results window) itemise an F-4J's base as
+254 + (PA) 508 + (Talismans) 254 RP, beside 2 055 + (PA) 1 028 + (Booster) 411 SL, and list
+the same per-base figures as the HUD. The Su-17M4, A-26B-10 and B-25J-30 (tech tree, no
+talisman) and that F-4J agree on one figure within 0.2%; the Su-25K and F-5C (gold tiles)
+land 5% above it, which no file explains. A research booster counts the base alone, outside
+the premium account's doubling.
+The page says how close the amounts are in one line under them. Other modes are unchecked, so the amount is shown for Air RB only.
 
 ## Known gaps
 

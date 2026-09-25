@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { reachableBaseHps } from "@/domain/base-hp";
+import { effectiveBaseHp, reachableBaseHps } from "@/domain/base-hp";
 import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
 import { defaultTarget, pickLoadout, stanceOf, type Stance } from "@/domain/recommend";
 import {
@@ -12,15 +12,21 @@ import {
   trimToTarget,
   type Plan,
 } from "@/domain/schedule";
+import rewardConstantsData from "@/data/reward-constants.json";
+import { loadoutRewardMul, type AircraftEconomy, type RewardConstants } from "@/domain/reward";
 import type { Aircraft, Bomb, LoadoutOption, Schedule } from "@/domain/types";
+import { AnimatedCount, AnimatedNumber } from "@/components/animated-number";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
 import { LoadoutNote } from "@/components/loadout-note";
+import { RewardPanel } from "@/components/reward-panel";
 import { Segmented } from "@/components/segmented";
 import { ShareButton } from "@/components/share-button";
-
+import { useI18n } from "@/i18n/client";
+import type { ClientMessages } from "@/i18n/messages";
 import { track } from "@/lib/analytics";
 import { urlInteger, urlLiteral, useUrlState } from "@/lib/use-url-state";
-import { cn, formatCount } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { withViewTransition } from "@/lib/view-transition";
 
 /** Sentinels for the two controls that default to "whatever the tool suggests". */
 const AUTO_TARGET = 0;
@@ -37,16 +43,23 @@ type Evaluated = {
 
 export function AircraftPlanner({
   plane,
+  displayName,
   bombs,
   sourceUrl,
   splittable,
+  economy,
 }: {
   plane: Aircraft;
+  /** The aircraft's name in the page's language. */
+  displayName: string;
   bombs: Bomb[];
   sourceUrl: string;
   /** The game mounts this aircraft's ordnance per pylon, so part of a load can be left off. */
   splittable: boolean;
+  /** The game's own earning figures; null where none matched. */
+  economy: AircraftEconomy | null;
 }) {
+  const { m, number, count, fill } = useI18n();
   const bombsById = useMemo(() => new Map(bombs.map((b) => [b.id, b])), [bombs]);
   const tiers = useMemo(() => reachableBaseHps(plane.br), [plane.br]);
 
@@ -102,63 +115,65 @@ export function AircraftPlanner({
     <div className="space-y-8">
       <section className="card p-4 sm:p-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Segmented
-          label="Match BR"
+          label={m.conditions.matchBr}
           value={String(baseHp)}
           onChange={(v) => {
-            setHp(Number(v));
-            setPicked(RECOMMENDED);
+            withViewTransition(() => {
+              setHp(Number(v));
+              setPicked(RECOMMENDED);
+            });
             track("planner_adjusted", { control: "match_br", value: v });
           }}
           options={tiers.map((tier) => ({
             value: String(tier),
-            label: brLabelFor(plane.br, tier, tiers),
-            hint: `${formatCount(tier)} HP bases`,
+            label: brLabelFor(m, plane.br, tier, tiers),
+            hint: fill(m.conditions.hpBases, { hp: number(tier) }),
           }))}
         />
 
         <Segmented
-          label="Game mode"
+          label={m.conditions.gameMode}
           value={mode}
           onChange={(v) => {
-            setMode(v as GameMode);
+            withViewTransition(() => setMode(v as GameMode));
             track("planner_adjusted", { control: "game_mode", value: v });
           }}
           options={[
-            { value: "rb", label: "Realistic / Sim", hint: "bases respawn" },
-            { value: "ab", label: "Arcade", hint: "double health" },
+            { value: "rb", label: m.conditions.realistic, hint: m.conditions.basesRespawn },
+            { value: "ab", label: m.conditions.arcade, hint: m.conditions.doubleHealth },
           ]}
         />
 
         <Segmented
-          label="Bases on the map"
+          label={m.conditions.basesOnMap}
           value={String(baseCount)}
           onChange={(v) => {
-            setMapSize(Number(v));
+            withViewTransition(() => setMapSize(Number(v)));
             track("planner_adjusted", { control: "map_size", value: v });
           }}
           options={[
-            { value: "4", label: "Four" },
-            { value: "3", label: "Three" },
+            { value: "4", label: m.conditions.four },
+            { value: "3", label: m.conditions.three },
           ]}
         />
 
         <div className="space-y-1.5">
-          <div className="text-xs uppercase tracking-wider text-ink-faint">
-            Bases you want to hit
-          </div>
+          <div className="text-xs uppercase tracking-wider text-ink-faint">{m.planner.basesToHit}</div>
           <div className="flex flex-wrap gap-1">
             {Array.from({ length: reach }, (_, i) => i + 1).map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => {
-                  setTarget(n);
-                  setPicked(RECOMMENDED);
+                  withViewTransition(() => {
+                    setTarget(n);
+                    setPicked(RECOMMENDED);
+                  });
                   track("planner_adjusted", { control: "target_bases", value: n });
                 }}
                 aria-pressed={n === wanted}
                 className={cn(
-                  "nums w-9 h-9 rounded-lg border text-sm transition-colors",
+                  "nums w-9 h-9 rounded-lg border text-sm transition motion-safe:active:scale-[0.97]",
                   n === wanted
                     ? "border-accent bg-accent-dim text-accent font-medium"
                     : "border-line text-ink-dim hover:text-ink hover:border-line-bright",
@@ -171,30 +186,34 @@ export function AircraftPlanner({
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="vt-item space-y-4">
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-lg font-semibold">
-            {headingFor(stance, active === recommended, wanted, evaluated.length)}
+            {headingFor(m, count, stance, active === recommended, wanted, evaluated.length)}
           </h2>
-          <StanceTag stance={stance} />
+          <StanceTag stance={stance} m={m} />
           <p className="text-sm text-ink-dim">
-            {shown.basesDestroyed} base{shown.basesDestroyed === 1 ? "" : "s"} ·{" "}
+            <AnimatedCount forms={m.common.bases} value={shown.basesDestroyed} /> ·{" "}
             <ItemList items={mountedIn(shown)} />
             {active.option.rewardMultiplier !== null ? (
               <>
                 {" "}
-                · <span className="text-ink">{active.option.rewardMultiplier}×</span> reward
-                {shown.trimmed ? " on the full load" : ""}
+                ·{" "}
+                <span className="text-ink">
+                  <AnimatedNumber value={active.option.rewardMultiplier} format={{ maximumFractionDigits: 2 }} suffix="×" />
+                </span>{" "}
+                {m.planner.reward}
+                {shown.trimmed ? m.planner.onFullLoad : ""}
               </>
             ) : null}
           </p>
           {picked !== RECOMMENDED && active !== recommended ? (
             <button
               type="button"
-              onClick={() => setPicked(RECOMMENDED)}
+              onClick={() => withViewTransition(() => setPicked(RECOMMENDED))}
               className="text-sm text-accent underline underline-offset-4"
             >
-              back to the default
+              {m.planner.backToDefault}
             </button>
           ) : null}
           <ShareButton surface="planner" className="ml-auto" />
@@ -206,17 +225,17 @@ export function AircraftPlanner({
 
         {shown.source === "recomputed" ? (
           <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
-            Recalculated for {mode === "ab" ? "arcade" : "these"} conditions:{" "}
-            {formatCount(shown.effectiveHp)} HP bases
-            {baseCount === 3 ? " on a three-base map" : ""}. Same payload, redistributed — only
-            realistic battles on four-base maps are spelled out directly above.
+            {fill(m.planner.recalculated, {
+              conditions: mode === "ab" ? m.planner.arcadeConditions : m.planner.theseConditions,
+              hp: number(shown.effectiveHp),
+              map: baseCount === 3 ? m.planner.onThreeBaseMap : "",
+            })}
           </p>
         ) : null}
 
         {!splittable && wantedFewer ? (
           <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
-            The {plane.name} offers this as a fixed setup rather than pylon by pylon, so there is
-            no way to carry part of it. The whole load comes along whether you drop it or not.
+            {fill(m.planner.fixedSetup, { name: displayName })}
           </p>
         ) : null}
 
@@ -228,19 +247,17 @@ export function AircraftPlanner({
       </section>
 
       {evaluated.length > 1 ? (
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Every loadout</h2>
-          <p className="text-sm text-ink-faint">
-            Lighter loadouts earn a higher multiplier per base, so take only what the job needs.
-          </p>
+        <section className="vt-item space-y-3">
+          <h2 className="text-lg font-semibold">{m.planner.everyLoadout}</h2>
+          <p className="text-sm text-ink-faint">{m.planner.everyLoadoutHint}</p>
           <div className="card overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-ink-faint">
                 <tr className="hairline">
-                  <th className="text-left font-normal px-3 py-2">Bases</th>
-                  <th className="text-left font-normal px-3 py-2">Reward</th>
-                  <th className="text-left font-normal px-3 py-2">Status</th>
-                  <th className="text-left font-normal px-3 py-2">Payload</th>
+                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.bases}</th>
+                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.reward}</th>
+                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.status}</th>
+                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.payload}</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -260,24 +277,24 @@ export function AircraftPlanner({
                         : "—"}
                     </td>
                     <td className="px-3 py-2">
-                      <StanceTag stance={stanceOf(entry.option)} />
+                      <StanceTag stance={stanceOf(entry.option)} m={m} />
                     </td>
                     <td className="px-3 py-2 text-ink-dim">
                       <ItemList items={payloadOf(entry.schedule, bombsById)} />
                     </td>
                     <td className="px-3 py-2 text-right">
                       {entry === active ? (
-                        <span className="text-xs text-accent">shown above</span>
+                        <span className="text-xs text-accent">{m.planner.shownAbove}</span>
                       ) : (
                         <button
                           type="button"
                           onClick={() => {
-                            setPicked(entry.index);
+                            withViewTransition(() => setPicked(entry.index));
                             track("planner_adjusted", { control: "loadout_pick", value: entry.index });
                           }}
                           className="text-xs text-ink-dim hover:text-accent underline underline-offset-4"
                         >
-                          show
+                          {m.planner.show}
                         </button>
                       )}
                     </td>
@@ -287,6 +304,31 @@ export function AircraftPlanner({
             </table>
           </div>
         </section>
+      ) : null}
+
+      {economy ? (
+        <RewardPanel
+          aircraftId={plane.id}
+          economy={economy}
+          mode={mode as GameMode}
+          // The game's own payload multiplier, unrounded; the sheet's (×10 on the
+          // loadout screen) only where that can't be worked out.
+          sortie={
+            active.option.rewardMultiplier !== null
+              ? {
+                  bases: shown.basesDestroyed,
+                  baseHp: effectiveBaseHp(baseHp, "rb", baseCount),
+                  payload:
+                    loadoutRewardMul(
+                      active.option,
+                      (id) => bombsById.get(id)?.damageValue,
+                      economy,
+                      (rewardConstantsData as RewardConstants).bombing,
+                    ) ?? active.option.rewardMultiplier / 10,
+                }
+              : null
+          }
+        />
       ) : null}
     </div>
   );
@@ -299,14 +341,21 @@ export function AircraftPlanner({
  * that put the label on loadouts whose note directly underneath argued against
  * taking them, which is exactly backwards.
  */
-function headingFor(stance: Stance, isPick: boolean, wanted: number, choices: number): string {
-  if (stance === "recommended") return "Recommended loadout";
-  if (!isPick) return "This loadout";
-  if (choices === 1) return "What to take";
-  return `Best for ${wanted} base${wanted === 1 ? "" : "s"}`;
+function headingFor(
+  m: ClientMessages,
+  count: ReturnType<typeof useI18n>["count"],
+  stance: Stance,
+  isPick: boolean,
+  wanted: number,
+  choices: number,
+): string {
+  if (stance === "recommended") return m.planner.recommendedHeading;
+  if (!isPick) return m.planner.thisLoadout;
+  if (choices === 1) return m.planner.whatToTake;
+  return count(m.planner.bestFor, wanted);
 }
 
-function StanceTag({ stance }: { stance: Stance }) {
+function StanceTag({ stance, m }: { stance: Stance; m: ClientMessages }) {
   if (stance === "neutral") return null;
   return (
     <span
@@ -317,13 +366,13 @@ function StanceTag({ stance }: { stance: Stance }) {
           : "border-danger/40 text-danger bg-danger/5",
       )}
     >
-      {stance === "recommended" ? "★ Recommended" : "Advised against"}
+      {stance === "recommended" ? m.planner.recommendedTag : m.planner.advisedAgainst}
     </span>
   );
 }
 
 /** Describes a bracket the way a player thinks about it: the BRs they will meet. */
-export function brLabelFor(vehicleBr: number, tier: BaseHp, tiers: BaseHp[]): string {
-  if (tiers.length === 1) return `${vehicleBr.toFixed(1)} and up`;
-  return tier === tiers[0] ? "No uptier" : "Uptiered";
+export function brLabelFor(m: ClientMessages, vehicleBr: number, tier: BaseHp, tiers: BaseHp[]): string {
+  if (tiers.length === 1) return m.conditions.andUp.replace("{br}", vehicleBr.toFixed(1));
+  return tier === tiers[0] ? m.conditions.noUptier : m.conditions.uptiered;
 }

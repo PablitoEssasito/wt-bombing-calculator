@@ -1,15 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { AircraftPlanner } from "@/components/aircraft-planner";
 import { AircraftBombIcons } from "@/components/bomb-glyph";
-import { LoadoutCreator } from "@/components/loadout-creator";
 import type { Armament } from "@/domain/loadout";
+import type { AircraftEconomy } from "@/domain/reward";
 import type { Aircraft, Bomb } from "@/domain/types";
+import { useI18n } from "@/i18n/client";
 import { urlLiteral, useUrlState } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
 
 const VIEWS = ["schedule", "build"] as const;
+
+const loadCreator = () => import("@/components/loadout-creator").then((mod) => mod.LoadoutCreator);
+
+/**
+ * The creator carries its own drag-and-drop and animation libraries, so it
+ * loads only once someone opens it (or points at its tab), and the drop
+ * schedule most visitors come for never pays for them.
+ */
+const LoadoutCreator = dynamic(loadCreator, {
+  loading: () => <div className="card h-96 animate-pulse" aria-busy="true" />,
+});
 
 /**
  * Switches between the curated drop schedule and the loadout creator.
@@ -26,27 +39,44 @@ const VIEWS = ["schedule", "build"] as const;
  */
 export function AircraftView({
   plane,
+  displayName,
   bombs,
   sourceUrl,
   splittable,
   armament,
   bombIcons,
+  weaponNames,
+  economy,
 }: {
   plane: Aircraft;
+  /** The aircraft's name in the page's language; `plane.name` stays English for analytics. */
+  displayName: string;
   bombs: Bomb[];
   sourceUrl: string;
   splittable: boolean;
   armament: Armament | null;
   /** This aircraft's own menu icons, from `bombIconsFor`. */
   bombIcons: Record<string, string>;
+  /** English weapon name to the page language's, from `weaponNamesFor`; null in English. */
+  weaponNames: Record<string, string> | null;
+  /** The game's own earning figures, from `economyFor`; null where none matched. */
+  economy: AircraftEconomy | null;
 }) {
+  const { m } = useI18n();
   const [view, setView] = useUrlState("view", urlLiteral(VIEWS, "schedule"));
   const icons = useMemo(() => new Map(Object.entries(bombIcons)), [bombIcons]);
 
   if (!armament) {
     return (
       <AircraftBombIcons.Provider value={icons}>
-        <AircraftPlanner plane={plane} bombs={bombs} sourceUrl={sourceUrl} splittable={splittable} />
+        <AircraftPlanner
+          plane={plane}
+          displayName={displayName}
+          bombs={bombs}
+          sourceUrl={sourceUrl}
+          splittable={splittable}
+          economy={economy}
+        />
       </AircraftBombIcons.Provider>
     );
   }
@@ -54,19 +84,37 @@ export function AircraftView({
   return (
     <AircraftBombIcons.Provider value={icons}>
       <div className="space-y-6">
-        <div role="group" aria-label="View" className="flex gap-1">
+        <div role="group" aria-label={m.aircraftPage.viewGroup} className="flex gap-1">
           <ViewTab active={view === "schedule"} onClick={() => setView("schedule")}>
-            Drop schedule
+            {m.aircraftPage.schedule}
           </ViewTab>
-          <ViewTab active={view === "build"} onClick={() => setView("build")}>
-            Build a loadout
+          <ViewTab
+            active={view === "build"}
+            onClick={() => setView("build")}
+            onPointerEnter={() => void loadCreator()}
+            onFocus={() => void loadCreator()}
+          >
+            {m.aircraftPage.build}
           </ViewTab>
         </div>
 
         {view === "schedule" ? (
-          <AircraftPlanner plane={plane} bombs={bombs} sourceUrl={sourceUrl} splittable={splittable} />
+          <AircraftPlanner
+            plane={plane}
+            displayName={displayName}
+            bombs={bombs}
+            sourceUrl={sourceUrl}
+            splittable={splittable}
+            economy={economy}
+          />
         ) : (
-          <LoadoutCreator plane={plane} armament={armament} bombs={bombs} />
+          <LoadoutCreator
+            plane={plane}
+            armament={armament}
+            bombs={bombs}
+            weaponNames={weaponNames}
+            economy={economy}
+          />
         )}
       </div>
     </AircraftBombIcons.Provider>
@@ -76,16 +124,22 @@ export function AircraftView({
 function ViewTab({
   active,
   onClick,
+  onPointerEnter,
+  onFocus,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  onPointerEnter?: () => void;
+  onFocus?: () => void;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      onPointerEnter={onPointerEnter}
+      onFocus={onFocus}
       aria-pressed={active}
       className={cn(
         "px-3 py-1.5 rounded-full text-sm border transition-colors",

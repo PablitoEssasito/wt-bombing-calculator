@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BOMB_COL, NATION_COL } from "../../../scripts/etl/config";
 import { parseBombs, type BombIndex } from "../../../scripts/etl/parse-bombs";
-import { parseNation } from "../../../scripts/etl/parse-nations";
+import { parseNation, shownNote } from "../../../scripts/etl/parse-nations";
 import type { NoteGrid } from "../../../scripts/etl/notes";
 
 /** Wraps a field the way RFC 4180 requires whenever it holds a comma, quote or newline. */
@@ -190,5 +190,32 @@ describe("parseNation", () => {
     expect(bombIdIn(usa)).not.toBe(bombIdIn(germany));
     expect(bombs.bombs.find((b) => b.id === bombIdIn(usa))?.fullName).toBe("USA Mk 77 mod 4");
     expect(bombs.bombs.find((b) => b.id === bombIdIn(germany))?.fullName).toBe("German Mk 77");
+  });
+});
+
+describe("shownNote", () => {
+  it("drops a caveat that says nothing about the loadout, marker and all", () => {
+    expect(shownNote("Thanks to Zyszhao for providing this loadout.", "?")).toEqual({ note: null, noteMarker: null });
+    expect(shownNote("Reward multiplier for bases: 9.2", "?")).toEqual({ note: null, noteMarker: null });
+  });
+
+  it("keeps a star's heading when its note only repeated it", () => {
+    expect(shownNote("Recommended loadout.\n\nReward multiplier for bases: 7.0", "star")).toEqual({ note: "", noteMarker: "star" });
+  });
+
+  it("cuts the noise out of a note and keeps the advice", () => {
+    expect(shownNote("Recommended loadout.\n\nThe fuel drop tanks are optional.", "star").note).toBe(
+      "The fuel drop tanks are optional.",
+    );
+    expect(shownNote("Thanks to olzen for providing this loadout. The SNEB type 23 rocket pods are optional.", "?").note).toBe(
+      "The SNEB type 23 rocket pods are optional.",
+    );
+    expect(
+      shownNote("Take the retarded bombs. Thanks to Tehzlobny for testing the L.D 1000 lb H.E. M.C Mk.1 bombs.", "?").note,
+    ).toBe("Take the retarded bombs.");
+  });
+
+  it("leaves a note the import couldn't read as it is", () => {
+    expect(shownNote(null, "!")).toEqual({ note: null, noteMarker: "!" });
   });
 });

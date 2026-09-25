@@ -1,16 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
-import { Coffee } from "lucide-react";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import Script from "next/script";
-import { BombMark } from "@/components/bomb-mark";
-import { ErrorBoundary } from "@/components/error-boundary";
 import { ErrorTracking } from "@/components/error-tracking";
+import { ReadyMarker } from "@/components/ready-marker";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { Toaster } from "@/components/toaster";
+import { messagesFor } from "@/i18n/messages";
 import { withBasePath } from "@/lib/base-path";
-import { meta } from "@/lib/dataset";
-import { canonicalOf, KOFI_URL, SITE_URL } from "@/lib/site";
+import { canonicalOf, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -19,9 +17,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const TITLE = "War Thunder Base Bombing Calculator";
-const DESCRIPTION =
-  "How many bombs to take, and what to drop on each base, for every bomber and attacker in War Thunder.";
+const { title: TITLE, shortTitle: SHORT_TITLE, description: DESCRIPTION } = messagesFor("en").site;
 
 // Unset locally and in any build that doesn't supply it, so `next dev` and a
 // plain `npm run build` never phone home — only the deploy workflow, which
@@ -38,7 +34,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: TITLE,
-    template: "%s · WT Bombing Calculator",
+    template: `%s · ${SHORT_TITLE}`,
   },
   description: DESCRIPTION,
   // Unlike alternates.canonical and openGraph/twitter's images, these hrefs
@@ -82,18 +78,19 @@ export const metadata: Metadata = {
   },
 };
 
-/** `short` is what fits four links beside the logo and coffee button on a phone. */
-const NAV = [
-  { href: "/", label: "Aircraft", short: "Aircraft" },
-  { href: "/bombs", label: "Bomb chart", short: "Bombs" },
-  { href: "/changelog", label: "Changelog", short: "Changes" },
-  { href: "/about", label: "About", short: "About" },
-];
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
+/**
+ * What every page shares whatever its language: the document, fonts, global
+ * metadata, analytics and the toaster. The header, footer and the words
+ * themselves come from the (en), pl and ru layouts' SiteShell.
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    // Every language shares this layout, so it can only state English; the
+    // site shell's HtmlLang corrects it for the others (and `lang` on the
+    // shell's own header, main and footer says so from the first paint).
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="font-sans min-h-full flex flex-col">
@@ -108,65 +105,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Script id="datalayer-init" strategy="beforeInteractive">
           {"window.dataLayer = window.dataLayer || [];"}
         </Script>
-        <header className="border-b border-line sticky top-0 z-30 bg-ground/85 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-2 sm:gap-6">
-            <Link href="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <BombMark size={30} className="text-accent shrink-0" />
-              <span className="hidden sm:inline font-semibold text-lg tracking-tight whitespace-nowrap">
-                Bombing<span className="text-ink-dim">Calc</span>
-              </span>
-            </Link>
-            <nav className="flex items-center gap-0.5 sm:gap-1 text-sm min-w-0">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="px-1.5 sm:px-3 py-1.5 rounded-md text-ink-dim hover:text-ink hover:bg-surface-2 transition-colors whitespace-nowrap"
-                >
-                  <span className="sm:hidden">{item.short}</span>
-                  <span className="hidden sm:inline">{item.label}</span>
-                </Link>
-              ))}
-            </nav>
-            <a
-              href={KOFI_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-auto flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-accent border border-accent/30 hover:bg-accent-dim hover:border-accent/60 transition-colors whitespace-nowrap shrink-0 text-sm font-medium"
-            >
-              <Coffee size={16} className="shrink-0" />
-              <span className="hidden sm:inline">Buy me a coffee</span>
-            </a>
-          </div>
-        </header>
-
-        <main className="flex-1">
-          <ErrorBoundary>{children}</ErrorBoundary>
-        </main>
-
-        <footer className="border-t border-line mt-16">
-          <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-ink-faint space-y-2">
-            <p>
-              Loadout creator, recalculated schedules, rocket figures and in-game icons built from
-              War Thunder&apos;s own game files.<br/> Hand-tuned drop schedules and bomb damage figures
-              from{" "}
-              <a
-                href={meta.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-ink-dim underline underline-offset-4 hover:text-accent"
-              >
-                LEGION&apos;s Loadouts
-              </a>
-              {meta.sheetVersion ? ` (v${meta.sheetVersion})` : null}.
-            </p>
-            <p>
-              Not affiliated with or endorsed by Gaijin Entertainment. Last update:{" "}
-              {new Date(meta.generatedAt).toISOString().slice(0, 10)}.
-            </p>
-          </div>
-        </footer>
+        {children}
         <ErrorTracking />
+        <ReadyMarker />
+        <Toaster />
         <ServiceWorkerRegistration />
       </body>
       {GA_ID ? <GoogleAnalytics gaId={GA_ID} /> : null}

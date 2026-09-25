@@ -2,7 +2,9 @@
 
 import { Check, Link2 } from "lucide-react";
 import { useState } from "react";
+import { useI18n } from "@/i18n/client";
 import { track } from "@/lib/analytics";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,17 +14,20 @@ import { cn } from "@/lib/utils";
  * nobody thinks to do that on their own.
  */
 export function ShareButton({ surface, className }: { surface: string; className?: string }) {
+  const { m } = useI18n();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
+      toast.success(m.common.linkCopied, { description: m.common.linkCopiedDetail });
       track("share_link", { surface });
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard permission denied or unavailable — nothing sensible to fall
-      // back to, so the button just stays a no-op rather than guessing.
+      // Clipboard permission denied or unavailable — there is no copying it
+      // for them, but they should at least know it didn't happen.
+      toast.error(m.common.copyFailed, { description: m.common.copyFailedDetail });
     }
   };
 
@@ -39,7 +44,7 @@ export function ShareButton({ surface, className }: { surface: string; className
       )}
     >
       {copied ? <Check size={14} /> : <Link2 size={14} />}
-      {copied ? "Copied!" : "Copy link"}
+      {copied ? m.common.copied : m.common.copyLink}
     </button>
   );
 }

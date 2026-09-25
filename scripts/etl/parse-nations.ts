@@ -147,6 +147,39 @@ function readsAsDiscouraged(note: string | null): boolean {
   return note !== null && ARGUES_AGAINST.some((pattern) => pattern.test(note));
 }
 
+/**
+ * What a note says that has no bearing on the loadout: credits, the star's own
+ * "Recommended loadout.", a multiplier the page already shows (and the sheet's
+ * column has since revised in places), news and asides. Cut before display;
+ * whether the note argues against the loadout is still read from all of it.
+ */
+const NOISE: [RegExp, string][] = [
+  [/^Recommended loadout\.?[ \t]*$/gm, ""],
+  [/^Reward multiplier for bases: [\d.]+[ \t]*$/gm, ""],
+  [/[ \t]*Thanks to [^\n]*?\b(?:loadout|bombs|option)\.(?=\s|$)/g, ""],
+  [/^"What is this goofy loadout\?"\s*/, ""],
+  [/ They are also quite funny against tanks in ground battles\./, ""],
+  [/, but I've seen people prank other jets with them\./, "."],
+  [/^The Yak-28B has received a new version of the 3000 kg bomb and is now finally able to destroy a base\.$/, ""],
+];
+
+/**
+ * The note and marker as the page shows them. A caveat with nothing left to say
+ * goes altogether; a star or a warning keeps its heading, with an empty note
+ * rather than null so the page doesn't take it for one the import couldn't read.
+ */
+export function shownNote(
+  note: string | null,
+  marker: LoadoutOption["noteMarker"],
+): Pick<LoadoutOption, "note" | "noteMarker"> {
+  if (note === null) return { note, noteMarker: marker };
+  let text = note;
+  for (const [pattern, replacement] of NOISE) text = text.replace(pattern, replacement);
+  text = text.replace(/\n{3,}/g, "\n\n").trim();
+  if (text === "" && (marker === "?" || marker === null)) return { note: null, noteMarker: null };
+  return { note: text, noteMarker: marker };
+}
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -283,8 +316,7 @@ export function parseNation(
       const note = noteAt(rowIndex, NATION_COL.noteMarker);
       currentOption = {
         rewardMultiplier: multiplier,
-        noteMarker: parseNoteMarker(cell(row, NATION_COL.noteMarker)),
-        note,
+        ...shownNote(note, parseNoteMarker(cell(row, NATION_COL.noteMarker))),
         discouraged: readsAsDiscouraged(note),
         schedules: [schedule],
       };

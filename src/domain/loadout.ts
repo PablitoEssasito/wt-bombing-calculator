@@ -37,6 +37,12 @@ export type Store = {
    * kinds the game draws with no per-weapon icon (fuel tanks, torpedoes).
    */
   iconType: string | null;
+  /**
+   * The damage the game prices this store at for the base-bombing reward
+   * (`weaponDamage` in wpcost.blkx), whole rack included. Null for what it
+   * doesn't count — guns, fuel, most missiles — which is 0 to the game.
+   */
+  damage: number | null;
 };
 
 export type SlotOption = {
@@ -240,6 +246,21 @@ export function bombsIn(build: Build, armament: Armament): { bombId: string; cou
 }
 
 /**
+ * The damage the game prices a build at for the bombing reward — the sum of
+ * each store's `weaponDamage` (`getWeaponDamage`, econWeaponUtils.nut), so
+ * rockets and incendiaries count as they do in the game, and guns don't.
+ */
+export function weaponDamageOf(build: Build, armament: Armament): number {
+  let damage = 0;
+  for (const [slot, name] of build) {
+    const option = optionAt(armament, slot, name);
+    if (!option) continue;
+    for (const entry of option.stores) damage += (entry.store.damage ?? 0) * entry.count;
+  }
+  return damage;
+}
+
+/**
  * Ordnance the chart would price if it listed it — everything else is not meant
  * to be. The same set `scripts/armament/stores.ts` lets through to the chart.
  */
@@ -256,4 +277,118 @@ export function unpricedIn(build: Build, armament: Armament): Store[] {
     }
   }
   return [...seen.values()];
+}
+
+/** What a choice hangs, independent of what the hardpoint calls it. */
+const contentsOf = (option: SlotOption) =>
+  option.stores
+    .map(({ store, count }) => `${store.name}×${count}`)
+    .sort()
+    .join("|");
+
+/**
+ * The choice on another hardpoint that hangs the same thing as this one — so a
+ * bomb dragged from one pylon can land on another.
+ *
+ * The same name where the other hardpoint offers it, which is the usual case;
+ * otherwise a choice carrying exactly the same stores in the same numbers,
+ * since the game names the same bomb differently on an inner and an outer
+ * station. Null when the other hardpoint can't hang it at all.
+ */
+export function equivalentOption(
+  armament: Armament,
+  fromSlot: number,
+  optionName: string,
+  toSlot: number,
+): SlotOption | null {
+  const source = optionAt(armament, fromSlot, optionName);
+  const hardpoint = armament.hardpoints.find((h) => h.index === toSlot);
+  if (!source || !hardpoint) return null;
+  const sameName = hardpoint.options.find((o) => o.name === optionName);
+  if (sameName) return sameName;
+  const contents = contentsOf(source);
+  return hardpoint.options.find((o) => contentsOf(o) === contents) ?? null;
+}
+
+/** A choice being dragged: out of a hardpoint's menu, or off a pylon it hangs on. */
+export type DragSource = { from: "menu" | "pylon"; slot: number; option: string };
+
+/** Where it is let go: on a pylon, off the aircraft, or onto every pylon that takes it. */
+export type DropTarget = { to: "pylon"; slot: number } | { to: "remove" } | { to: "all" };
+
+export type DropResult = {
+  build: Build;
+  /** Choices the drop took off the aircraft, so the change can be undone knowingly. */
+  displaced: { slot: number; option: string }[];
+};
+
+/** Whether every changed hardpoint holds something the rest of the build allows. */
+const allowed = (armament: Armament, build: Build, slots: number[]) =>
+  slots.every((slot) => {
+    const name = build.get(slot);
+    return name === undefined || !blockedIn(armament, build, slot).has(name);
+  });
+
+/**
+ * The build a drop leaves behind, or null when the drop isn't allowed.
+ *
+ * Held to the same two rules the menu enforces (`blockedIn`): the load limit
+ * and what rules out what. A pylon-to-pylon drop onto an occupied pylon swaps
+ * the two when each can take the other's choice, and otherwise replaces it —
+ * the replaced choice comes back in `displaced`. "All" fills every empty pylon
+ * that can take the choice, in the game's order, skipping any the rules bar.
+ */
+export function applyDrop(
+  build: Build,
+  armament: Armament,
+  source: DragSource,
+  target: DropTarget,
+): DropResult | null {
+  if (target.to === "remove") {
+    if (source.from !== "pylon" || build.get(source.slot) !== source.option) return null;
+    const next = new Map(build);
+    next.delete(source.slot);
+    return { build: next, displaced: [{ slot: source.slot, option: source.option }] };
+  }
+
+  if (target.to === "all") {
+    const next = new Map(build);
+    const filled: number[] = [];
+    for (const { index } of armament.hardpoints) {
+      if (next.has(index)) continue;
+      const option = equivalentOption(armament, source.slot, source.option, index);
+      if (!option) continue;
+      next.set(index, option.name);
+      if (allowed(armament, next, [index])) filled.push(index);
+      else next.delete(index);
+    }
+    return filled.length > 0 ? { build: next, displaced: [] } : null;
+  }
+
+  if (source.from === "pylon" && source.slot === target.slot) return null;
+  const option = equivalentOption(armament, source.slot, source.option, target.slot);
+  if (!option) return null;
+
+  const next = new Map(build);
+  if (source.from === "pylon") next.delete(source.slot);
+  const occupant = build.get(target.slot);
+  next.set(target.slot, option.name);
+
+  const changed = [target.slot];
+  const swapBack =
+    source.from === "pylon" && occupant !== undefined
+      ? equivalentOption(armament, target.slot, occupant, source.slot)
+      : null;
+  if (swapBack) {
+    next.set(source.slot, swapBack.name);
+    changed.push(source.slot);
+    if (allowed(armament, next, changed)) return { build: next, displaced: [] };
+    next.delete(source.slot);
+    changed.pop();
+  }
+
+  if (!allowed(armament, next, changed)) return null;
+  const displaced =
+    occupant !== undefined && occupant !== option.name ? [{ slot: target.slot, option: occupant }] : [];
+  return { build: next, displaced };
 }

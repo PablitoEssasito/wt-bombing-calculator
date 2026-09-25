@@ -87,7 +87,11 @@ export type LoadoutOption = {
   rewardMultiplier: number | null;
   /** The marker the source puts on this loadout: a caveat, a warning, or a recommendation. */
   noteMarker: "?" | "!" | "star" | null;
-  /** What that marker says, when the import had an API key to read cell notes with. */
+  /**
+   * What that marker says, when the import had an API key to read cell notes
+   * with — empty once what it said had no bearing on the loadout (see the ETL's
+   * `shownNote`), so a star shows as its heading alone.
+   */
   note: string | null;
   /**
    * The note tells the reader not to take this loadout — "I wouldn't recommend

@@ -68,11 +68,11 @@ describe("buildPlan when conditions differ", () => {
     const schedule = pe8().options[0].schedules[0];
     const plan = buildPlan(schedule, bombs, { baseHp: 10000, mode: "rb", baseCount: 3 });
 
-    // Half health means four bombs a base, so the payload could cover ten — but a
-    // three-base map has only three, and they never come back.
+    // Seven bombs a base, as on four bases at this BR, so the payload could cover
+    // five — but a three-base map has only three, and they never come back.
     expect(plan.basesDestroyed).toBe(3);
     expect(plan.respawns).toBe(false);
-    expect(plan.leftover[0].count).toBe(28);
+    expect(plan.leftover[0].count).toBe(19);
   });
 
   it("never claims a base it cannot finish, under any conditions", () => {

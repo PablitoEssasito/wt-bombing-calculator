@@ -8,14 +8,25 @@ const aircraft = aircraftData as { id: string }[];
 describe("sitemap", () => {
   const entries = sitemap();
 
-  it("lists every fixed page and every aircraft, once each", () => {
+  it("lists every fixed page and every aircraft, once each, in every language", () => {
     const urls = entries.map((e) => e.url);
     expect(new Set(urls).size).toBe(urls.length);
-    expect(urls).toContain("http://localhost:3000/");
-    expect(urls).toContain("http://localhost:3000/bombs/");
-    expect(urls).toContain("http://localhost:3000/changelog/");
-    expect(urls).toContain("http://localhost:3000/about/");
-    expect(entries.length).toBe(4 + aircraft.length);
+    for (const prefix of ["", "/pl", "/ru"]) {
+      expect(urls).toContain(`http://localhost:3000${prefix}/`);
+      expect(urls).toContain(`http://localhost:3000${prefix}/bombs/`);
+      expect(urls).toContain(`http://localhost:3000${prefix}/changelog/`);
+      expect(urls).toContain(`http://localhost:3000${prefix}/about/`);
+    }
+    expect(entries.length).toBe(3 * (4 + aircraft.length));
+  });
+
+  it("names each page's counterparts in the other languages", () => {
+    const polish = entries.find((e) => e.url === "http://localhost:3000/pl/bombs/");
+    expect(polish?.alternates?.languages).toEqual({
+      en: "http://localhost:3000/bombs/",
+      pl: "http://localhost:3000/pl/bombs/",
+      ru: "http://localhost:3000/ru/bombs/",
+    });
   });
 
   it("matches the trailing-slash URLs the static export actually serves", () => {
@@ -25,8 +36,10 @@ describe("sitemap", () => {
   });
 
   it("names every aircraft page under its own id", () => {
+    const urls = new Set(entries.map((e) => e.url));
     for (const plane of aircraft) {
-      expect(entries.map((e) => e.url)).toContain(`http://localhost:3000/aircraft/${plane.id}/`);
+      expect(urls.has(`http://localhost:3000/aircraft/${plane.id}/`)).toBe(true);
+      expect(urls.has(`http://localhost:3000/ru/aircraft/${plane.id}/`)).toBe(true);
     }
   });
 

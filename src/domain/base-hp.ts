@@ -3,6 +3,7 @@ import {
   BASE_HP_BRACKETS,
   BASE_HP_TIERS,
   MAX_UPTIER,
+  THREE_BASE_HP,
   type BaseCount,
   type BaseHp,
   type GameMode,
@@ -29,18 +30,22 @@ export function reachableBaseHps(vehicleBr: number): BaseHp[] {
  * Effective hitpoints of a single base once game mode and map size are taken
  * into account.
  *
- * Arcade bases carry double health, and three-base maps take roughly half the
- * payload — both rules come from the Home and FAQ tabs of the source
- * spreadsheet, and both are applied as independent multipliers.
+ * On four-base maps arcade bases carry double health, per the Home and FAQ
+ * tabs of the source spreadsheet. Three-base maps follow the game's own mission
+ * template instead (`THREE_BASE_HP`) — not the spreadsheet's "half the
+ * payload", which real battles contradict: a Kursk base at BR 3.7 took a
+ * 1000 lb bomb for the same reward as a four-base map's 10 000 HP one.
  */
 export function effectiveBaseHp(
   baseHp: BaseHp,
   mode: GameMode,
   baseCount: BaseCount,
 ): number {
-  const modeFactor = mode === "ab" ? 2 : 1;
-  const mapFactor = baseCount === 3 ? 0.5 : 1;
-  return baseHp * modeFactor * mapFactor;
+  if (baseCount === 3) {
+    const three = THREE_BASE_HP[baseHp];
+    return three.hp * (mode === "ab" ? three.arcadeMul : 1);
+  }
+  return baseHp * (mode === "ab" ? 2 : 1);
 }
 
 /** How many of one bomb it takes to flatten a base of the given hitpoints. */

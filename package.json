@@ -25,17 +25,27 @@
     "pwa-icons": "tsx scripts/pwa-icons/index.ts",
     "battle-ratings": "tsx scripts/battle-ratings/index.ts",
     "battle-ratings:cache": "tsx scripts/battle-ratings/index.ts --cache",
+    "reward-logs": "tsx scripts/reward-logs/index.ts",
+    "localize": "tsx scripts/localize/index.ts",
+    "localize:cache": "tsx scripts/localize/index.ts --cache",
     "changelog": "tsx scripts/changelog/index.ts"
   },
   "dependencies": {
+    "@dnd-kit/dom": "0.5.0",
+    "@dnd-kit/react": "0.5.0",
     "@next/third-parties": "^16.3.5",
+    "@number-flow/react": "0.6.2",
     "clsx": "^2.1.1",
+    "cmdk": "1.1.1",
     "fuse.js": "^7.5.0",
     "lucide-react": "^1.46.0",
+    "motion": "13.4.3",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "tailwind-merge": "^3.7.0"
+    "sonner": "2.0.8",
+    "tailwind-merge": "^3.7.0",
+    "vaul": "1.1.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

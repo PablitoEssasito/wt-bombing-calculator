@@ -78,7 +78,16 @@ describe("effectiveBaseHp", () => {
     expect(effectiveBaseHp(10000, "ab", 4)).toBe(20000);
   });
 
-  it("halves on three-base maps", () => {
-    expect(effectiveBaseHp(10000, "rb", 3)).toBe(5000);
+  it("follows the game's own tiers on three-base maps", () => {
+    expect(effectiveBaseHp(4000, "rb", 3)).toBe(6000);
+    expect(effectiveBaseHp(10000, "rb", 3)).toBe(10000);
+    // Norway at BR 5.0: an A-26B-10 base paid exactly 3/4 of a 16 000 HP one.
+    expect(effectiveBaseHp(16000, "rb", 3)).toBe(12000);
+    expect(effectiveBaseHp(25900, "rb", 3)).toBe(12000);
+  });
+
+  it("takes the template's arcade multiplier on three-base maps", () => {
+    expect(effectiveBaseHp(4000, "ab", 3)).toBe(15000);
+    expect(effectiveBaseHp(25900, "ab", 3)).toBe(50400);
   });
 });

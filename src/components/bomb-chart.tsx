@@ -2,13 +2,15 @@
 
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo } from "react";
+import { AnimatedNumber } from "@/components/animated-number";
 import { BombIcon } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
+import { Filled } from "@/components/filled";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
+import { inBombChart } from "@/domain/bomb-chart";
 import {
   BASE_HP_TIERS,
   GAME_MODES,
-  NATION_LABELS,
   NATIONS,
   type BaseCount,
   type BaseHp,
@@ -20,7 +22,7 @@ import { Flag } from "@/components/flag";
 import { Segmented } from "@/components/segmented";
 import { ShareButton } from "@/components/share-button";
 import { track } from "@/lib/analytics";
-import { BOMB_KIND_LABELS } from "@/lib/labels";
+import { useI18n } from "@/i18n/client";
 import {
   urlInteger,
   urlLiteral,
@@ -29,7 +31,7 @@ import {
   urlText,
   useUrlState,
 } from "@/lib/use-url-state";
-import { cn, formatCount } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const SORTS = ["name", "needed", "damage", "mass", "tnt", "efficiency", "kind"] as const;
 type Sort = (typeof SORTS)[number];
@@ -61,11 +63,6 @@ const DEFAULT_DIR: Record<Sort, SortDir> = {
 const MASS_UNITS = ["original", "kg", "lb"] as const;
 type MassUnit = (typeof MASS_UNITS)[number];
 
-const MASS_UNIT_LABELS: Record<MassUnit, string> = {
-  original: "Original",
-  kg: "kg",
-  lb: "lb",
-};
 
 const LB_PER_KG = 1 / 0.45359237;
 
@@ -100,6 +97,7 @@ const PRICED_KINDS = [
 ] as const satisfies readonly BombKind[];
 
 export function BombChart({ bombs }: { bombs: Bomb[] }) {
+  const { m, number, fill } = useI18n();
   const [query, setQuery] = useUrlState("q", urlText());
   const [hp, setHp] = useUrlState("hp", urlInteger(25900));
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
@@ -148,10 +146,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const rows = useMemo(() => {
     const needle = deferred.trim().toLowerCase();
     const filtered = bombs.filter((bomb) => {
-      // A rocket belongs in the table for its mass and TNT figures even before
-      // its damage value is checked (see scripts/etl/rockets.ts). Everything
-      // else with no damage value has nothing to show at all, so it stays out.
-      if (bomb.damageValue === null && bomb.kind !== "ROCKET") return false;
+      if (!inBombChart(bomb)) return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
@@ -174,7 +169,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
         bomb,
         needed: bomb.damageValue !== null ? bombsNeeded(effectiveHp, bomb.damageValue) : null,
       }))
-      .sort((a, b) => compareRows(a, b, sort, dir));
+      .sort((a, b) => compareRows(a, b, sort, dir, m.bombKinds));
   }, [
     bombs,
     deferred,
@@ -189,6 +184,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
     tntMax,
     dmgMin,
     dmgMax,
+    m.bombKinds,
   ]);
 
   // Facet counts: how many rows each Nation/Type option would leave, holding
@@ -197,7 +193,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const withoutNation = useMemo(() => {
     const needle = deferred.trim().toLowerCase();
     return bombs.filter((bomb) => {
-      if (bomb.damageValue === null && bomb.kind !== "ROCKET") return false;
+      if (!inBombChart(bomb)) return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
@@ -216,7 +212,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   const withoutKind = useMemo(() => {
     const needle = deferred.trim().toLowerCase();
     return bombs.filter((bomb) => {
-      if (bomb.damageValue === null && bomb.kind !== "ROCKET") return false;
+      if (!inBombChart(bomb)) return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
@@ -282,46 +278,50 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
     <div className="space-y-6">
       <section className="card p-4 grid gap-5 sm:grid-cols-3">
         <Segmented
-          label="Match BR"
+          label={m.conditions.matchBr}
           value={String(baseHp)}
           onChange={(v) => setHp(Number(v))}
           options={BASE_HP_TIERS.map((tier) => ({
             value: String(tier),
-            label: BR_RANGE_LABELS[tier],
-            hint: `${formatCount(tier)} HP`,
+            label: m.conditions.brRanges[tier],
+            hint: fill(m.conditions.hp, { hp: number(tier) }),
           }))}
         />
         <Segmented
-          label="Game mode"
+          label={m.conditions.gameMode}
           value={mode}
           onChange={(v) => setMode(v as GameMode)}
           options={[
-            { value: "rb", label: "Realistic / Sim" },
-            { value: "ab", label: "Arcade", hint: "double health" },
+            { value: "rb", label: m.conditions.realistic },
+            { value: "ab", label: m.conditions.arcade, hint: m.conditions.doubleHealth },
           ]}
         />
         <Segmented
-          label="Bases on the map"
+          label={m.conditions.basesOnMap}
           value={String(baseCount)}
           onChange={(v) => setMapSize(Number(v))}
           options={[
-            { value: "4", label: "Four" },
-            { value: "3", label: "Three", hint: "half payload" },
+            { value: "4", label: m.conditions.four },
+            {
+              value: "3",
+              label: m.conditions.three,
+              hint: fill(m.conditions.hpBases, { hp: number(effectiveBaseHp(baseHp, mode as GameMode, 3)) }),
+            },
           ]}
         />
       </section>
 
       <section className="card p-4 space-y-4">
         <div className="space-y-1.5">
-          <div className="text-xs uppercase tracking-wider text-ink-faint">Nation</div>
+          <div className="text-xs uppercase tracking-wider text-ink-faint">{m.common.nation}</div>
           <div className="flex flex-wrap gap-1.5">
             <FilterChip active={nation === "all"} onClick={() => selectNation("all")}>
-              <span aria-hidden>🌐</span> All nations
+              <span aria-hidden>🌐</span> {m.common.allNations}
               <Count>{nationCount("all")}</Count>
             </FilterChip>
             {NATIONS.map((n: Nation) => (
               <FilterChip key={n} active={nation === n} onClick={() => selectNation(n)}>
-                <Flag nation={n} /> {NATION_LABELS[n]}
+                <Flag nation={n} /> {m.nations[n]}
                 <Count>{nationCount(n)}</Count>
               </FilterChip>
             ))}
@@ -329,11 +329,11 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
         </div>
 
         <div className="space-y-1.5">
-          <div className="text-xs uppercase tracking-wider text-ink-faint">Type</div>
+          <div className="text-xs uppercase tracking-wider text-ink-faint">{m.common.type}</div>
           <div className="flex flex-wrap gap-1.5">
             {PRICED_KINDS.map((kind) => (
               <CheckChip key={kind} checked={kinds.has(kind)} onClick={() => toggleKind(kind)}>
-                {BOMB_KIND_LABELS[kind]}
+                {m.bombKinds[kind]}
                 <Count>{kindCount(kind)}</Count>
               </CheckChip>
             ))}
@@ -342,7 +342,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <RangeField
-            label="Mass (kg)"
+            label={m.bombChart.massKg}
             bounds={bounds.mass}
             min={massMin}
             max={massMax}
@@ -350,7 +350,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
             onMaxChange={setMassMax}
           />
           <RangeField
-            label="TNT equivalent (kg)"
+            label={m.bombChart.tntKg}
             bounds={bounds.tnt}
             min={tntMin}
             max={tntMax}
@@ -358,7 +358,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
             onMaxChange={setTntMax}
           />
           <RangeField
-            label="Damage"
+            label={m.bombChart.damage}
             bounds={bounds.damage}
             min={dmgMin}
             max={dmgMax}
@@ -374,19 +374,19 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter bombs…"
-          aria-label="Filter bombs"
+          placeholder={m.bombChart.filterPlaceholder}
+          aria-label={m.bombChart.filterLabel}
           className="card px-3 py-2 outline-none placeholder:text-ink-faint focus:border-accent transition-colors w-full sm:w-72"
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs uppercase tracking-wider text-ink-faint">Mass shown in</span>
-              <div role="group" aria-label="Mass unit" className="flex gap-1">
+              <span className="text-xs uppercase tracking-wider text-ink-faint">{m.bombChart.massShownIn}</span>
+              <div role="group" aria-label={m.bombChart.massUnit} className="flex gap-1">
                 {MASS_UNITS.map((u) => (
                   <FilterChip key={u} active={massUnit === u} onClick={() => setMassUnit(u)}>
-                    {MASS_UNIT_LABELS[u]}
+                    {u === "original" ? m.bombChart.original : u}
                   </FilterChip>
                 ))}
               </div>
@@ -397,32 +397,49 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                 onClick={clearFilters}
                 className="text-sm text-ink-faint hover:text-accent transition-colors underline underline-offset-4"
               >
-                Clear filters
+                {m.common.clearFilters}
               </button>
             ) : null}
             <ShareButton surface="bomb_chart" />
           </div>
           <p className="nums text-sm text-ink-dim">
-            {rows.length} bombs against {formatCount(effectiveHp)} HP bases
+            <Filled
+              template={m.bombChart.summary}
+              slots={{ count: <AnimatedNumber value={rows.length} />, hp: <AnimatedNumber value={effectiveHp} /> }}
+            />
           </p>
         </div>
       </div>
 
       {rows.length === 0 ? (
         <p className="card p-6 text-ink-dim text-center">
-          Nothing matches these filters.
+          {m.bombChart.empty}
         </p>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-ink-faint">
               <tr className="hairline">
-                <SortTh column="name" label="Bomb" sort={sort} dir={dir} onSort={handleSort} />
-                <SortTh column="needed" label="Per base" align="right" sort={sort} dir={dir} onSort={handleSort} />
-                <SortTh column="damage" label="Damage" align="right" sort={sort} dir={dir} onSort={handleSort} />
+                <SortTh column="name" label={m.bombChart.columns.name} sort={sort} dir={dir} onSort={handleSort} />
+                <SortTh
+                  column="needed"
+                  label={m.bombChart.columns.needed}
+                  align="right"
+                  sort={sort}
+                  dir={dir}
+                  onSort={handleSort}
+                />
+                <SortTh
+                  column="damage"
+                  label={m.bombChart.columns.damage}
+                  align="right"
+                  sort={sort}
+                  dir={dir}
+                  onSort={handleSort}
+                />
                 <SortTh
                   column="mass"
-                  label="Mass"
+                  label={m.bombChart.columns.mass}
                   align="right"
                   className="hidden sm:table-cell"
                   sort={sort}
@@ -431,7 +448,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                 />
                 <SortTh
                   column="tnt"
-                  label="TNT"
+                  label={m.bombChart.columns.tnt}
                   align="right"
                   className="hidden md:table-cell"
                   sort={sort}
@@ -440,7 +457,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                 />
                 <SortTh
                   column="efficiency"
-                  label="Dmg / kg"
+                  label={m.bombChart.columns.efficiency}
                   align="right"
                   className="hidden md:table-cell"
                   sort={sort}
@@ -449,7 +466,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                 />
                 <SortTh
                   column="kind"
-                  label="Type"
+                  label={m.bombChart.columns.kind}
                   className="hidden lg:table-cell"
                   sort={sort}
                   dir={dir}
@@ -478,7 +495,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                     {needed !== null && Number.isFinite(needed) ? needed : "—"}
                   </td>
                   <td className="nums px-3 py-2 text-right text-ink-dim">
-                    {bomb.damageValue !== null ? formatCount(bomb.damageValue) : "—"}
+                    {bomb.damageValue !== null ? number(bomb.damageValue) : "—"}
                   </td>
                   <td className="nums px-3 py-2 text-right text-ink-dim hidden sm:table-cell">
                     {formatMass(bomb, massUnit)}
@@ -490,7 +507,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                     {bomb.efficiency ?? "—"}
                   </td>
                   <td className="px-3 py-2 text-ink-faint hidden lg:table-cell">
-                    {BOMB_KIND_LABELS[bomb.kind]}
+                    {m.bombKinds[bomb.kind]}
                   </td>
                 </tr>
               ))}
@@ -502,18 +519,11 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
   );
 }
 
-const BR_RANGE_LABELS: Record<BaseHp, string> = {
-  4000: "up to 2.0",
-  6000: "2.3 – 3.3",
-  10000: "3.7 – 4.7",
-  16000: "5.0 – 6.3",
-  22000: "6.7 – 7.7",
-  25900: "8.0 and up",
-};
-
 type SortableRow = { bomb: Bomb; needed: number | null };
 
-function sortKeyOf(row: SortableRow, column: Sort): number | string | null {
+type KindLabels = Record<BombKind, string>;
+
+function sortKeyOf(row: SortableRow, column: Sort, kinds: KindLabels): number | string | null {
   switch (column) {
     case "name":
       return row.bomb.chartName || row.bomb.fullName;
@@ -528,7 +538,7 @@ function sortKeyOf(row: SortableRow, column: Sort): number | string | null {
     case "efficiency":
       return row.bomb.efficiency;
     case "kind":
-      return BOMB_KIND_LABELS[row.bomb.kind];
+      return kinds[row.bomb.kind];
   }
 }
 
@@ -540,9 +550,9 @@ function sortKeyOf(row: SortableRow, column: Sort): number | string | null {
  * Ties fall back to name, so equal values still land in a stable, readable
  * order rather than whatever the previous sort happened to leave them in.
  */
-function compareRows(a: SortableRow, b: SortableRow, column: Sort, dir: SortDir): number {
-  const av = sortKeyOf(a, column);
-  const bv = sortKeyOf(b, column);
+function compareRows(a: SortableRow, b: SortableRow, column: Sort, dir: SortDir, kinds: KindLabels): number {
+  const av = sortKeyOf(a, column, kinds);
+  const bv = sortKeyOf(b, column, kinds);
 
   let cmp: number;
   if (av === null || bv === null) {
@@ -556,7 +566,7 @@ function compareRows(a: SortableRow, b: SortableRow, column: Sort, dir: SortDir)
 
   const directed = dir === "asc" ? cmp : -cmp;
   if (directed !== 0 || column === "name") return directed;
-  return compareRows(a, b, "name", "asc");
+  return compareRows(a, b, "name", "asc", kinds);
 }
 
 function SortTh({
@@ -621,7 +631,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "px-3 py-1.5 rounded-full text-sm border transition-colors flex items-center gap-1.5",
+        "px-3 py-1.5 rounded-full text-sm border transition motion-safe:active:scale-[0.97] flex items-center gap-1.5",
         active
           ? "border-accent text-accent bg-accent-dim"
           : "border-line text-ink-dim hover:text-ink hover:border-line-bright",
@@ -649,7 +659,7 @@ function CheckChip({
       role="checkbox"
       aria-checked={checked}
       className={cn(
-        "flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-sm border transition-colors",
+        "flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-sm border transition motion-safe:active:scale-[0.97]",
         checked
           ? "border-accent text-accent bg-accent-dim"
           : "border-line text-ink-dim hover:text-ink hover:border-line-bright",
@@ -683,6 +693,7 @@ function RangeField({
   onMinChange: (v: number | null) => void;
   onMaxChange: (v: number | null) => void;
 }) {
+  const { m, fill } = useI18n();
   const parse = (raw: string) => (raw.trim() === "" ? null : Number(raw));
   return (
     <div className="space-y-1.5">
@@ -694,7 +705,7 @@ function RangeField({
           value={min ?? ""}
           onChange={(e) => onMinChange(parse(e.target.value))}
           placeholder={String(bounds.min)}
-          aria-label={`${label} minimum`}
+          aria-label={fill(m.bombChart.minimum, { label })}
           // text-base, not text-sm — iOS Safari zooms the whole page in on
           // focus for any input under 16px, which text-sm's 14px is.
           className="w-full min-w-0 card px-2.5 py-1.5 text-base outline-none placeholder:text-ink-faint focus:border-accent transition-colors"
@@ -706,7 +717,7 @@ function RangeField({
           value={max ?? ""}
           onChange={(e) => onMaxChange(parse(e.target.value))}
           placeholder={String(bounds.max)}
-          aria-label={`${label} maximum`}
+          aria-label={fill(m.bombChart.maximum, { label })}
           className="w-full min-w-0 card px-2.5 py-1.5 text-base outline-none placeholder:text-ink-faint focus:border-accent transition-colors"
         />
       </div>
