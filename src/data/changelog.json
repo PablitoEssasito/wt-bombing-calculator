@@ -1,5 +1,3261 @@
 [
  {
+  "date": "2026-09-26",
+  "gameVersion": "2.59.0.37",
+  "aircraft": {
+   "added": [],
+   "removed": [],
+   "br": [],
+   "loadouts": [
+    {
+     "id": "usa-bf2c-1",
+     "name": "BF2C-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-sb2u-2",
+     "name": "SB2U-2",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-sb2u-3",
+     "name": "SB2U-3",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-tbf-1c",
+     "name": "TBF-1C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-sbd-3",
+     "name": "SBD-3",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-tbd-1",
+     "name": "TBD-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-18a",
+     "name": "B-18A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pby-5",
+     "name": "PBY-5",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pby-5a",
+     "name": "PBY-5A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pbm-1",
+     "name": "PBM-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-10b",
+     "name": "B-10B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f6f-5",
+     "name": "F6F-5",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f4u-1a",
+     "name": "F4U-1A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f4u-1d",
+     "name": "F4U-1D",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-36",
+     "name": "A-36",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-20g-25",
+     "name": "A-20G-25",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-sb2c-1c",
+     "name": "SB2C-1C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-sb2c-4",
+     "name": "SB2C-4",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-34",
+     "name": "B-34",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-25j-1",
+     "name": "B-25J-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-25j-20",
+     "name": "B-25J-20",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pbm-3",
+     "name": "PBM-3",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-51d-5",
+     "name": "P-51D-5",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-47d-22-re",
+     "name": "P-47D-22-RE",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-47d-25",
+     "name": "P-47D-25",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-47d-28",
+     "name": "P-47D-28",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-47n-15",
+     "name": "P-47N-15",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f4u-4",
+     "name": "F4U-4",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f8f-1",
+     "name": "F8F-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f6f-5n",
+     "name": "F6F-5N",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pbj-1j",
+     "name": "PBJ-1J",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pbj-1h",
+     "name": "PBJ-1H",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-61c-1",
+     "name": "P-61C-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-26b",
+     "name": "B-26B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-17e",
+     "name": "B-17E",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-17e-l",
+     "name": "B-17E/L",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pb4y-2",
+     "name": "PB4Y-2",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-btd-1",
+     "name": "BTD-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-fr-1-fireball",
+     "name": "FR-1 Fireball",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pbm-5a",
+     "name": "PBM-5A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-pv-2d",
+     "name": "PV-2D",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-82e",
+     "name": "F-82E",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-51d-30",
+     "name": "P-51D-30",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-51h-5-na",
+     "name": "P-51H-5-NA",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f4u-4b",
+     "name": "F4U-4B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f8f-1b",
+     "name": "F8F-1B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-26b-10",
+     "name": "A-26B-10",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-26b-50",
+     "name": "A-26B-50",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-ad-2",
+     "name": "AD-2",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-ad-4",
+     "name": "AD-4",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-am-1",
+     "name": "AM-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-17g-60-ve",
+     "name": "B-17G-60-VE",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-24d-25-co",
+     "name": "B-24D-25-CO",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-29a-bn",
+     "name": "B-29A-BN",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-xa-38",
+     "name": "XA-38",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-p-51d-20-na",
+     "name": "P-51D-20-NA",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-1h",
+     "name": "A-1H",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-26c-45",
+     "name": "A-26C-45",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-26c-45dt",
+     "name": "A-26C-45DT",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-au-1",
+     "name": "AU-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f7f-3",
+     "name": "F7F-3",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-84g-21-re",
+     "name": "F-84G-21-RE",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-84f",
+     "name": "F-84F",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-57a",
+     "name": "B-57A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-57b",
+     "name": "B-57B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a2d-1",
+     "name": "A2D-1",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-104c",
+     "name": "F-104C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-100d",
+     "name": "F-100D",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f3h-2",
+     "name": "F3H-2",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-4b",
+     "name": "A-4B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-fj-4b",
+     "name": "FJ-4B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-av-8c",
+     "name": "AV-8C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-66b",
+     "name": "B-66B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-4e-early",
+     "name": "A-4E Early",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-10a",
+     "name": "A-10A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-b-52h",
+     "name": "B-52H",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-5e",
+     "name": "F-5E",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-4c",
+     "name": "F-4C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-4e",
+     "name": "F-4E",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-8e",
+     "name": "F-8E",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-4j",
+     "name": "F-4J",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-10a-late",
+     "name": "A-10A Late",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-7d",
+     "name": "A-7D",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-7e",
+     "name": "A-7E",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-10c",
+     "name": "A-10C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-105d",
+     "name": "F-105D",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-111a",
+     "name": "F-111A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-111f",
+     "name": "F-111F",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-5c",
+     "name": "F-5C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-6e-tram",
+     "name": "A-6E TRAM",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-4s",
+     "name": "F-4S",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-5a",
+     "name": "F-5A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-a-7k",
+     "name": "A-7K",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-av-8b-na",
+     "name": "AV-8B (NA)",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-16a",
+     "name": "F-16A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-16c",
+     "name": "F-16C",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-15a",
+     "name": "F-15A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-15c-msip-ii",
+     "name": "F-15C MSIP II",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-a-18a",
+     "name": "F/A-18A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-14a-early",
+     "name": "F-14A Early",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-14b",
+     "name": "F-14B",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-14d-vf-11",
+     "name": "F-14D VF-11",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-a-18c-late",
+     "name": "F/A-18C Late",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-av-8b-plus",
+     "name": "AV-8B Plus",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-15e",
+     "name": "F-15E",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-20a",
+     "name": "F-20A",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-a-18c-early",
+     "name": "F/A-18C Early",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-14d",
+     "name": "F-14D",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-16xl",
+     "name": "F-16XL",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-14a-iriaf",
+     "name": "F-14A IRIAF",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-16cm-pobit",
+     "name": "F-16CM PoBIT",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-15c-g-eagle",
+     "name": "F-15C G. Eagle",
+     "nation": "usa"
+    },
+    {
+     "id": "usa-f-a-18e",
+     "name": "F/A-18E",
+     "nation": "usa"
+    },
+    {
+     "id": "germany-do-17-z-7",
+     "name": "Do 17 Z-7",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-217-j-1",
+     "name": "Do 217 J-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-hs-123-a-1",
+     "name": "Hs 123 A-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-87-b-2",
+     "name": "Ju 87 B-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-87-r-2",
+     "name": "Ju 87 R-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-17-e-1",
+     "name": "Do 17 E-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-17-z-2",
+     "name": "Do 17 Z-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-he-115-c-1",
+     "name": "He 115 C-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bv-138-c-1",
+     "name": "BV 138 C-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-he-111-h-3",
+     "name": "He 111 H-3",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-87-r-2-2",
+     "name": "Ju 87 R-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-e-4",
+     "name": "Bf 109 E-4",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-f-1",
+     "name": "Bf 109 F-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-f-2",
+     "name": "Bf 109 F-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-c-3604",
+     "name": "C-3604",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-88-c-6",
+     "name": "Ju 88 C-6",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-217-n-1",
+     "name": "Do 217 N-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-110-c-7",
+     "name": "Bf 110 C-7",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-110-f-2",
+     "name": "Bf 110 F-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-87-d-3",
+     "name": "Ju 87 D-3",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-87-d-5",
+     "name": "Ju 87 D-5",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-me-210a-1",
+     "name": "Me 210A-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-fw-200-c-1",
+     "name": "Fw 200 C-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-88-a-1",
+     "name": "Ju 88 A-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-88-a-4",
+     "name": "Ju 88 A-4",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-he-111-h-6",
+     "name": "He 111 H-6",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-he-111-h-16",
+     "name": "He 111 H-16",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-t-2",
+     "name": "Bf 109 T-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bv-238",
+     "name": "BV 238",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-wellington-ic",
+     "name": "Wellington Ic",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-e-7-u2",
+     "name": "Bf 109 E-7/U2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-s-m-79-serie-1",
+     "name": "S.M.79 serie 1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-s-m-79-serie-8",
+     "name": "S.M.79 serie 8",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-f-4",
+     "name": "Bf 109 F-4",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-f-4-trop",
+     "name": "Bf 109 F-4/trop",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-fw-190-a-5-u2",
+     "name": "Fw 190 A-5/U2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-fw-190-d-9",
+     "name": "Fw 190 D-9",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-110-g-2",
+     "name": "Bf 110 G-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-110-g-4",
+     "name": "Bf 110 G-4",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-me-410-a-1",
+     "name": "Me 410 A-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-335-a-1",
+     "name": "Do 335 A-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-me-264",
+     "name": "Me 264",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-217-e-2",
+     "name": "Do 217 E-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-217-e-4",
+     "name": "Do 217 E-4",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-g-2-trop",
+     "name": "Bf 109 G-2/trop",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-bf-109-g-6",
+     "name": "Bf 109 G-6",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-fw-190-d-12",
+     "name": "Fw 190 D-12",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-fw-190-f-8",
+     "name": "Fw 190 F-8",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-217-k-1",
+     "name": "Do 217 K-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-do-217-m-1",
+     "name": "Do 217 M-1",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-188-a-2",
+     "name": "Ju 188 A-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-he-177-a-5",
+     "name": "He 177 A-5",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ju-288-c",
+     "name": "Ju 288 C",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-he-177-a-3",
+     "name": "He 177 A-3",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ia-58a",
+     "name": "IA.58A",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ar-234-b-2",
+     "name": "Ar 234 B-2",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-il-28",
+     "name": "IL-28",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-g-91-r-3",
+     "name": "G.91 R/3",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-alpha-jet-a",
+     "name": "Alpha Jet A",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-84f",
+     "name": "F-84F",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-mig-23bn",
+     "name": "MiG-23BN",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-hunter-f-58a",
+     "name": "Hunter F.58A",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-hunter-f-58",
+     "name": "Hunter F.58",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-alpha-jet-a-2",
+     "name": "Alpha Jet A",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ffa-p-16",
+     "name": "FFA P-16",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-104g",
+     "name": "F-104G",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-4f",
+     "name": "F-4F",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-mig-21bis-sau",
+     "name": "MiG-21bis-SAU",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-mig-23mla",
+     "name": "MiG-23MLA",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-tornado-assta",
+     "name": "Tornado ASSTA",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-su-22um3k",
+     "name": "Su-22UM3K",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-su-22m4",
+     "name": "Su-22M4",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-5e",
+     "name": "F-5E",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-mig-21-lazur",
+     "name": "MiG-21 Lazur",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-tornado-ids",
+     "name": "Tornado IDS",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-su-22m4-wtd",
+     "name": "Su-22M4 WTD",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-4f-early",
+     "name": "F-4F Early",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-mig-23mf",
+     "name": "MiG-23MF",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-4f-kws-lv",
+     "name": "F-4F KWS LV",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-mig-29",
+     "name": "MiG-29",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-mig-29g",
+     "name": "MiG-29G",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-tornado-sle",
+     "name": "Tornado SLE",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-a-18c-late",
+     "name": "F/A-18C Late",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-f-a-18c",
+     "name": "F/A-18C",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ef-2000",
+     "name": "EF-2000",
+     "nation": "germany"
+    },
+    {
+     "id": "germany-ef-2000-aesa",
+     "name": "EF-2000 AESA",
+     "nation": "germany"
+    },
+    {
+     "id": "ussr-po-2",
+     "name": "Po-2",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-bb-1",
+     "name": "BB-1",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-2-mv-5",
+     "name": "Su-2 MV-5",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-2-tts-1",
+     "name": "Su-2 TTS-1",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-2-m-82",
+     "name": "Su-2 M-82",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-3-e",
+     "name": "Pe-3 (e)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-3",
+     "name": "Pe-3",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yak-2-kabb",
+     "name": "Yak-2 KABB",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-sb-2m-100",
+     "name": "SB 2M-100",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-sb-2m-103",
+     "name": "SB 2M-103",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yak-4",
+     "name": "Yak-4",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-ar-2",
+     "name": "Ar-2",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-sb-2m-103u",
+     "name": "SB 2M-103U",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-sb-2m-105",
+     "name": "SB 2M-105",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pby-5a",
+     "name": "PBY-5A",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-hampden-tb-i",
+     "name": "Hampden TB I",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-db-lk",
+     "name": "DB-LK",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mbr-2-m-34",
+     "name": "MBR-2-M-34",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-po-2m",
+     "name": "Po-2M",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tb-3m-17-32",
+     "name": "TB-3M-17-32",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-2-1941",
+     "name": "IL-2 (1941)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-2-1942",
+     "name": "IL-2 (1942)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-3bis",
+     "name": "Pe-3bis",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-db-3b",
+     "name": "DB-3B",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-4",
+     "name": "IL-4",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-2-1",
+     "name": "Pe-2-1",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-2-31",
+     "name": "Pe-2-31",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-2-83",
+     "name": "Pe-2-83",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-p-40e-1",
+     "name": "P-40E-1",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-2-m-82",
+     "name": "IL-2 M-82",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-i-185-m-82",
+     "name": "I-185 (M-82)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-i-185-m-71",
+     "name": "I-185 (M-71)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-2m-1943",
+     "name": "IL-2M (1943)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-2m-type-3",
+     "name": "IL-2M type 3",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-6-m-71f",
+     "name": "Su-6 (M-71F)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yer-2-m-105",
+     "name": "Yer-2 (M-105)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yer-2-m-105r",
+     "name": "Yer-2 (M-105R)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-2-110",
+     "name": "Pe-2-110",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-2-359",
+     "name": "Pe-2-359",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-8",
+     "name": "Pe-8",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-a-20g-30",
+     "name": "A-20G-30",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-p-47d-27",
+     "name": "P-47D-27",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-b-25j-30",
+     "name": "B-25J-30",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-pe-2-205",
+     "name": "Pe-2-205",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-8-1944",
+     "name": "IL-8 (1944)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tis-ma",
+     "name": "TIS MA",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-2",
+     "name": "Tu-2",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-6-am-42",
+     "name": "Su-6 (AM-42)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yer-2-ach-30-e",
+     "name": "Yer-2 ACh-30(e)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yer-2-ach-30-l",
+     "name": "Yer-2 ACh-30(l)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-2s",
+     "name": "Tu-2S",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-2s-44",
+     "name": "Tu-2S-44",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-2s-59",
+     "name": "Tu-2S-59",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-6",
+     "name": "Su-6",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-be-6",
+     "name": "Be-6",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-8",
+     "name": "Su-8",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-1",
+     "name": "Tu-1",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-28",
+     "name": "IL-28",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-il-28sh",
+     "name": "IL-28Sh",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-4",
+     "name": "Tu-4",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-14t",
+     "name": "Tu-14T",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yak-38m",
+     "name": "Yak-38M",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-21f-13",
+     "name": "MiG-21F-13",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-7b",
+     "name": "Su-7B",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-7bkl",
+     "name": "Su-7BKL",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yak-130",
+     "name": "Yak-130",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-25",
+     "name": "Su-25",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yak-28b",
+     "name": "Yak-28B",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yak-38",
+     "name": "Yak-38",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-21s-r-13",
+     "name": "MiG-21S (R-13)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-tu-95m",
+     "name": "Tu-95M",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-j-22m1a",
+     "name": "J-22M1A",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-21pfm",
+     "name": "MiG-21PFM",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-7bmk",
+     "name": "Su-7BMK",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-25k",
+     "name": "Su-25K",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-21smt",
+     "name": "MiG-21SMT",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-21bis",
+     "name": "MiG-21bis",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-23m",
+     "name": "MiG-23M",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-23mld",
+     "name": "MiG-23MLD",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-17m2",
+     "name": "Su-17M2",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-17m4",
+     "name": "Su-17M4",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-25t",
+     "name": "Su-25T",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-27m",
+     "name": "MiG-27M",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-27k",
+     "name": "MiG-27K",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-24m",
+     "name": "Su-24M",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-22m3",
+     "name": "Su-22M3",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-23ml",
+     "name": "MiG-23ML",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-25bm",
+     "name": "Su-25BM",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-39",
+     "name": "Su-39",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-yak-141",
+     "name": "Yak-141",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-29kr",
+     "name": "MiG-29KR",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-29-9-12",
+     "name": "MiG-29 (9-12)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-29-9-13",
+     "name": "MiG-29 (9-13)",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-29smt",
+     "name": "MiG-29SMT",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-27",
+     "name": "Su-27",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-27sm",
+     "name": "Su-27SM",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-25sm3",
+     "name": "Su-25SM3",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-34",
+     "name": "Su-34",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-33",
+     "name": "Su-33",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-30mk2",
+     "name": "Su-30MK2",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-29m",
+     "name": "MiG-29M",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-mig-35",
+     "name": "MiG-35",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-30sm",
+     "name": "Su-30SM",
+     "nation": "ussr"
+    },
+    {
+     "id": "ussr-su-30sm2",
+     "name": "Su-30SM2",
+     "nation": "ussr"
+    },
+    {
+     "id": "britain-chesapeake-i",
+     "name": "Chesapeake I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-h-p-12",
+     "name": "H.P.12",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-blenheim-iv",
+     "name": "Blenheim IV",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-beaufort-viii",
+     "name": "Beaufort VIII",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-swordfish-i",
+     "name": "Swordfish I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hampden-i",
+     "name": "Hampden I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hampden-tb-i",
+     "name": "Hampden TB I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-swordfish-ii",
+     "name": "Swordfish II",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wirraway",
+     "name": "Wirraway",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-catalina-iiia",
+     "name": "Catalina IIIa",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-beaufighter-x",
+     "name": "Beaufighter X",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-beaufighter-21",
+     "name": "Beaufighter 21",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sunderland-iiia",
+     "name": "Sunderland IIIa",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sunderland-v",
+     "name": "Sunderland V",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-ic",
+     "name": "Wellington Ic",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-ic-l",
+     "name": "Wellington Ic/L",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-iii",
+     "name": "Wellington III",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wellington-x",
+     "name": "Wellington X",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-avenger-ii",
+     "name": "Avenger II",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hudson-v",
+     "name": "Hudson V",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-corsair-f-ii",
+     "name": "Corsair F II",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-havoc-i",
+     "name": "Havoc I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-boston-i",
+     "name": "Boston I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-db-7",
+     "name": "DB-7",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-firefly-f-i",
+     "name": "Firefly F I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-firefly-fr-v",
+     "name": "Firefly FR V",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-brigand-b-1",
+     "name": "Brigand B 1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-halifax-b-iiia",
+     "name": "Halifax B IIIa",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-stirling-b-i",
+     "name": "Stirling B I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-stirling-b-iii",
+     "name": "Stirling B III",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-mosquito-b-xvi",
+     "name": "Mosquito B XVI",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hellcat-ii",
+     "name": "Hellcat II",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-thunderbolt-1",
+     "name": "Thunderbolt 1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-lancaster-i",
+     "name": "Lancaster I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-lancaster-iii",
+     "name": "Lancaster III",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-lincoln-b-ii",
+     "name": "Lincoln B II",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-shackleton",
+     "name": "Shackleton",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-strikemaster",
+     "name": "Strikemaster",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-wyvern-s4",
+     "name": "Wyvern S4",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-washington",
+     "name": "Washington",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-canberra-b-2",
+     "name": "Canberra B 2",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-canberra-b-i-6",
+     "name": "Canberra B (I) 6",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-jaguar-gr-1",
+     "name": "Jaguar GR.1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-harrier-gr-3",
+     "name": "Harrier GR.3",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-buccaneer-2",
+     "name": "Buccaneer 2",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-harrier-gr-1",
+     "name": "Harrier GR.1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-buccaneer-1",
+     "name": "Buccaneer 1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-phantom-fgr-2",
+     "name": "Phantom FGR.2",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sea-harrier-frs",
+     "name": "Sea Harrier FRS",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-phantom-fg-1",
+     "name": "Phantom FG.1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-jaguar-gr-1a",
+     "name": "Jaguar GR.1A",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hawk-200",
+     "name": "Hawk 200",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-hawk-200-rda",
+     "name": "Hawk 200 RDA",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-buccaneer-2b",
+     "name": "Buccaneer 2B",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-f-111c",
+     "name": "F-111C",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-tornado-gr-1",
+     "name": "Tornado GR.1",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-sea-harrier-frs-2",
+     "name": "Sea Harrier FRS",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-f-4j-uk",
+     "name": "F-4J (UK)",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-jaguar-is",
+     "name": "Jaguar IS",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-harrier-t-10",
+     "name": "Harrier T.10",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-jas39c",
+     "name": "JAS39C",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-f-a-18a",
+     "name": "F/A-18A",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-af-a-18a-late",
+     "name": "AF/A-18A Late",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-harrier-gr-7",
+     "name": "Harrier GR.7",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-tornado-gr-4",
+     "name": "Tornado GR.4",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-mig-21-bison",
+     "name": "MiG-21 Bison",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-cf-188a",
+     "name": "CF-188A",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-typhoon-fgr-4",
+     "name": "Typhoon FGR.4",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-typhoon-aesa",
+     "name": "Typhoon AESA",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-f-a-18f",
+     "name": "F/A-18F",
+     "nation": "britain"
+    },
+    {
+     "id": "japan-ki-45-tei",
+     "name": "Ki-45 tei",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b5n2",
+     "name": "B5N2",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-d3a1",
+     "name": "D3A1",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b6n1-mod-11",
+     "name": "B6N1 Mod. 11",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-32",
+     "name": "Ki-32",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-21-ia",
+     "name": "Ki-21-Ia",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-h6k4",
+     "name": "H6K4",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b6n2-mod-12",
+     "name": "B6N2 Mod. 12",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b6n2a-mod-12",
+     "name": "B6N2a Mod. 12",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-d4y1",
+     "name": "D4Y1",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-d4y3-ko",
+     "name": "D4Y3 Ko",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-g4m1",
+     "name": "G4M1",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-h8k2",
+     "name": "H8K2",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-49-i",
+     "name": "Ki-49-I",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-49-iia",
+     "name": "Ki-49-IIa",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-me-210-v22",
+     "name": "Me 210 V22",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-h8k3",
+     "name": "H8K3",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-48-ii-otsu",
+     "name": "Ki-48-II otsu",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-21-i-hei",
+     "name": "Ki-21-I hei",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-p1y1-mod-11",
+     "name": "P1Y1 mod.11",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b7a2",
+     "name": "B7A2",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-49-iib",
+     "name": "Ki-49-IIb",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-49-iib-l",
+     "name": "Ki-49-IIb/L",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-g5n1",
+     "name": "G5N1",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-67-i-ko",
+     "name": "Ki-67-I Ko",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-ki-67-i-otsu",
+     "name": "Ki-67-I otsu",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-sb2c-5",
+     "name": "SB2C-5",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b7a2-homare",
+     "name": "B7A2 (Homare)",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b-26b",
+     "name": "B-26B",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-g8n1",
+     "name": "G8N1",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-b-17e",
+     "name": "B-17E",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-84g-21-re",
+     "name": "F-84G-21-RE",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-1",
+     "name": "F-1",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-alpha-jet-a",
+     "name": "Alpha Jet A",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-alpha-jet-th",
+     "name": "Alpha Jet TH",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-a-4ptm",
+     "name": "A-4PTM",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-av-8s",
+     "name": "AV-8S",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-4ej",
+     "name": "F-4EJ",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-a-7e",
+     "name": "A-7E",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-av-8s-late",
+     "name": "AV-8S Late",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-5a",
+     "name": "F-5A",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-5t-scu",
+     "name": "F-5T SCU",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-5e-fcu",
+     "name": "F-5E FCU",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-hawk-209",
+     "name": "Hawk 209",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-4ej-adtw",
+     "name": "F-4EJ ADTW",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-4ej-kai",
+     "name": "F-4EJ Kai",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-15j",
+     "name": "F-15J",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-15j-m",
+     "name": "F-15J(M)",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-16aj",
+     "name": "F-16AJ",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-2a",
+     "name": "F-2A",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-5th-tcu",
+     "name": "F-5TH TCU",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-16a-ocu",
+     "name": "F-16A OCU",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-jas39c",
+     "name": "JAS39C",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-mig-29n",
+     "name": "MiG-29N",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-a-18d-late",
+     "name": "F/A-18D Late",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-f-2a-adtw",
+     "name": "F-2A ADTW",
+     "nation": "japan"
+    },
+    {
+     "id": "japan-su-30mkm",
+     "name": "Su-30MKM",
+     "nation": "japan"
+    },
+    {
+     "id": "china-hs-123-a-1",
+     "name": "Hs 123 A-1",
+     "nation": "china"
+    },
+    {
+     "id": "china-martin-139-wc",
+     "name": "Martin 139 WC",
+     "nation": "china"
+    },
+    {
+     "id": "china-hawk-iii",
+     "name": "Hawk III",
+     "nation": "china"
+    },
+    {
+     "id": "china-a-29",
+     "name": "A-29",
+     "nation": "china"
+    },
+    {
+     "id": "china-db-3a",
+     "name": "DB-3A",
+     "nation": "china"
+    },
+    {
+     "id": "china-sb-2m-103u",
+     "name": "SB 2M-103U",
+     "nation": "china"
+    },
+    {
+     "id": "china-p1y1-mod-11",
+     "name": "P1Y1 mod.11",
+     "nation": "china"
+    },
+    {
+     "id": "china-p-47d-23-ra",
+     "name": "P-47D-23-RA",
+     "nation": "china"
+    },
+    {
+     "id": "china-p-47d-30",
+     "name": "P-47D-30",
+     "nation": "china"
+    },
+    {
+     "id": "china-p-51d-20",
+     "name": "P-51D-20",
+     "nation": "china"
+    },
+    {
+     "id": "china-p-51k",
+     "name": "P-51K",
+     "nation": "china"
+    },
+    {
+     "id": "china-b-25j-30",
+     "name": "B-25J-30",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-47n-25-re",
+     "name": "F-47N-25-RE",
+     "nation": "china"
+    },
+    {
+     "id": "china-pb4y-2",
+     "name": "PB4Y-2",
+     "nation": "china"
+    },
+    {
+     "id": "china-tu-2s-44",
+     "name": "Tu-2S-44",
+     "nation": "china"
+    },
+    {
+     "id": "china-qing-6",
+     "name": "Qing-6",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-84g-21-re",
+     "name": "F-84G-21-RE",
+     "nation": "china"
+    },
+    {
+     "id": "china-tu-4",
+     "name": "Tu-4",
+     "nation": "china"
+    },
+    {
+     "id": "china-h-5",
+     "name": "H-5",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-84g-31-re",
+     "name": "F-84G-31-RE",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-100a",
+     "name": "F-100A",
+     "nation": "china"
+    },
+    {
+     "id": "china-q-5-early",
+     "name": "Q-5 early",
+     "nation": "china"
+    },
+    {
+     "id": "china-q-5a",
+     "name": "Q-5A",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-100f",
+     "name": "F-100F",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-104g",
+     "name": "F-104G",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-5a",
+     "name": "F-5A",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-5e",
+     "name": "F-5E",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-8b",
+     "name": "J-8B",
+     "nation": "china"
+    },
+    {
+     "id": "china-q-5l",
+     "name": "Q-5L",
+     "nation": "china"
+    },
+    {
+     "id": "china-jh-7",
+     "name": "JH-7",
+     "nation": "china"
+    },
+    {
+     "id": "china-a-5c",
+     "name": "A-5C",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-16a-mlu",
+     "name": "F-16A MLU",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-10a",
+     "name": "J-10A",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-8f",
+     "name": "J-8F",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-11",
+     "name": "J-11",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-11a",
+     "name": "J-11A",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-11b",
+     "name": "J-11B",
+     "nation": "china"
+    },
+    {
+     "id": "china-jh-7a",
+     "name": "JH-7A",
+     "nation": "china"
+    },
+    {
+     "id": "china-jh-7a2",
+     "name": "JH-7A2",
+     "nation": "china"
+    },
+    {
+     "id": "china-jh-7a-prot",
+     "name": "JH-7A Prot.",
+     "nation": "china"
+    },
+    {
+     "id": "china-jf-17",
+     "name": "JF-17",
+     "nation": "china"
+    },
+    {
+     "id": "china-su-30mkk",
+     "name": "Su-30MKK",
+     "nation": "china"
+    },
+    {
+     "id": "china-f-16v",
+     "name": "F-16V",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-10c",
+     "name": "J-10C",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-16",
+     "name": "J-16",
+     "nation": "china"
+    },
+    {
+     "id": "china-j-15t",
+     "name": "J-15T",
+     "nation": "china"
+    },
+    {
+     "id": "italy-ba-65-k-14-l",
+     "name": "Ba.65 (K.14) L",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-ju-87-r-2",
+     "name": "Ju 87 R-2",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-s-81",
+     "name": "S.81",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-b-r-20dr",
+     "name": "B.R.20DR",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-b-r-20m-m1",
+     "name": "B.R.20M M1",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-s-m-79-serie-1",
+     "name": "S.M.79 serie 1",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-s-m-79-serie-8",
+     "name": "S.M.79 serie 8",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-ba-65-a-80",
+     "name": "Ba.65 A.80",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-re-2002-early",
+     "name": "Re.2002 Early",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-ju-87-d-3",
+     "name": "Ju 87 D-3",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-sm-91",
+     "name": "SM.91",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-s-m-79-as",
+     "name": "S.M.79 AS",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-s-m-79-bis",
+     "name": "S.M.79 bis",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-s-m-79-b",
+     "name": "S.M.79 B",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-z-1007-bis-3",
+     "name": "Z.1007 bis 3",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-z-1007-bis-5",
+     "name": "Z.1007 bis 5",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-ro-57",
+     "name": "Ro.57",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-sm-92",
+     "name": "SM.92",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-p-47d-30",
+     "name": "P-47D-30",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-p-108b-serie-1",
+     "name": "P.108B serie 1",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-p-108b-serie-2",
+     "name": "P.108B serie 2",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-me-210-ca-1",
+     "name": "Me 210 Ca-1",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-bf-110-g-4",
+     "name": "Bf 110 G-4",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-bf-109-f-4",
+     "name": "Bf 109 F-4",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-tu-2s-59",
+     "name": "Tu-2S-59",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-fw-190-f-8",
+     "name": "Fw 190 F-8",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-bf-109-g-2",
+     "name": "Bf 109 G-2",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-mb-326k",
+     "name": "MB-326K",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-84g-21-re",
+     "name": "F-84G-21-RE",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-il-28",
+     "name": "IL-28",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-mb-326b",
+     "name": "MB-326B",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-104g",
+     "name": "F-104G",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-g-91-y",
+     "name": "G.91 Y",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-g-91-ys",
+     "name": "G.91 YS",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-84f",
+     "name": "F-84F",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-iar-93b",
+     "name": "IAR-93B",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-104s",
+     "name": "F-104S",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-104s-asa",
+     "name": "F-104S.ASA",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-amx",
+     "name": "AMX",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-tornado-ids",
+     "name": "Tornado IDS",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-tornado-ids-95",
+     "name": "Tornado IDS'95",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-tornado-mlu",
+     "name": "Tornado MLU",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-su-22m3",
+     "name": "Su-22M3",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-mig-21bis-sau",
+     "name": "MiG-21bis-SAU",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-mig-23mf",
+     "name": "MiG-23MF",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-amx-a-1a",
+     "name": "AMX A-1A",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-104s-taf",
+     "name": "F-104S TAF",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-av-8b-plus",
+     "name": "AV-8B Plus",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-mig-29",
+     "name": "MiG-29",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-jas39ebs",
+     "name": "JAS39EBS",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-mig-29-sniper",
+     "name": "MiG-29 Sniper",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-2000a",
+     "name": "F-2000A",
+     "nation": "italy"
+    },
+    {
+     "id": "italy-f-2000a-aesa",
+     "name": "F-2000A AESA",
+     "nation": "italy"
+    },
+    {
+     "id": "france-br-693ab2",
+     "name": "Br.693AB2",
+     "nation": "france"
+    },
+    {
+     "id": "france-potez-633",
+     "name": "Potez 633",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-222-2",
+     "name": "F.222.2",
+     "nation": "france"
+    },
+    {
+     "id": "france-martin-167",
+     "name": "Martin 167",
+     "nation": "france"
+    },
+    {
+     "id": "france-m-b-174a-3",
+     "name": "M.B.174A-3",
+     "nation": "france"
+    },
+    {
+     "id": "france-pby-5a-late",
+     "name": "PBY-5A Late",
+     "nation": "france"
+    },
+    {
+     "id": "france-f6f-5",
+     "name": "F6F-5",
+     "nation": "france"
+    },
+    {
+     "id": "france-a-35b",
+     "name": "A-35B",
+     "nation": "france"
+    },
+    {
+     "id": "france-n-c-223-3",
+     "name": "N.C.223.3",
+     "nation": "france"
+    },
+    {
+     "id": "france-leo-451-e",
+     "name": "LeO 451 (e)",
+     "nation": "france"
+    },
+    {
+     "id": "france-leo-451-l",
+     "name": "LeO 451 (l)",
+     "nation": "france"
+    },
+    {
+     "id": "france-p-63c-5",
+     "name": "P-63C-5",
+     "nation": "france"
+    },
+    {
+     "id": "france-sb2c-5",
+     "name": "SB2C-5",
+     "nation": "france"
+    },
+    {
+     "id": "france-b-26c",
+     "name": "B-26C",
+     "nation": "france"
+    },
+    {
+     "id": "france-m-b-162",
+     "name": "M.B.162",
+     "nation": "france"
+    },
+    {
+     "id": "france-firefly-f-iv",
+     "name": "Firefly F IV",
+     "nation": "france"
+    },
+    {
+     "id": "france-p-47d-22-re",
+     "name": "P-47D-22-RE",
+     "nation": "france"
+    },
+    {
+     "id": "france-sb-25j",
+     "name": "SB-25J",
+     "nation": "france"
+    },
+    {
+     "id": "france-f6f-5n",
+     "name": "F6F-5N",
+     "nation": "france"
+    },
+    {
+     "id": "france-f8f-1b",
+     "name": "F8F-1B",
+     "nation": "france"
+    },
+    {
+     "id": "france-ad-4",
+     "name": "AD-4",
+     "nation": "france"
+    },
+    {
+     "id": "france-f4u-7",
+     "name": "F4U-7",
+     "nation": "france"
+    },
+    {
+     "id": "france-pb4y-2",
+     "name": "PB4Y-2",
+     "nation": "france"
+    },
+    {
+     "id": "france-lancaster-7",
+     "name": "Lancaster 7",
+     "nation": "france"
+    },
+    {
+     "id": "france-ad-4na",
+     "name": "AD-4NA",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-84g-26-re",
+     "name": "F-84G-26-RE",
+     "nation": "france"
+    },
+    {
+     "id": "france-super-mystere",
+     "name": "Super Mystere",
+     "nation": "france"
+    },
+    {
+     "id": "france-alpha-jet-e",
+     "name": "Alpha Jet E",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-84f",
+     "name": "F-84F",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-100d",
+     "name": "F-100D",
+     "nation": "france"
+    },
+    {
+     "id": "france-vautour-iib",
+     "name": "Vautour IIB",
+     "nation": "france"
+    },
+    {
+     "id": "france-vautour-iia",
+     "name": "Vautour IIA",
+     "nation": "france"
+    },
+    {
+     "id": "france-vautour-ii-n",
+     "name": "Vautour II N",
+     "nation": "france"
+    },
+    {
+     "id": "france-milan",
+     "name": "Milan",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-84f-iaf",
+     "name": "F-84F IAF",
+     "nation": "france"
+    },
+    {
+     "id": "france-vautour-iia-idf",
+     "name": "Vautour IIA IDF",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-f1c",
+     "name": "Mirage F1C",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-5f",
+     "name": "Mirage 5F",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-f1ct",
+     "name": "Mirage F1CT",
+     "nation": "france"
+    },
+    {
+     "id": "france-jaguar-a",
+     "name": "Jaguar A",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-5ba",
+     "name": "Mirage 5BA",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-104g",
+     "name": "F-104G",
+     "nation": "france"
+    },
+    {
+     "id": "france-nf-5a",
+     "name": "NF-5A",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-f1c-2",
+     "name": "Mirage F1C",
+     "nation": "france"
+    },
+    {
+     "id": "france-jaguar-e",
+     "name": "Jaguar E",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-2k-5f",
+     "name": "Mirage 2K-5F",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-4000",
+     "name": "Mirage 4000",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-2k-r1",
+     "name": "Mirage 2K-R1",
+     "nation": "france"
+    },
+    {
+     "id": "france-mirage-2k-rmv",
+     "name": "Mirage 2K-RMV",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-16a",
+     "name": "F-16A",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-16am",
+     "name": "F-16AM",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-16a-2",
+     "name": "F-16A",
+     "nation": "france"
+    },
+    {
+     "id": "france-f-16am-2",
+     "name": "F-16AM",
+     "nation": "france"
+    },
+    {
+     "id": "france-rafale-c-f3",
+     "name": "Rafale C F3",
+     "nation": "france"
+    },
+    {
+     "id": "france-rafale-m-f3-r",
+     "name": "Rafale M F3-R",
+     "nation": "france"
+    },
+    {
+     "id": "sweden-s17bs",
+     "name": "S17BS",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-b17b",
+     "name": "B17B",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-b17a",
+     "name": "B17A",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-t-2",
+     "name": "T 2",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-b3c",
+     "name": "B3C",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-b18a",
+     "name": "B18A",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-ju-88-a-4",
+     "name": "Ju 88 A-4",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-b18b",
+     "name": "B18B",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-t18b",
+     "name": "T18B",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-a21a-3",
+     "name": "A21A-3",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-bf-109-g-2",
+     "name": "Bf 109 G-2",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-bf-109-g-6-erla",
+     "name": "Bf 109 G-6 Erla",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-bf-109-g-6",
+     "name": "Bf 109 G-6",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-saab-105g",
+     "name": "SAAB-105G",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-a32a",
+     "name": "A32A",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-a32a-r-adam",
+     "name": "A32A R. Adam",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-aj37",
+     "name": "AJ37",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-ajs37",
+     "name": "AJS37",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-saab-f-35",
+     "name": "Saab F-35",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-f-5a-g",
+     "name": "F-5A (G)",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-ajs37-early",
+     "name": "AJS37 (Early)",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-jas39a",
+     "name": "JAS39A",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-jas39c",
+     "name": "JAS39C",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-f-16a",
+     "name": "F-16A",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-f-16am",
+     "name": "F-16AM",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-f-a-18c-mlu-2",
+     "name": "F/A-18C MLU 2",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-jas39d",
+     "name": "JAS39D",
+     "nation": "sweden"
+    },
+    {
+     "id": "sweden-jas39e",
+     "name": "JAS39E",
+     "nation": "sweden"
+    },
+    {
+     "id": "israel-b-17g",
+     "name": "B-17G",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-sb2c-5",
+     "name": "SB2C-5",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-m-d-450b",
+     "name": "M.D.450B",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-f-84g-16-re",
+     "name": "F-84G-16-RE",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-m-d-450b-29",
+     "name": "M.D.450B (29)",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-mystere-iva",
+     "name": "Mystere IVA",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-sambad",
+     "name": "Sambad",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-sa-ar",
+     "name": "Sa'ar",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-a-4h",
+     "name": "A-4H",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-a-4e-early-m",
+     "name": "A-4E Early (M)",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-ayit",
+     "name": "Ayit",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-vautour-iia",
+     "name": "Vautour IIA",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-vautour-iin",
+     "name": "Vautour IIN",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-f-84f",
+     "name": "F-84F",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-a-4e",
+     "name": "A-4E",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-kfir-c-7",
+     "name": "Kfir C.7",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-kurnass",
+     "name": "Kurnass",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-nesher",
+     "name": "Nesher",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-a-7h",
+     "name": "A-7H",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-mirage-f1cg",
+     "name": "Mirage F1CG",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-a-7e",
+     "name": "A-7E",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-kfir-canard",
+     "name": "Kfir Canard",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-kfir-c-2",
+     "name": "Kfir C.2",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-mig-21-2000",
+     "name": "MiG-21 2000",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-netz",
+     "name": "Netz",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-f-16c-barak-ii",
+     "name": "F-16C Barak II",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-kurnass-2000",
+     "name": "Kurnass 2000",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-baz",
+     "name": "Baz",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-baz-meshupar",
+     "name": "Baz Meshupar",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-f-16d-barak-ii",
+     "name": "F-16D Barak II",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-f-16i-sufa",
+     "name": "F-16I Sufa",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-f-15i-ra-am",
+     "name": "F-15I Ra'am",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-f-4e-aup",
+     "name": "F-4E AUP",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-netz-mod",
+     "name": "Netz (Mod)",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-kfir-c-10",
+     "name": "Kfir C.10",
+     "nation": "israel"
+    },
+    {
+     "id": "israel-rafale-eg",
+     "name": "Rafale EG",
+     "nation": "israel"
+    }
+   ]
+  },
+  "bombs": {
+   "added": [],
+   "removed": [],
+   "changed": []
+  }
+ },
+ {
   "date": "2026-09-24",
   "gameVersion": "2.59.0.33",
   "aircraft": {
