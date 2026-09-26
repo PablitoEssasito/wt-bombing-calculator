@@ -135,7 +135,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 value={`bomb:${bomb.id}`}
                 onSelect={() => {
                   track("palette_used", { kind: "bomb", value: bomb.id });
-                  go(`/bombs/?q=${encodeURIComponent(bomb.name)}`, ["nav-fade"]);
+                  go(`/bombs/${bomb.id}/`, ["nav-forward"]);
                 }}
                 className={ITEM}
               >

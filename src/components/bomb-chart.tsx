@@ -1,7 +1,8 @@
 "use client";
 
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { memo, useDeferredValue, useEffect, useMemo } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { BombIcon } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
@@ -228,6 +229,11 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
     });
   }, [bombs, deferred, nation, massMin, massMax, tntMin, tntMax, dmgMin, dmgMax]);
 
+  // The table redraws a few hundred rows on every filter, sort or unit change;
+  // deferred, so the control itself answers the click first.
+  const listed = useDeferredValue(rows);
+  const shownUnit = useDeferredValue(massUnit);
+
   const nationCount = (n: Nation | "all") =>
     n === "all" ? withoutNation.length : withoutNation.filter((b) => b.usedByNations.includes(n)).length;
   const kindCount = (k: BombKind) => withoutKind.filter((b) => b.kind === k).length;
@@ -302,11 +308,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           onChange={(v) => setMapSize(Number(v))}
           options={[
             { value: "4", label: m.conditions.four },
-            {
-              value: "3",
-              label: m.conditions.three,
-              hint: fill(m.conditions.hpBases, { hp: number(effectiveBaseHp(baseHp, mode as GameMode, 3)) }),
-            },
+            { value: "3", label: m.conditions.three },
           ]}
         />
       </section>
@@ -405,13 +407,13 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
           <p className="nums text-sm text-ink-dim">
             <Filled
               template={m.bombChart.summary}
-              slots={{ count: <AnimatedNumber value={rows.length} />, hp: <AnimatedNumber value={effectiveHp} /> }}
+              slots={{ count: <AnimatedNumber value={listed.length} />, hp: <AnimatedNumber value={effectiveHp} /> }}
             />
           </p>
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {listed.length === 0 ? (
         <p className="card p-6 text-ink-dim text-center">
           {m.bombChart.empty}
         </p>
@@ -474,44 +476,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                 />
               </tr>
             </thead>
-            <tbody>
-              {rows.map(({ bomb, needed }) => (
-                <tr key={bomb.id} className="border-t border-line hover:bg-surface-2">
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <BombIcon bomb={bomb} size={28} />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 font-medium">
-                          {bomb.nation ? <Flag nation={bomb.nation} size={13} /> : null}
-                          {bomb.chartName || bomb.fullName}
-                        </div>
-                        <div className="text-xs text-ink-faint truncate max-w-[22rem]">
-                          {bomb.fullName}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="nums px-3 py-2 text-right text-accent font-semibold text-base">
-                    {needed !== null && Number.isFinite(needed) ? needed : "—"}
-                  </td>
-                  <td className="nums px-3 py-2 text-right text-ink-dim">
-                    {bomb.damageValue !== null ? number(bomb.damageValue) : "—"}
-                  </td>
-                  <td className="nums px-3 py-2 text-right text-ink-dim hidden sm:table-cell">
-                    {formatMass(bomb, massUnit)}
-                  </td>
-                  <td className="nums px-3 py-2 text-right text-ink-dim hidden md:table-cell">
-                    {bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : "—"}
-                  </td>
-                  <td className="nums px-3 py-2 text-right text-ink-dim hidden md:table-cell">
-                    {bomb.efficiency ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-ink-faint hidden lg:table-cell">
-                    {m.bombKinds[bomb.kind]}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            <BombRows rows={listed} massUnit={shownUnit} />
           </table>
         </div>
       )}
@@ -520,6 +485,55 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
 }
 
 type SortableRow = { bomb: Bomb; needed: number | null };
+
+/** The table's body, apart so the rest of the page can re-render without it. */
+const BombRows = memo(function BombRows({ rows, massUnit }: { rows: SortableRow[]; massUnit: MassUnit }) {
+  const { m, number, path } = useI18n();
+  return (
+    <tbody>
+      {rows.map(({ bomb, needed }) => (
+        <tr key={bomb.id} className="border-t border-line hover:bg-surface-2">
+          <td className="px-3 py-2">
+            <div className="flex items-center gap-2.5">
+              <BombIcon bomb={bomb} size={28} />
+              <div className="min-w-0">
+                <Link
+                  href={path(`/bombs/${bomb.id}/`)}
+                  transitionTypes={["nav-forward"]}
+                  className="flex items-center gap-1.5 font-medium hover:text-accent transition-colors"
+                >
+                  {bomb.nation ? <Flag nation={bomb.nation} size={13} /> : null}
+                  {bomb.chartName || bomb.fullName}
+                </Link>
+                <div className="text-xs text-ink-faint truncate max-w-[22rem]">
+                  {bomb.fullName}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td className="nums px-3 py-2 text-right text-accent font-semibold text-base">
+            {needed !== null && Number.isFinite(needed) ? needed : "—"}
+          </td>
+          <td className="nums px-3 py-2 text-right text-ink-dim">
+            {bomb.damageValue !== null ? number(bomb.damageValue) : "—"}
+          </td>
+          <td className="nums px-3 py-2 text-right text-ink-dim hidden sm:table-cell">
+            {formatMass(bomb, massUnit)}
+          </td>
+          <td className="nums px-3 py-2 text-right text-ink-dim hidden md:table-cell">
+            {bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : "—"}
+          </td>
+          <td className="nums px-3 py-2 text-right text-ink-dim hidden md:table-cell">
+            {bomb.efficiency ?? "—"}
+          </td>
+          <td className="px-3 py-2 text-ink-faint hidden lg:table-cell">
+            {m.bombKinds[bomb.kind]}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  );
+});
 
 type KindLabels = Record<BombKind, string>;
 

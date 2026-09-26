@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { armamentFor } from "../dataset";
+import { NATIONS } from "../../domain/constants";
+import { aircraftCarrying, armamentFor } from "../dataset";
 
 /**
  * `armamentFor` decodes `src/data/armament.json`'s compact shape — stores
@@ -79,5 +80,41 @@ describe("armamentFor", () => {
   it("keeps every hardpoint's own sparse index, gaps and all", () => {
     const armament = armamentFor("usa-f-82e")!;
     expect(armament.hardpoints.map((h) => h.index)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe("aircraftCarrying", () => {
+  it("joins the sheet's loadouts to the game's hardpoints, marking which is which", () => {
+    const carriers = aircraftCarrying("mk-82");
+    // The F-4J's own loadouts drop Mk 82s; the F-84F merely has pylons that can.
+    expect(carriers.find((c) => c.plane.id === "usa-f-4j")?.inSheet).toBe(true);
+    expect(carriers.find((c) => c.plane.id === "usa-f-84f")?.inSheet).toBe(false);
+  });
+
+  it("finds aircraft with fixed setups, through the sheet and through the game's own setups", () => {
+    // The Pe-8 has no pylons in the game data (see armamentFor above).
+    expect(aircraftCarrying("100sv").find((c) => c.plane.id === "ussr-pe-8")?.inSheet).toBe(true);
+    // Its FAB-5000 is in one of its setups and in none of the sheet's loadouts.
+    expect(aircraftCarrying("fab-5000").find((c) => c.plane.id === "ussr-pe-8")?.inSheet).toBe(false);
+  });
+
+  it("tells a bomb's variants apart rather than folding them into the plain one", () => {
+    // The game's "Mk 82 Snakeye" and "Mk 82 AIR" once priced as the plain Mk 82.
+    expect(aircraftCarrying("500-lb-mk-82-snake-eye").length).toBeGreaterThan(0);
+    expect(aircraftCarrying("500-lb-ldgp-mk-82-air").length).toBeGreaterThan(0);
+    // "KAB-500L guided" run together starts with "KAB-500LG".
+    expect(aircraftCarrying("500-kg-kab-500l").length).toBeGreaterThan(0);
+  });
+
+  it("lists nation by nation, in the chips' order, and by BR within one", () => {
+    const carriers = aircraftCarrying("mk-82");
+    const nations = carriers.map((c) => NATIONS.indexOf(c.plane.nation));
+    expect(nations).toEqual([...nations].sort((a, b) => a - b));
+    const usa = carriers.filter((c) => c.plane.nation === "usa").map((c) => c.plane.br);
+    expect(usa).toEqual([...usa].sort((a, b) => a - b));
+  });
+
+  it("returns nothing for an unknown bomb", () => {
+    expect(aircraftCarrying("nonsense-id")).toEqual([]);
   });
 });

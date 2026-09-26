@@ -4,7 +4,7 @@ import Fuse from "fuse.js";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState, ViewTransition } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState, ViewTransition } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { BombRow } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
@@ -23,7 +23,6 @@ import { RANK_LABELS } from "@/lib/labels";
 import { REWARD_TINT, rewardKindOf } from "@/lib/reward-kind";
 import { urlInteger, urlLiteral, urlStringSet, urlText, useUrlState } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
-import { withViewTransition } from "@/lib/view-transition";
 
 /** Reward class a tile is picked out for — the same two the game colours. */
 const REWARD_KINDS = ["premium", "squadron"] as const;
@@ -56,10 +55,11 @@ const DIRECTIONAL_SORTS = new Set<(typeof SORTS)[number]>(["br", "name"]);
 const SORT_DIRS = ["asc", "desc"] as const;
 
 /**
- * A first screenful, not a cap — filtering by nation alone can run past 100
- * (USA is 113), so the page loads more in batches instead of hiding the rest.
+ * A first few screenfuls, not a cap — the page loads more in batches instead
+ * of hiding the rest. Kept small because every sort or filter builds most of
+ * a batch afresh; 48 fills whole rows at two, three and four columns.
  */
-const PAGE_SIZE = 90;
+const PAGE_SIZE = 48;
 
 const VIEWS = ["tiles", "list"] as const;
 
@@ -77,7 +77,7 @@ export function AircraftSearch({
   rankSteps: number[];
   bombs: BombGlyphData[];
 }) {
-  const { m, fill, path, count } = useI18n();
+  const { m, fill } = useI18n();
   const [query, setQuery] = useUrlState("q", urlText());
   const [nation, setNation] = useUrlState(
     "nation",
@@ -301,7 +301,14 @@ export function AircraftSearch({
     setVisible(PAGE_SIZE);
   }
 
-  const shown = results.slice(0, visible);
+  // A sort or filter brings in a different page of aircraft, most of them
+  // tiles React has to build from scratch. Deferred, that happens in a render
+  // the next tap can interrupt, and the control itself answers at once. The
+  // mode and the reveal count wait with it, so the old list never shows the
+  // new mode's BRs or shrinks before the new one arrives.
+  const current = useMemo(() => ({ results, mode, visible }), [results, mode, visible]);
+  const listed = useDeferredValue(current);
+  const shown = listed.results.slice(0, listed.visible);
 
   return (
     <div className="space-y-5">
@@ -317,12 +324,12 @@ export function AircraftSearch({
 
       <div className="card p-4 space-y-4">
         <FilterRow label={m.common.nation}>
-          <Chip active={nation === "all"} onClick={() => withViewTransition(() => selectNation("all"))}>
+          <Chip active={nation === "all"} onClick={() => selectNation("all")}>
             <span aria-hidden>🌐</span> {m.common.allNations}
             <Count>{nationCount("all")}</Count>
           </Chip>
           {NATIONS.map((n) => (
-            <Chip key={n} active={nation === n} onClick={() => withViewTransition(() => selectNation(n))}>
+            <Chip key={n} active={nation === n} onClick={() => selectNation(n)}>
               <Flag nation={n} /> {m.nations[n]}
               <Count>{nationCount(n)}</Count>
             </Chip>
@@ -331,7 +338,7 @@ export function AircraftSearch({
 
         <FilterRow label={m.common.type}>
           {VEHICLE_TYPES.map((t) => (
-            <Chip key={t} active={types.has(t)} onClick={() => withViewTransition(() => toggleType(t))}>
+            <Chip key={t} active={types.has(t)} onClick={() => toggleType(t)}>
               <VehicleTypeIcon type={t} size={18} />
               {m.vehicleTypes[t]}
               <Count>{typeCount(t)}</Count>
@@ -341,7 +348,7 @@ export function AircraftSearch({
 
         <FilterRow label={m.search.class}>
           {REWARD_KINDS.map((r) => (
-            <Chip key={r} active={rewards.has(r)} onClick={() => withViewTransition(() => toggleReward(r))}>
+            <Chip key={r} active={rewards.has(r)} onClick={() => toggleReward(r)}>
               <span
                 aria-hidden
                 className={cn("size-2 rounded-full", r === "premium" ? "bg-premium" : "bg-squadron")}
@@ -384,7 +391,7 @@ export function AircraftSearch({
               value={mode}
               onChange={(e) => {
                 const next = e.target.value as BattleMode;
-                withViewTransition(() => selectMode(next));
+                selectMode(next);
               }}
               aria-label={m.search.modeLabel}
               className="bg-transparent text-ink border border-line rounded-md pl-2 pr-1 py-1 text-sm focus:border-accent outline-none"
@@ -403,7 +410,7 @@ export function AircraftSearch({
               value={sort}
               onChange={(e) => {
                 const next = e.target.value as (typeof SORTS)[number];
-                withViewTransition(() => setSort(next));
+                setSort(next);
                 track("filter_applied", { surface: "aircraft", filter: "sort", value: next });
               }}
               className="bg-transparent text-ink border border-line rounded-md pl-2 pr-1 py-1 text-sm focus:border-accent outline-none"
@@ -417,7 +424,7 @@ export function AircraftSearch({
             {DIRECTIONAL_SORTS.has(sort) ? (
               <button
                 type="button"
-                onClick={() => withViewTransition(() => setSortDir(sortDir === "asc" ? "desc" : "asc"))}
+                onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
                 aria-label={sortDir === "asc" ? m.search.sortAscending : m.search.sortDescending}
                 className="p-1.5 rounded-md border border-line text-ink-dim hover:text-ink hover:border-line-bright transition motion-safe:active:scale-[0.97]"
               >
@@ -434,7 +441,7 @@ export function AircraftSearch({
                 key={v}
                 active={view === v}
                 onClick={() => {
-                  withViewTransition(() => setView(v));
+                  setView(v);
                   track("filter_applied", { surface: "aircraft", filter: "view", value: v });
                 }}
               >
@@ -446,7 +453,7 @@ export function AircraftSearch({
           {filtersActive ? (
             <button
               type="button"
-              onClick={() => withViewTransition(clearFilters)}
+              onClick={clearFilters}
               className="text-sm text-ink-faint hover:text-accent transition-colors underline underline-offset-4"
             >
               {m.common.clearFilters}
@@ -455,17 +462,17 @@ export function AircraftSearch({
         </div>
       </div>
 
-      {results.length === 0 ? (
+      {listed.results.length === 0 ? (
         <p className="text-ink-dim py-12 text-center">
           {m.search.empty}
         </p>
       ) : view === "tiles" ? (
         <ul className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(270px,1fr))]">
           {shown.map((plane, i) => (
-            <li key={plane.id} className="vt-item tile-in" style={{ "--i": i % PAGE_SIZE } as React.CSSProperties}>
+            <li key={plane.id} className="tile-in" style={{ "--i": i % PAGE_SIZE } as React.CSSProperties}>
               <Tile
                 plane={plane}
-                br={plane.brs[mode]}
+                br={plane.brs[listed.mode]}
                 bomb={plane.preview ? bombsById.get(plane.preview.bombId) : undefined}
               />
             </li>
@@ -473,47 +480,15 @@ export function AircraftSearch({
         </ul>
       ) : (
         <ul className="card divide-y divide-line overflow-hidden">
-          {shown.map((plane, i) => {
-            const reward = rewardKindOf(plane);
-            return (
-              <li key={plane.id} className="vt-item tile-in" style={{ "--i": i % PAGE_SIZE } as React.CSSProperties}>
-                <Link
-                  href={path(`/aircraft/${plane.id}/`)}
-                  transitionTypes={["nav-forward"]}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2.5 border-l-2 hover:bg-surface-2 transition-colors",
-                    reward === "premium"
-                      ? "border-l-premium"
-                      : reward === "squadron"
-                        ? "border-l-squadron"
-                        : "border-l-transparent",
-                  )}
-                >
-                  {reward === "premium" ? <RewardMark /> : null}
-                  {plane.vehicleType ? (
-                    <VehicleTypeIcon
-                      type={plane.vehicleType}
-                      size={16}
-                      className="hidden sm:block"
-                    />
-                  ) : null}
-                  <span className="font-medium truncate">{plane.name}</span>
-                  <span className="nums text-sm text-accent shrink-0">{plane.brs[mode]?.toFixed(1)}</span>
-                  <span className="ml-auto flex items-center gap-3 shrink-0 text-sm text-ink-faint">
-                    <span className="hidden sm:inline">
-                      <Flag nation={plane.nation} /> {m.nations[plane.nation]}
-                    </span>
-                    <span className="hidden sm:inline">{fill(m.common.rank, { rank: RANK_LABELS[plane.rank] })}</span>
-                    <span className="nums text-ink-dim">{count(m.search.basesShort, plane.maxBases)}</span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+          {shown.map((plane, i) => (
+            <li key={plane.id} className="tile-in cv-row" style={{ "--i": i % PAGE_SIZE } as React.CSSProperties}>
+              <Row plane={plane} br={plane.brs[listed.mode]} />
+            </li>
+          ))}
         </ul>
       )}
 
-      {results.length > shown.length ? (
+      {listed.results.length > shown.length ? (
         <div className="flex items-center gap-3 text-sm text-ink-faint">
           <button
             type="button"
@@ -525,13 +500,13 @@ export function AircraftSearch({
           <span className="nums">
             <Filled
               template={m.search.shownOf}
-              slots={{ shown: <AnimatedNumber value={shown.length} />, total: <AnimatedNumber value={results.length} /> }}
+              slots={{ shown: <AnimatedNumber value={shown.length} />, total: <AnimatedNumber value={listed.results.length} /> }}
             />
           </span>
         </div>
       ) : (
         <p className="nums text-sm text-ink-faint">
-          <Filled template={m.search.count} slots={{ count: <AnimatedNumber value={results.length} /> }} />
+          <Filled template={m.search.count} slots={{ count: <AnimatedNumber value={listed.results.length} /> }} />
         </p>
       )}
     </div>
@@ -576,7 +551,39 @@ function RewardBadge() {
   );
 }
 
-function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; bomb?: BombGlyphData }) {
+/**
+ * One aircraft in the list view. Memoised, like `Tile`: a sort or filter only
+ * reorders the same aircraft objects, so React moves rows rather than
+ * re-rendering every one of them.
+ */
+const Row = memo(function Row({ plane, br }: { plane: AircraftSummary; br: number | null }) {
+  const { m, fill, path, count } = useI18n();
+  const reward = rewardKindOf(plane);
+  return (
+    <Link
+      href={path(`/aircraft/${plane.id}/`)}
+      transitionTypes={["nav-forward"]}
+      className={cn(
+        "flex items-center gap-2 px-4 py-2.5 border-l-2 hover:bg-surface-2 transition-colors",
+        reward === "premium" ? "border-l-premium" : reward === "squadron" ? "border-l-squadron" : "border-l-transparent",
+      )}
+    >
+      {reward === "premium" ? <RewardMark /> : null}
+      {plane.vehicleType ? <VehicleTypeIcon type={plane.vehicleType} size={16} className="hidden sm:block" /> : null}
+      <span className="font-medium truncate">{plane.name}</span>
+      <span className="nums text-sm text-accent shrink-0">{br?.toFixed(1)}</span>
+      <span className="ml-auto flex items-center gap-3 shrink-0 text-sm text-ink-faint">
+        <span className="hidden sm:inline">
+          <Flag nation={plane.nation} /> {m.nations[plane.nation]}
+        </span>
+        <span className="hidden sm:inline">{fill(m.common.rank, { rank: RANK_LABELS[plane.rank] })}</span>
+        <span className="nums text-ink-dim">{count(m.search.basesShort, plane.maxBases)}</span>
+      </span>
+    </Link>
+  );
+});
+
+const Tile = memo(function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; bomb?: BombGlyphData }) {
   const { m, fill, path, count } = useI18n();
   const reward = rewardKindOf(plane);
   return (
@@ -647,7 +654,7 @@ function Tile({ plane, br, bomb }: { plane: AircraftSummary; br: number | null; 
       </div>
     </Link>
   );
-}
+});
 
 function Chip({
   active,

@@ -128,11 +128,13 @@ way the drop schedule is.
 
 `scripts/armament/` does the reading: `parse.ts` turns one aircraft's flight model and
 weapon presets into hardpoints, mass limits and ban/require rules; `stores.ts` builds a
-standalone catalogue of every weapon file any aircraft can hang — its mass, its
-bomb-chart match, how many rounds a rack or rail actually holds, and the game's own UI
-icon for it; `index.ts` joins the two into `src/data/armament.json`, written compactly
-(every store interned once, referred to by index) since the raw hardpoint data is the
-largest file this project ships.
+standalone catalogue of every weapon file any aircraft can hang, from a hardpoint or
+a ready-made setup — its mass, its bomb-chart match, how many rounds a rack or rail
+actually holds, and the game's own UI icon for it; `index.ts` joins the two into
+`src/data/armament.json`, written compactly (every store interned once, referred to by
+index) since the raw hardpoint data is the largest file this project ships, and into
+`src/data/carriers.json`, which aircraft can carry each bomb — read at build time for
+the bomb pages, never shipped.
 
 Icons come from two places, both landing in `public/bombs/icons/` regardless of which
 pulled them: `scripts/bomb-icons/` matches every bomb and rocket in the chart to the

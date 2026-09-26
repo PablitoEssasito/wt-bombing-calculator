@@ -113,6 +113,28 @@ export const plServer: ServerMessages = {
     ],
   },
 
+  bombPage: {
+    back: "← Tabela bomb",
+    metaTitle: "{name} — ile na bazę i jakie samoloty",
+    metaDescription:
+      "{name} w War Thunder: ile sztuk niszczy bazę przy każdym BR i które samoloty mogą to uzbrojenie przenosić.",
+    perBase: "Sztuk na bazę",
+    perBaseHint: "Ile sztuk niszczy jedną bazę, zależnie od BR bitwy.",
+    fourBases: "4 bazy",
+    threeBases: "3 bazy",
+    aircraft: "Samoloty z tym uzbrojeniem",
+    inSheet: "w loadoucie",
+    inSheetTitle: "Używa go jeden z loadoutów arkusza dla tego samolotu",
+    noAircraft:
+      "Tego uzbrojenia nie przenosi żaden samolot opisany na tej stronie — tylko maszyny, dla których arkusz nie ma loadoutów.",
+    stats: {
+      mass: "Masa",
+      tnt: "Równoważnik trotylowy",
+      damage: "Obrażenia dla baz",
+      efficiency: "Obrażenia na kg",
+    },
+  },
+
   notFound: {
     heading: "Ta strona nie istnieje",
     text: "Pod tym adresem nie ma samolotu, bomby ani strony.",

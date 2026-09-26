@@ -249,12 +249,58 @@ function innermost(
   return { file: deeper.file, count: deeper.count * inner.count };
 }
 
-const normalizeName = (value: string) =>
+const wordsOf = (value: string) =>
   value
     .toLowerCase()
     .replace(/\(.*?\)/g, " ")
-    .replace(/\b(bomb|bombs|mine|torpedo)\b/g, " ")
-    .replace(/[^a-z0-9]+/g, "");
+    // Spelled apart in the chart, together in the game.
+    .replace(/snake\s*eye/g, "snakeye")
+    // "LDGP" is in some names on either side and not in others: the chart's
+    // "500 lb LDGP Mk 82 AIR" is the game's "500 lb Mk 82 AIR".
+    .replace(/\b(bomb|bombs|mine|torpedo|ldgp)\b/g, " ")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+const normalizeName = (value: string) => wordsOf(value).join("");
+
+/** Words the game ends a name with that only describe the weapon, never tell two apart. */
+const DESCRIPTIVE = new Set([
+  "guided",
+  "glide",
+  "missile",
+  "armor",
+  "piercing",
+  "high",
+  "drag",
+  "tail",
+  "fin",
+  "retarded",
+  "ballute",
+  "type",
+  "demolition",
+]);
+
+/**
+ * Every whole-word start of a name, run together — "KAB-500L guided" gives
+ * kab, kab500l, kab500lguided — each with whether something follows it and
+ * all of that only describes the weapon (true for kab500l, false for the
+ * whole name).
+ */
+function wordPrefixes(value: string): Map<string, boolean> {
+  const words = wordsOf(value);
+  const prefixes = new Map<string, boolean>();
+  let running = "";
+  words.forEach((word, i) => {
+    running += word;
+    const rest = words.slice(i + 1);
+    prefixes.set(running, rest.length > 0 && rest.every((word) => DESCRIPTIVE.has(word)));
+  });
+  return prefixes;
+}
+
+/** What a name says in brackets — "(1938)", "(SBU 54)" — which tells apart bombs the rest of it does not. */
+const bracketed = (value: string) =>
+  [...value.toLowerCase().matchAll(/\((.*?)\)/g)].map((m) => m[1].replace(/[^a-z0-9]+/g, "")).filter(Boolean);
 
 /**
  * Ties a weapon file to the bomb chart entry that prices it.
@@ -262,7 +308,8 @@ const normalizeName = (value: string) =>
  * The chart's name sits at the front of the game's, which finishes the sentence:
  * "250 kg BRP 250" against "250 kg BRP 250 high-drag tail fin retarded bomb". So
  * the test is a prefix, longest first — otherwise "Mk 82" would claim the Mk 82
- * AIR before the AIR entry got a look.
+ * AIR before the AIR entry got a look — and a prefix of whole words: run
+ * together, the game's "KAB-500L guided" starts with the chart's "KAB-500LG".
  *
  * A short prefix is not enough to trust: the chart's "BAFG 230" also leads the
  * game's "BA-FG-230-Lizard-2", a different weapon 29 kg heavier. So a short name
@@ -270,7 +317,18 @@ const normalizeName = (value: string) =>
  * which it has to, because the two sources weigh retarded bombs differently. The
  * chart gives the SAMP Type 25 200 as 247 kg and the game as 264, the difference
  * being the parachute assembly, and demanding agreement there loses a bomb both
- * sources plainly describe.
+ * sources plainly describe. A short name the game only adds description to
+ * stands on its own too: the game weighs guided bombs with their kit, so its
+ * "SPICE 1000 guided bomb" is 490 kg to the chart's 454. A missile takes that
+ * or nothing — the chart's 10 kg SD10 leads the game's SD-10 air-to-air
+ * missile — and the same name word for word earns no such trust: the game's
+ * torpedo "Mk.13" is not the chart's guided bomb.
+ *
+ * Between names of the same length, one the weight agrees with wins, then
+ * one retarded or not as the game's says — the chart lists "120 kg m/71" as
+ * both — then one whose brackets the game's repeats: "BRAB-1000 (1938)" is not
+ * the later BRAB-1000. And where the brackets disagree outright, they name the bomb: the
+ * game's "Paveway II (Mk.13)" is the chart's Mk.13, not its "Paveway II (Mk.18)".
  *
  * Nothing is matched on weight alone. Falling back to it tied exactly three
  * stores and got all three wrong, the worst pricing a Mk.13 torpedo as a BGL-1000
@@ -280,9 +338,9 @@ const normalizeName = (value: string) =>
 /** Normalised characters beyond which a leading match is too specific to be chance. */
 const TRUSTED_PREFIX = 10;
 function matchBomb(
-  store: { file: string; massKg: number | null },
+  store: { file: string; massKg: number | null; missile: boolean },
   names: { full: string | null; short: string | null },
-  chart: { id: string; chartName: string; fullName: string; massKg: number | null }[],
+  chart: { id: string; chartName: string; fullName: string; massKg: number | null; kind: string }[],
 ): string | null {
   const agrees = (bombMass: number | null) =>
     store.massKg === null ||
@@ -300,26 +358,67 @@ function matchBomb(
 
   for (const candidate of [names.full, names.short]) {
     if (!candidate) continue;
-    const key = normalizeName(candidate);
-    if (!key) continue;
-    const hit = keyed.find(
+    const prefixes = wordPrefixes(candidate);
+    const hits = keyed.filter(
       (entry) =>
-        key.startsWith(entry.key) &&
-        (entry.key.length >= TRUSTED_PREFIX || agrees(entry.bomb.massKg)),
+        prefixes.has(entry.key) &&
+        (store.missile
+          ? prefixes.get(entry.key)
+          : entry.key.length >= TRUSTED_PREFIX || agrees(entry.bomb.massKg) || prefixes.get(entry.key)),
     );
+    if (hits.length === 0) continue;
+
+    const brackets = bracketed(candidate);
+    const retarded = /retarded|high-drag|ballute/i.test(candidate);
+    const score = (entry: (typeof keyed)[number]) =>
+      (agrees(entry.bomb.massKg) ? 100 : 0) +
+      ((entry.bomb.kind === "DRAG") === retarded ? 10 : 0) +
+      bracketed(entry.bomb.fullName).filter((b) => brackets.includes(b)).length;
+    const best = hits
+      .filter((entry) => entry.key.length === hits[0].key.length)
+      .reduce((top, entry) => (score(entry) > score(top) ? entry : top));
+
+    const own = bracketed(best.bomb.fullName);
+    if (own.length > 0 && brackets.length > 0 && !own.some((b) => brackets.includes(b))) {
+      // Only a row the weight agrees with — "(Mk.13)" on a torpedo names no bomb.
+      const named = keyed.find(
+        (entry) => brackets.includes(entry.key) && !store.missile && agrees(entry.bomb.massKg),
+      );
+      if (named) return named.bomb.id;
+    }
+    return best.bomb.id;
+  }
+
+  // Failing a whole-word match, a part-word one the weight backs up: the
+  // game's "GP 100T" is the chart's 100 kg "GP 100", while its 1 000 kg
+  // Walleye II weighs nothing like the chart's Walleye I.
+  for (const candidate of store.missile ? [] : [names.full, names.short]) {
+    if (!candidate) continue;
+    const key = normalizeName(candidate);
+    const hit = keyed.find((entry) => key.startsWith(entry.key) && agrees(entry.bomb.massKg));
     if (hit) return hit.bomb.id;
   }
 
   return null;
 }
 
-/** Every distinct weapon file the hardpoints of any aircraft can hang. */
+/**
+ * Every distinct weapon file any aircraft can hang — from its hardpoints, and
+ * from its ready-made setups, which are all a bomber like the Pe-8 has: its
+ * FAB-5000 is named in a setup and nowhere else.
+ */
 async function referenced(): Promise<Map<string, string>> {
   const byFile = new Map<string, string>();
   for (const name of await readdir(UNITS_DIR)) {
     const raw = JSON.parse(await readFile(path.join(UNITS_DIR, name), "utf8")) as {
       fm: { WeaponSlots?: { WeaponSlot?: unknown } };
+      presets?: Record<string, { Weapon?: unknown }>;
     };
+    for (const preset of Object.values(raw.presets ?? {})) {
+      for (const weapon of many<Record<string, unknown>>(preset.Weapon)) {
+        if (typeof weapon.blk === "string") byFile.set(storeFile(weapon.blk), weapon.blk);
+      }
+    }
     for (const slot of many<Record<string, unknown>>(raw.fm.WeaponSlots?.WeaponSlot)) {
       if (Number(slot.index) <= 0) continue;
       for (const preset of many<Record<string, unknown>>(slot.WeaponPreset)) {
@@ -386,7 +485,7 @@ async function main() {
   const names = await weaponNames(useCache);
   const chart = JSON.parse(
     await readFile(path.join(process.cwd(), "src", "data", "bombs.json"), "utf8"),
-  ) as { id: string; chartName: string; fullName: string; massKg: number | null }[];
+  ) as { id: string; chartName: string; fullName: string; massKg: number | null; kind: string }[];
 
   const stores: Store[] = [];
   for (const [file, reference] of hung) {
@@ -402,8 +501,10 @@ async function main() {
     const coreMass = massOfStore(core.file, bodies);
 
     const kind = classify(coreRef, coreBody);
-    const bombId = ["bomb", "mine", "torpedo", "rocket"].includes(kind)
-      ? matchBomb({ file: core.file, massKg: coreMass }, coreNames, chart)
+    // Missiles too: the chart prices the few that bomb bases, rocket-boosted
+    // guided bombs like the AGM-123 Skipper the game files as missiles.
+    const bombId = ["bomb", "mine", "torpedo", "rocket", "missile"].includes(kind)
+      ? matchBomb({ file: core.file, massKg: coreMass, missile: kind === "missile" }, coreNames, chart)
       : null;
 
     stores.push({

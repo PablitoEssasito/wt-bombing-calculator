@@ -110,6 +110,28 @@ export const enServer = {
     ],
   },
 
+  bombPage: {
+    back: "← Bomb chart",
+    metaTitle: "{name} — how many per base, and which aircraft",
+    metaDescription:
+      "How many {name} it takes to destroy a base in War Thunder at every BR, and every aircraft that can carry it.",
+    perBase: "How many per base",
+    perBaseHint: "How many it takes to destroy one base, by the match's BR.",
+    fourBases: "4 bases",
+    threeBases: "3 bases",
+    aircraft: "Aircraft that carry it",
+    inSheet: "in a loadout",
+    inSheetTitle: "One of the sheet's loadouts for this aircraft drops it",
+    noAircraft:
+      "None of the aircraft this site covers carries it — only ones the sheet has no loadouts for.",
+    stats: {
+      mass: "Mass",
+      tnt: "TNT equivalent",
+      damage: "Damage to bases",
+      efficiency: "Damage per kg",
+    },
+  },
+
   notFound: {
     heading: "This page doesn't exist",
     text: "No aircraft, bomb or page lives at that address.",

@@ -1,6 +1,5 @@
-import { inBombChart } from "@/domain/bomb-chart";
 import type { Locale } from "@/i18n/locales";
-import { aircraftIndexFor, bombs } from "@/lib/dataset";
+import { aircraftIndexFor, pagedBombs } from "@/lib/dataset";
 
 /**
  * What the command palette searches, built once per language at export time
@@ -16,6 +15,6 @@ export type SearchIndex = {
 export function searchIndexFor(locale: Locale): SearchIndex {
   return {
     aircraft: aircraftIndexFor(locale).map(({ id, name, nation, br, imageId }) => ({ id, name, nation, br, imageId })),
-    bombs: bombs.filter(inBombChart).map((b) => ({ id: b.id, name: b.fullName || b.chartName })),
+    bombs: pagedBombs.map((b) => ({ id: b.id, name: b.fullName || b.chartName })),
   };
 }

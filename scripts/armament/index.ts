@@ -26,6 +26,8 @@ const OUT_FULL = path.join(process.cwd(), ".cache", "armament", "armament.json")
 const STORES_FILE = path.join(process.cwd(), ".cache", "armament", "stores.json");
 /** Shipped: what the loadout creator reads, one aircraft at a time. */
 const OUT_ARMAMENT = path.join(DATA_DIR, "armament.json");
+/** Build-time only: which aircraft the game lets carry each bomb, for the bomb pages. */
+const OUT_CARRIERS = path.join(DATA_DIR, "carriers.json");
 
 type StoreRecord = {
   file: string;
@@ -141,7 +143,13 @@ async function main() {
   const catalogue = JSON.parse(await readFile(STORES_FILE, "utf8")) as StoreRecord[];
   report(aircraft, unitIds, byUnit, missing, bombs, catalogue);
 
-  const usedBy = usedByNationsOf(aircraft, unitIds, byUnit, catalogue, bombs);
+  const carriers = sharedAcrossDuplicates(gameCarriersOf(aircraft, unitIds, byUnit, catalogue), bombs);
+  await writeFile(
+    OUT_CARRIERS,
+    JSON.stringify(Object.fromEntries([...carriers].map(([bombId, planes]) => [bombId, [...planes].sort()]))),
+    "utf8",
+  );
+  const usedBy = usedByNationsOf(aircraft, carriers, bombs);
   const enrichedBombs = bombs.map((bomb) => ({ ...bomb, usedByNations: usedBy.get(bomb.id) ?? [] }));
   await writeFile(path.join(DATA_DIR, "bombs.json"), JSON.stringify(enrichedBombs), "utf8");
   const unmatched = enrichedBombs.filter((b) => b.usedByNations.length === 0);
@@ -176,6 +184,83 @@ async function main() {
 }
 
 /**
+ * Which aircraft the game's own files let carry each bomb, by aircraft id.
+ *
+ * Both ways an aircraft is armed count: its hardpoints, resolved through the
+ * store catalogue the same way `writePayload` resolves them, and its
+ * ready-made setups — all a bomber like the Pe-8 has, and the only place its
+ * FAB-5000 is named. A setup naming a per-slot preset rather than a weapon
+ * file is already covered by the hardpoint it comes from.
+ */
+function gameCarriersOf(
+  aircraft: Aircraft[],
+  unitIds: Record<string, string>,
+  byUnit: Record<string, Armament>,
+  catalogue: StoreRecord[],
+): Map<string, Set<string>> {
+  const byFile = new Map(catalogue.map((s) => [s.file, s]));
+  const planesByUnit = new Map<string, string[]>();
+  for (const plane of aircraft) {
+    const unitId = unitIds[plane.id];
+    if (unitId) planesByUnit.set(unitId, [...(planesByUnit.get(unitId) ?? []), plane.id]);
+  }
+
+  const carriers = new Map<string, Set<string>>();
+  for (const [unitId, armament] of Object.entries(byUnit)) {
+    const planes = planesByUnit.get(unitId) ?? [];
+    const files = [
+      ...armament.slots.flatMap((slot) => slot.options.flatMap((option) => option.stores.map((s) => s.file))),
+      ...armament.presets.flatMap((preset) => preset.weapons.map((w) => w.weapon)),
+    ];
+    for (const file of files) {
+      const bombId = byFile.get(file)?.bomb?.id;
+      if (!bombId) continue;
+      const set = carriers.get(bombId) ?? new Set<string>();
+      for (const plane of planes) set.add(plane);
+      carriers.set(bombId, set);
+    }
+  }
+  return carriers;
+}
+
+/**
+ * The same carriers for chart rows that are one weapon listed twice.
+ *
+ * A store prices as one row, but the chart can hold another for the same
+ * thing: "Type 23 SNEB rockets" twice over under different short names, or
+ * "Paveway II (Mk.18)" beside "Mk.18" itself — the bracket naming the other
+ * row. Either way, what carries one carries the other; kinds must agree, or
+ * the plain and retarded "120 kg m/71" would merge. A shared name alone is
+ * not enough: the chart's two "1000 lb G.P. Mk.I" rows are its early and late
+ * marks, priced apart, so a repeated name must repeat the figures too.
+ */
+function sharedAcrossDuplicates(carriers: Map<string, Set<string>>, bombs: Bomb[]): Map<string, Set<string>> {
+  const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const groups = new Map<string, string[]>();
+  const join = (a: Bomb, b: Bomb) => {
+    const merged = [...new Set([...(groups.get(a.id) ?? [a.id]), ...(groups.get(b.id) ?? [b.id])])];
+    for (const id of merged) groups.set(id, merged);
+  };
+  for (const a of bombs) {
+    const inBrackets = [...a.fullName.matchAll(/\((.*?)\)/g)].map((m) => norm(m[1]));
+    for (const b of bombs) {
+      if (a.id === b.id || a.kind !== b.kind) continue;
+      const namesB = [b.fullName, b.chartName].filter(Boolean).map(norm);
+      const twice =
+        norm(a.fullName) === norm(b.fullName) && a.massKg === b.massKg && a.damageValue === b.damageValue;
+      if (twice || inBrackets.some((name) => namesB.includes(name))) join(a, b);
+    }
+  }
+
+  const shared = new Map(carriers);
+  for (const [id, members] of groups) {
+    const union = new Set(members.flatMap((member) => [...(carriers.get(member) ?? [])]));
+    if (union.size > 0) shared.set(id, union);
+  }
+  return shared;
+}
+
+/**
  * Which nations actually carry each bomb, from two sources unioned together.
  *
  * The Bomb Chart's own `nation` column names whichever nation's block a bomb
@@ -185,9 +270,8 @@ async function main() {
  * - The sheet's own bombing schedules (`aircraft[].options[].schedules`) never
  *   mention a rocket at all — LEGION's Loadouts only prices bombs (see
  *   scripts/etl/rockets.ts), so rockets carry no schedule entries whatsoever.
- * - The game's own hardpoints (`byUnit`, resolved through the store catalogue
- *   the same way `writePayload` resolves them) reach rockets, but only for
- *   aircraft the datamine actually files hardpoints for.
+ * - The game's own files (`gameCarriersOf`) reach rockets, but only for
+ *   aircraft the datamine actually files armament for.
  *
  * Unioning both catches a bomb the moment either one has seen it carried.
  * Falls back to the chart's own `nation` only when a bomb turns up in
@@ -198,11 +282,10 @@ async function main() {
  */
 function usedByNationsOf(
   aircraft: Aircraft[],
-  unitIds: Record<string, string>,
-  byUnit: Record<string, Armament>,
-  catalogue: StoreRecord[],
+  carriers: Map<string, Set<string>>,
   bombs: Bomb[],
 ): Map<string, Nation[]> {
+  const nationOf = new Map(aircraft.map((plane) => [plane.id, plane.nation]));
   const sets = new Map<string, Set<Nation>>();
   const add = (bombId: string, nation: Nation) => {
     const set = sets.get(bombId) ?? new Set<Nation>();
@@ -219,28 +302,8 @@ function usedByNationsOf(
       }
     }
   }
-
-  const byFile = new Map(catalogue.map((s) => [s.file, s]));
-  const nationsByUnit = new Map<string, Set<Nation>>();
-  for (const plane of aircraft) {
-    const unitId = unitIds[plane.id];
-    if (!unitId) continue;
-    const set = nationsByUnit.get(unitId) ?? new Set<Nation>();
-    set.add(plane.nation);
-    nationsByUnit.set(unitId, set);
-  }
-  for (const [unitId, armament] of Object.entries(byUnit)) {
-    const nations = nationsByUnit.get(unitId);
-    if (!nations) continue;
-    for (const slot of armament.slots) {
-      for (const option of slot.options) {
-        for (const store of option.stores) {
-          const bombId = byFile.get(store.file)?.bomb?.id;
-          if (!bombId) continue;
-          for (const nation of nations) add(bombId, nation);
-        }
-      }
-    }
+  for (const [bombId, planes] of carriers) {
+    for (const plane of planes) add(bombId, nationOf.get(plane)!);
   }
 
   return new Map(

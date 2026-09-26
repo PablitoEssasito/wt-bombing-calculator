@@ -387,11 +387,7 @@ export function LoadoutCreator({
             onChange={(v) => withViewTransition(() => setMapSize(Number(v)))}
             options={[
               { value: "4", label: m.conditions.four, hint: m.conditions.mostMaps },
-              {
-                value: "3",
-                label: m.conditions.three,
-                hint: fill(m.conditions.hpBases, { hp: number(effectiveBaseHp(baseHp, mode, 3)) }),
-              },
+              { value: "3", label: m.conditions.three },
             ]}
           />
         </section>

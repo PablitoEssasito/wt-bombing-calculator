@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { LOCALES } from "@/i18n/locales";
-import { aircraft, meta } from "@/lib/dataset";
+import { aircraft, meta, pagedBombs } from "@/lib/dataset";
 import { languageUrls } from "@/lib/site";
 
 // This site is a static export, which renders a route handler like this one
@@ -9,8 +9,8 @@ export const dynamic = "force-static";
 
 /**
  * Every URL the static export actually serves: the four fixed pages and one
- * per aircraft, in each language, each entry naming its counterparts in the
- * others (hreflang). Well under the 50,000-URL point a sitemap would need
+ * per aircraft and per bomb, in each language, each entry naming its
+ * counterparts in the others (hreflang). Well under the 50,000-URL point a sitemap would need
  * splitting at, so one file is all this ever needs.
  *
  * `lastModified` is the ETL's own import timestamp — accurate for every
@@ -29,6 +29,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       path: `/aircraft/${plane.id}/`,
       changeFrequency: "monthly" as const,
       priority: 0.7,
+    })),
+    ...pagedBombs.map((bomb) => ({
+      path: `/bombs/${bomb.id}/`,
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
     })),
   ];
 

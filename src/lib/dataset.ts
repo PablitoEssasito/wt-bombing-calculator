@@ -3,6 +3,7 @@ import aircraftBombIconData from "@/data/aircraft-bomb-icons.json";
 import armamentData from "@/data/armament.json";
 import battleRatingData from "@/data/battle-ratings.json";
 import bombData from "@/data/bombs.json";
+import carrierData from "@/data/carriers.json";
 import changelogData from "@/data/changelog.json";
 import economyData from "@/data/economy.json";
 import imageData from "@/data/images.json";
@@ -11,7 +12,8 @@ import mountData from "@/data/mounts.json";
 import nameData from "@/data/names.json";
 import squadronData from "@/data/squadron.json";
 import vehicleTypeData from "@/data/vehicle-types.json";
-import type { VehicleType } from "@/domain/constants";
+import { inBombChart } from "@/domain/bomb-chart";
+import { NATIONS, type VehicleType } from "@/domain/constants";
 import type { Locale } from "@/i18n/locales";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
 import rewardConstantsData from "@/data/reward-constants.json";
@@ -231,6 +233,9 @@ export const bombIconsFor = (aircraftId: string): Record<string, string> =>
 
 export const bombsById: Map<string, Bomb> = new Map(bombs.map((b) => [b.id, b]));
 
+/** The bombs with a page of their own — the bomb chart's rows — for the pages, the sitemap and the palette alike. */
+export const pagedBombs: Bomb[] = bombs.filter(inBombChart);
+
 export const aircraftById: Map<string, Aircraft> = new Map(aircraft.map((a) => [a.id, a]));
 
 /** Trimmed down for the client-side search index — the full set is far too big to ship. */
@@ -313,6 +318,63 @@ export const aircraftIndex: AircraftSummary[] = aircraft
       : null,
   }))
   .sort((a, b) => a.br - b.br || a.name.localeCompare(b.name));
+
+/** One aircraft that can carry a given bomb, for that bomb's page. */
+export type Carrier = {
+  plane: AircraftSummary;
+  /** One of the sheet's own loadouts drops it — not merely a hardpoint that could. */
+  inSheet: boolean;
+};
+
+let carriersByBomb: Map<string, Carrier[]> | null = null;
+
+/**
+ * Every aircraft that can carry a bomb, nation by nation and by BR within one.
+ *
+ * Two sources, as for `usedByNations` (scripts/armament): the sheet's
+ * loadouts, and the game's own files — every hardpoint and ready-made setup,
+ * which reach everything the sheet never plans a drop with. Worked out once,
+ * at build time; no page ships the whole table.
+ */
+export function aircraftCarrying(bombId: string): Carrier[] {
+  if (!carriersByBomb) {
+    const sheet = new Map<string, Set<string>>();
+    const game = new Map<string, Set<string>>();
+    const add = (to: Map<string, Set<string>>, bomb: string, plane: string) => {
+      const set = to.get(bomb) ?? new Set<string>();
+      set.add(plane);
+      to.set(bomb, set);
+    };
+
+    for (const plane of aircraft) {
+      for (const option of plane.options) {
+        for (const schedule of option.schedules) {
+          for (const base of schedule.bases) {
+            for (const item of base.items) add(sheet, item.bombId, plane.id);
+          }
+        }
+      }
+    }
+
+    for (const [bomb, planes] of Object.entries(carrierData as Record<string, string[]>)) {
+      for (const plane of planes) add(game, bomb, plane);
+    }
+
+    const nationOrder = new Map(NATIONS.map((nation, i) => [nation, i]));
+    carriersByBomb = new Map(
+      bombs.map((bomb) => {
+        const inSheet = sheet.get(bomb.id) ?? new Set<string>();
+        const ids = new Set([...inSheet, ...(game.get(bomb.id) ?? [])]);
+        const carriers = aircraftIndex
+          .filter((plane) => ids.has(plane.id))
+          .map((plane) => ({ plane, inSheet: inSheet.has(plane.id) }))
+          .sort((a, b) => nationOrder.get(a.plane.nation)! - nationOrder.get(b.plane.nation)!);
+        return [bomb.id, carriers];
+      }),
+    );
+  }
+  return carriersByBomb.get(bombId) ?? [];
+}
 
 /** Every battle rating actually present in each mode, so a slider can snap to real values. */
 export const BR_STEPS = Object.fromEntries(

@@ -134,6 +134,17 @@ html:not([data-ready]) .enter {
   animation-delay: calc(min(var(--i, 0), 12) * 20ms);
 }
 
+/* The aircraft list's rows below the fold skip style, layout and paint until
+   scrolled near — most of a page of them, redrawn on every sort. The reserved
+   height matches what they render at, so nothing jumps. Not the tiles: the
+   containment clips whatever leaves the box — the premium badge over a tile's
+   top edge, its hover shadow — and Safari has no overflow-clip-margin to make
+   room, for a tenth off a sort's redraw at most. */
+.cv-row {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 45px;
+}
+
 /* Clicks go to the live page while a transition plays. */
 ::view-transition {
   pointer-events: none;
