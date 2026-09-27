@@ -5,7 +5,7 @@ import { QuickAccess } from "@/components/quick-access";
 import { fill } from "@/i18n/format";
 import { localePath, type Locale } from "@/i18n/locales";
 import { messagesFor } from "@/i18n/messages";
-import { BR_STEPS, RANK_STEPS, aircraftIndexFor, bombGlyphData, meta } from "@/lib/dataset";
+import { BR_STEPS, RANK_STEPS, aircraftIndexFor, bombGlyphData, meta, pagedBombs } from "@/lib/dataset";
 import { canonicalOf, SITE_URL } from "@/lib/site";
 
 /**
@@ -45,7 +45,7 @@ export function HomeView({ locale }: { locale: Locale }) {
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-balance">{m.home.heading}</h1>
           <p className="text-ink-dim max-w-2xl text-pretty">
             {m.home.intro}
-            <br /> {fill(m.home.covers, { aircraft: meta.aircraftCount, bombs: meta.bombCount })}
+            <br /> {fill(m.home.covers, { aircraft: meta.aircraftCount, bombs: pagedBombs.length })}
           </p>
         </header>
 

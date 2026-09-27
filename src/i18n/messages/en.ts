@@ -17,14 +17,14 @@ export const en = {
 
   nav: {
     aircraft: "Aircraft",
-    bombs: "Bomb chart",
-    bombsShort: "Bombs",
+    bombs: "Armament",
+    bombsShort: "Armament",
     changelog: "Changelog",
     changelogShort: "Changes",
     about: "About",
     aboutShort: "About",
     coffee: "Buy me a coffee",
-    search: "Search aircraft, bombs and pages",
+    search: "Search aircraft, weapons and pages",
     newChanges: "new changes",
     language: "Language",
     chooseLanguage: "Choose your language",
@@ -158,23 +158,39 @@ export const en = {
   },
 
   bombChart: {
-    title: "Bomb chart",
+    title: "Armament",
     metaDescription:
-      "Every bomb in War Thunder with its damage against bases, and how many it takes to flatten one at any battle rating.",
+      "Everything War Thunder's aircraft carry — bombs, rockets, missiles, torpedoes, gun pods — with its figures from the game's own files, its damage to bases, and how many it takes to flatten one at any battle rating.",
     massKg: "Mass (kg)",
     tntKg: "TNT equivalent (kg)",
     damage: "Damage",
     minimum: "{label} minimum",
     maximum: "{label} maximum",
-    filterPlaceholder: "Filter bombs…",
-    filterLabel: "Filter bombs",
+    filterPlaceholder: "Filter weapons…",
+    filterLabel: "Filter weapons",
     massShownIn: "Mass shown in",
     massUnit: "Mass unit",
     original: "Original",
-    summary: "{count} bombs against {hp} HP bases",
+    summary: "{count} weapons against {hp} HP bases",
     empty: "Nothing matches these filters.",
+    show: "Show",
+    views: { bases: "Against bases", guided: "Guided", all: "Everything" },
+    gameOnly: "Only the game's own damage figures",
+    moreColumns: "More columns",
+    extraColumns: {
+      range: "Launch range",
+      speed: "Max speed",
+      guidanceTime: "Guidance time",
+      warhead: "Warhead",
+      explosive: "Explosive",
+      charge: "Explosive mass",
+    },
+    estimateLegend:
+      "Estimated from the game's explosion model — the game gives no figure for this weapon, and pays nothing for it in the reward.",
+    sheetTag: "sheet",
+    sheetLegend: "From LEGION's sheet — the game gives no figure for this weapon.",
     columns: {
-      name: "Bomb",
+      name: "Weapon",
       needed: "Per base",
       damage: "Damage",
       mass: "Mass",
@@ -310,6 +326,8 @@ export const en = {
     reward: "reward",
     alsoCarrying:
       "Also carrying: {stores} — no base-damage figure for these, so they're left out of the count above.",
+    estimated:
+      "{stores}: damage to bases estimated from the game's explosion model. The game gives no figure for it, so it adds nothing to the reward.",
   },
 
   changelog: {
@@ -357,11 +375,11 @@ export const en = {
   },
 
   palette: {
-    placeholder: "Search aircraft, bombs, pages…",
+    placeholder: "Search aircraft, weapons, pages…",
     loading: "Loading…",
     empty: "Nothing by that name.",
     aircraft: "Aircraft",
-    bombs: "Bombs & rockets",
+    bombs: "Armament",
     pages: "Pages",
   },
 

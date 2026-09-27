@@ -259,7 +259,7 @@ export function LoadoutCreator({
   const overweight = armament.maxLoadKg !== null && massKg > armament.maxLoadKg;
   const violations = violationsOf(build, armament);
   const unmet = unmetIn(build, armament);
-  const unpriced = unpricedIn(build, armament);
+  const unpriced = unpricedIn(build, armament, (id) => (bombsById.get(id)?.damageValue ?? null) !== null);
 
   const hardpoint = armament.hardpoints.find((h) => h.index === editing);
   const blocked = hardpoint ? blockedIn(armament, build, editing) : new Map<string, Blocker>();
@@ -273,7 +273,8 @@ export function LoadoutCreator({
       bombsIn(build, armament)
         .flatMap(({ bombId, count }) => {
           const bomb = bombsById.get(bombId);
-          return bomb ? [{ bomb, count }] : [];
+          // Nothing to do to a base (a torpedo): named among what is also carried instead.
+          return bomb && bomb.damageValue !== null ? [{ bomb, count }] : [];
         })
         .sort((a, b) => (b.bomb.damageValue ?? 0) - (a.bomb.damageValue ?? 0)),
     [build, armament, bombsById],
@@ -338,6 +339,8 @@ export function LoadoutCreator({
   const gameDamage = weaponDamageOf(build, armament);
   const damage =
     gameDamage > 0 ? gameDamage : items.reduce((sum, { bomb, count }) => sum + (rewardDamageOf(bomb) ?? 0) * count, 0);
+  // What counts towards the bases but not the reward: an estimate the game never priced.
+  const estimated = items.filter(({ bomb }) => bomb.damageSource === "estimate").map(({ bomb }) => bomb.chartName || bomb.fullName);
   const earner = economy ?? {
     goldPriced: plane.category.startsWith("premium"),
     fighter: plane.category.endsWith("fighter"),
@@ -637,6 +640,12 @@ export function LoadoutCreator({
               </>
             ) : null}
           </p>
+
+          {estimated.length > 0 ? (
+            <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">
+              ≈ {fill(m.creator.estimated, { stores: estimated.join(", ") })}
+            </p>
+          ) : null}
 
           {unpriced.length > 0 ? (
             <p className="text-sm text-ink-dim border border-line bg-surface-2 rounded-lg px-3 py-2">

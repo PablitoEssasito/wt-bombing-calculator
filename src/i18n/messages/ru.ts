@@ -8,14 +8,14 @@ export const ru: ClientMessages = {
 
   nav: {
     aircraft: "Самолёты",
-    bombs: "Таблица бомб",
-    bombsShort: "Бомбы",
+    bombs: "Вооружение",
+    bombsShort: "Вооружение",
     changelog: "Изменения",
     changelogShort: "Новое",
     about: "О сайте",
     aboutShort: "Инфо",
     coffee: "Угостить кофе",
-    search: "Поиск самолётов, бомб и страниц",
+    search: "Поиск самолётов, вооружения и страниц",
     newChanges: "новые изменения",
     language: "Язык",
     chooseLanguage: "Выберите язык",
@@ -149,23 +149,39 @@ export const ru: ClientMessages = {
   },
 
   bombChart: {
-    title: "Таблица бомб",
+    title: "Вооружение",
     metaDescription:
-      "Все бомбы War Thunder с уроном по базам и количеством, нужным для уничтожения базы при любом БР.",
+      "Всё, что несут самолёты War Thunder, — бомбы, ракеты, управляемые ракеты, торпеды, пушечные контейнеры — с характеристиками из файлов игры, уроном по базам и количеством, нужным для уничтожения базы при любом БР.",
     massKg: "Масса (кг)",
     tntKg: "Тротиловый эквивалент (кг)",
     damage: "Урон",
     minimum: "{label} — минимум",
     maximum: "{label} — максимум",
-    filterPlaceholder: "Фильтр бомб…",
-    filterLabel: "Фильтр бомб",
+    filterPlaceholder: "Фильтр вооружения…",
+    filterLabel: "Фильтр вооружения",
     massShownIn: "Масса в",
     massUnit: "Единица массы",
     original: "Как в источнике",
-    summary: "Бомб: {count} против баз по {hp} HP",
+    summary: "Вооружение: {count} против баз по {hp} HP",
     empty: "Под эти фильтры ничего не подходит.",
+    show: "Показать",
+    views: { bases: "По базам", guided: "Управляемое", all: "Всё" },
+    gameOnly: "Только урон, указанный игрой",
+    moreColumns: "Ещё столбцы",
+    extraColumns: {
+      range: "Дальность пуска",
+      speed: "Макс. скорость",
+      guidanceTime: "Время наведения",
+      warhead: "Боевая часть",
+      explosive: "Взрывчатка",
+      charge: "Масса ВВ",
+    },
+    estimateLegend:
+      "Оценка по модели взрыва игры — игра не указывает урон этого вооружения и ничего не платит за него в награде.",
+    sheetTag: "таблица",
+    sheetLegend: "Из таблицы LEGION — игра не указывает урон этого вооружения.",
     columns: {
-      name: "Бомба",
+      name: "Вооружение",
       needed: "На базу",
       damage: "Урон",
       mass: "Масса",
@@ -318,6 +334,8 @@ export const ru: ClientMessages = {
     reward: "награды",
     alsoCarrying:
       "Также несёт: {stores} — для них нет урона по базам, поэтому они не учтены в расчёте выше.",
+    estimated:
+      "{stores}: урон по базам — оценка по модели взрыва игры. Игра его не указывает, поэтому в награду он ничего не добавляет.",
   },
 
   changelog: {
@@ -367,11 +385,11 @@ export const ru: ClientMessages = {
   },
 
   palette: {
-    placeholder: "Поиск самолётов, бомб, страниц…",
+    placeholder: "Поиск самолётов, вооружения, страниц…",
     loading: "Загрузка…",
     empty: "Ничего с таким названием.",
     aircraft: "Самолёты",
-    bombs: "Бомбы и ракеты",
+    bombs: "Вооружение",
     pages: "Страницы",
   },
 

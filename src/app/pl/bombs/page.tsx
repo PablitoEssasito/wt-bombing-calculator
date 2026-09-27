@@ -1,7 +1,7 @@
-import { BombsView, bombsMetadata } from "@/views/bombs";
+import { MovedPage, movedMetadata } from "@/views/moved";
 
-export const metadata = bombsMetadata("pl");
+export const metadata = movedMetadata("pl", "/armament/");
 
 export default function Page() {
-  return <BombsView locale="pl" />;
+  return <MovedPage locale="pl" to="/armament/" />;
 }

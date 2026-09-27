@@ -1,14 +1,72 @@
 import type { Bomb, BombKind } from "./types";
 
 /**
- * Whether a bomb gets a row in the bomb chart at all.
+ * Whether a weapon gets a row in the armament chart, and a page, at all.
  *
- * A rocket belongs in the table for its mass and TNT figures even before its
- * damage value is checked (see scripts/etl/rockets.ts). Everything else with
- * no damage value has nothing to show at all, so it stays out.
+ * Everything the game's own files catalogue does — an air-to-air missile or
+ * a gun pod has figures worth showing even with nothing to do to a base. A
+ * sheet row the game has no file for only where it prices something: the
+ * sheet keeps a few placeholder rows with nothing in them.
  */
-export const inBombChart = (bomb: Pick<Bomb, "damageValue" | "kind">) =>
-  bomb.damageValue !== null || bomb.kind === "ROCKET";
+export const inArmamentChart = (bomb: Pick<Bomb, "damageValue" | "kind" | "source">) =>
+  bomb.damageValue !== null || bomb.kind === "ROCKET" || bomb.source === "game";
+
+/**
+ * A row as the armament chart is handed it: the figures its columns show and
+ * nothing more, so the page does not ship every record whole. The extra
+ * columns come off the weapon's own file, their labels already in the page's
+ * language.
+ */
+export type ChartRow = Pick<
+  Bomb,
+  | "id"
+  | "chartName"
+  | "fullName"
+  | "kind"
+  | "guidance"
+  | "nation"
+  | "massKg"
+  | "massLabel"
+  | "tntKg"
+  | "damageValue"
+  | "damageSource"
+  | "efficiency"
+  | "usedByNations"
+> & {
+  launchRangeM?: number;
+  machMax?: number;
+  maxSpeedMs?: number;
+  /** How long it steers for — a guided weapon's only, not an unguided one's self-destruct time. */
+  guidanceTimeS?: number;
+  warhead?: string;
+  explosive?: string;
+  explosiveMassKg?: number;
+};
+
+/** The armament chart's starting points: what can hit a base, what steers itself there, or everything. */
+export const CHART_VIEWS = ["bases", "guided", "all"] as const;
+export type ChartView = (typeof CHART_VIEWS)[number];
+
+const GUIDED = new Set<BombKind>(["GNSS", "LAS", "TV", "IR", "RC", "AGM"]);
+
+/**
+ * A nuclear weapon, as the game marks one in its name ("☢B61"): carried only by
+ * a killstreak's own aircraft, never taken into an ordinary battle.
+ */
+export const isNuclear = (bomb: Pick<Bomb, "chartName">) => bomb.chartName.startsWith("☢");
+
+/**
+ * Whether a row belongs in a view. "Against bases" is what an ordinary battle
+ * can bring to one — so not a nuclear bomb, whose one-per-base would top the
+ * list. "Guided" is anything aimed at the ground that steers — a guided bomb,
+ * an air-to-ground missile, a guided rocket — but not an air-to-air missile,
+ * which never goes for a base.
+ */
+export function inView(bomb: Pick<Bomb, "damageValue" | "kind" | "guidance" | "chartName">, view: ChartView): boolean {
+  if (view === "bases") return (bomb.damageValue ?? 0) > 0 && !isNuclear(bomb);
+  if (view === "guided") return bomb.kind !== "AAM" && (GUIDED.has(bomb.kind) || Boolean(bomb.guidance));
+  return true;
+}
 
 /**
  * Every kind a bomb is filtered under: its seeker's, and satellite guidance's

@@ -8,7 +8,7 @@ import { BombIcon } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
 import { Filled } from "@/components/filled";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
-import { inBombChart, kindsOf } from "@/domain/bomb-chart";
+import { CHART_VIEWS, inView, kindsOf, type ChartRow, type ChartView } from "@/domain/bomb-chart";
 import {
   BASE_HP_TIERS,
   GAME_MODES,
@@ -18,7 +18,7 @@ import {
   type GameMode,
   type Nation,
 } from "@/domain/constants";
-import type { Bomb, BombKind } from "@/domain/types";
+import type { BombKind } from "@/domain/types";
 import { Flag } from "@/components/flag";
 import { Segmented } from "@/components/segmented";
 import { ShareButton } from "@/components/share-button";
@@ -34,7 +34,15 @@ import {
 } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
 
-const SORTS = ["name", "needed", "damage", "mass", "tnt", "efficiency", "kind"] as const;
+/**
+ * Columns off the weapon's own file, shown on request — the table is wide
+ * enough with the base figures alone, and most of these mean nothing for a
+ * plain bomb.
+ */
+const EXTRA_COLUMNS = ["range", "speed", "guidanceTime", "warhead", "explosive", "charge"] as const;
+type ExtraColumn = (typeof EXTRA_COLUMNS)[number];
+
+const SORTS = ["name", "needed", "damage", "mass", "tnt", "efficiency", "kind", ...EXTRA_COLUMNS] as const;
 type Sort = (typeof SORTS)[number];
 type SortDir = "asc" | "desc";
 
@@ -42,8 +50,8 @@ type SortDir = "asc" | "desc";
  * Which direction a column starts in on its first click.
  *
  * Text columns start A-Z; for numbers, whichever end is more interesting to see
- * first — cheapest bombs-per-base, heaviest hitters by damage/mass/TNT — rather
- * than defaulting every column to the same direction.
+ * first — cheapest bombs-per-base, heaviest hitters by damage/mass/TNT, longest
+ * reach — rather than defaulting every column to the same direction.
  */
 const DEFAULT_DIR: Record<Sort, SortDir> = {
   name: "asc",
@@ -53,6 +61,12 @@ const DEFAULT_DIR: Record<Sort, SortDir> = {
   tnt: "desc",
   efficiency: "desc",
   kind: "asc",
+  range: "desc",
+  speed: "desc",
+  guidanceTime: "desc",
+  warhead: "asc",
+  explosive: "asc",
+  charge: "desc",
 };
 
 /**
@@ -64,10 +78,12 @@ const DEFAULT_DIR: Record<Sort, SortDir> = {
 const MASS_UNITS = ["original", "kg", "lb"] as const;
 type MassUnit = (typeof MASS_UNITS)[number];
 
-
 const LB_PER_KG = 1 / 0.45359237;
 
-function formatMass(bomb: Bomb, unit: MassUnit): string {
+/** The speed of sound the game's Mach figures are read against, for sorting them beside m/s ones. */
+const MACH_MS = 343;
+
+function formatMass(bomb: ChartRow, unit: MassUnit): string {
   if (unit === "original") return bomb.massLabel || "—";
   if (bomb.massKg === null) return "—";
   return unit === "kg"
@@ -75,15 +91,8 @@ function formatMass(bomb: Bomb, unit: MassUnit): string {
     : `${Math.round(bomb.massKg * LB_PER_KG)} lb`;
 }
 
-/**
- * Every kind that can actually reach this table.
- *
- * Rockets are priced by hand rather than by the source — see
- * `scripts/etl/rockets.ts` — so a newly discovered one can sit here with a
- * real mass and TNT figure but no damage value yet; the damage and per-base
- * columns just read "—" for those until it's checked.
- */
-const PRICED_KINDS = [
+/** Every kind a row can have, in the order the chips list them. */
+const KINDS = [
   "GP",
   "AP",
   "DRAG",
@@ -96,10 +105,16 @@ const PRICED_KINDS = [
   "RC",
   "ROCKET",
   "AGM",
+  "AAM",
+  "TORPEDO",
+  "GUN",
 ] as const satisfies readonly BombKind[];
 
-export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLabels: Record<string, string> }) {
+const SOURCES = ["all", "game"] as const;
+
+export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; guidanceLabels: Record<string, string> }) {
   const { m, number, fill } = useI18n();
+  const [view, setView] = useUrlState("view", urlLiteral(CHART_VIEWS, "bases"));
   const [query, setQuery] = useUrlState("q", urlText());
   const [hp, setHp] = useUrlState("hp", urlInteger(25900));
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
@@ -108,7 +123,9 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
   const [massUnit, setMassUnit] = useUrlState("massUnit", urlLiteral(MASS_UNITS, "original"));
   const [dir, setDir] = useUrlState("dir", urlLiteral<SortDir>(["asc", "desc"], DEFAULT_DIR.needed));
   const [nation, setNation] = useUrlState("nation", urlLiteral(["all", ...NATIONS] as const, "all"));
-  const [kinds, setKinds] = useUrlState("kinds", urlStringSet<BombKind>(PRICED_KINDS));
+  const [kinds, setKinds] = useUrlState("kinds", urlStringSet<BombKind>(KINDS));
+  const [source, setSource] = useUrlState("src", urlLiteral(SOURCES, "all"));
+  const [columns, setColumns] = useUrlState("cols", urlStringSet<ExtraColumn>(EXTRA_COLUMNS));
   const [massMin, setMassMin] = useUrlState("massMin", urlOptionalInteger());
   const [massMax, setMassMax] = useUrlState("massMax", urlOptionalInteger());
   const [tntMin, setTntMin] = useUrlState("tntMin", urlOptionalInteger());
@@ -131,49 +148,69 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
   const baseCount = (mapSize === 3 ? 3 : 4) as BaseCount;
   const effectiveHp = effectiveBaseHp(baseHp, mode as GameMode, baseCount);
 
-  // Mass and TNT bounds read from every bomb and rocket that states one; damage
-  // only from what the chart actually prices — a rocket's blank damage column
-  // must not collapse this range to nothing.
+  // Mass and TNT bounds read from every row in the view that states one;
+  // damage only from what has a price — an air-to-air missile's blank damage
+  // must not collapse this range to nothing, nor a megaton bomb stretch it.
   const bounds = useMemo(() => {
-    const priced = bombs.filter((b) => b.damageValue !== null);
+    const shown = bombs.filter((b) => inView(b, view));
+    const priced = shown.filter((b) => b.damageValue !== null);
     const range = (values: number[]) =>
       values.length ? { min: Math.min(...values), max: Math.max(...values) } : { min: 0, max: 0 };
     return {
-      mass: range(bombs.flatMap((b) => (b.massKg !== null ? [Math.round(b.massKg)] : []))),
-      tnt: range(bombs.flatMap((b) => (b.tntKg !== null ? [Math.round(b.tntKg)] : []))),
+      mass: range(shown.flatMap((b) => (b.massKg !== null ? [Math.round(b.massKg)] : []))),
+      tnt: range(shown.flatMap((b) => (b.tntKg !== null ? [Math.round(b.tntKg)] : []))),
       damage: range(priced.map((b) => b.damageValue!)),
     };
-  }, [bombs]);
+  }, [bombs, view]);
 
-  const rows = useMemo(() => {
+  // Only the kinds the view has at all get a chip: no "Air-to-air missile"
+  // offered under what can hit a base.
+  const viewKinds = useMemo(
+    () => KINDS.filter((kind) => bombs.some((bomb) => inView(bomb, view) && kindsOf(bomb).includes(kind))),
+    [bombs, view],
+  );
+
+  // The rows, and for the facet counts — how many rows each Nation/Type option
+  // would leave — the rows with every *other* filter applied but that axis's
+  // own, same idea as the aircraft page's chip counts.
+  const { rows, withoutNation, withoutKind } = useMemo(() => {
     const needle = deferred.trim().toLowerCase();
-    const filtered = bombs.filter((bomb) => {
-      if (!inBombChart(bomb)) return false;
+    const passes = (bomb: ChartRow, except?: "nation" | "kind") => {
+      if (!inView(bomb, view)) return false;
+      if (source === "game" && bomb.damageSource !== "game") return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
-      if (nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
-      if (kinds.size > 0 && !kindsOf(bomb).some((k) => kinds.has(k))) return false;
+      if (except !== "nation" && nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
+      if (except !== "kind" && kinds.size > 0 && !kindsOf(bomb).some((k) => kinds.has(k))) return false;
       if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
       if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
       if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
       if (tntMax !== null && (bomb.tntKg ?? Infinity) > tntMax) return false;
-      // A damage-range filter can't be tested against a rocket's blank value —
-      // treat "no data" as failing the filter rather than coercing null to 0.
+      // A damage-range filter can't be tested against a blank value — treat
+      // "no data" as failing the filter rather than coercing null to 0.
       if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
       if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
       if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
       return true;
-    });
+    };
 
-    return filtered
+    const sorted = bombs
+      .filter((bomb) => passes(bomb))
       .map((bomb) => ({
         bomb,
-        needed: bomb.damageValue !== null ? bombsNeeded(effectiveHp, bomb.damageValue) : null,
+        needed: bomb.damageValue ? bombsNeeded(effectiveHp, bomb.damageValue) : null,
       }))
       .sort((a, b) => compareRows(a, b, sort, dir, m.bombKinds));
+    return {
+      rows: sorted,
+      withoutNation: bombs.filter((bomb) => passes(bomb, "nation")),
+      withoutKind: bombs.filter((bomb) => passes(bomb, "kind")),
+    };
   }, [
     bombs,
+    view,
+    source,
     deferred,
     effectiveHp,
     sort,
@@ -189,55 +226,22 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
     m.bombKinds,
   ]);
 
-  // Facet counts: how many rows each Nation/Type option would leave, holding
-  // every *other* axis fixed (search text and the mass/TNT/damage ranges, but
-  // not the axis's own filter) — same idea as the aircraft page's chip counts.
-  const withoutNation = useMemo(() => {
-    const needle = deferred.trim().toLowerCase();
-    return bombs.filter((bomb) => {
-      if (!inBombChart(bomb)) return false;
-      if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
-        return false;
-      }
-      if (kinds.size > 0 && !kindsOf(bomb).some((k) => kinds.has(k))) return false;
-      if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
-      if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
-      if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
-      if (tntMax !== null && (bomb.tntKg ?? Infinity) > tntMax) return false;
-      if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
-      if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
-      if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
-      return true;
-    });
-  }, [bombs, deferred, kinds, massMin, massMax, tntMin, tntMax, dmgMin, dmgMax]);
-
-  const withoutKind = useMemo(() => {
-    const needle = deferred.trim().toLowerCase();
-    return bombs.filter((bomb) => {
-      if (!inBombChart(bomb)) return false;
-      if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
-        return false;
-      }
-      if (nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
-      if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
-      if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
-      if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
-      if (tntMax !== null && (bomb.tntKg ?? Infinity) > tntMax) return false;
-      if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
-      if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
-      if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
-      return true;
-    });
-  }, [bombs, deferred, nation, massMin, massMax, tntMin, tntMax, dmgMin, dmgMax]);
-
   // The table redraws a few hundred rows on every filter, sort or unit change;
   // deferred, so the control itself answers the click first.
   const listed = useDeferredValue(rows);
   const shownUnit = useDeferredValue(massUnit);
+  const shownColumns = useDeferredValue(columns);
 
   const nationCount = (n: Nation | "all") =>
     n === "all" ? withoutNation.length : withoutNation.filter((b) => b.usedByNations.includes(n)).length;
   const kindCount = (k: BombKind) => withoutKind.filter((b) => kindsOf(b).includes(k)).length;
+
+  const selectView = (next: ChartView) => {
+    setView(next);
+    // A kind picked under one view may not exist under the next.
+    setKinds(new Set());
+    track("filter_applied", { surface: "bombs", filter: "view", value: next });
+  };
 
   const selectNation = (n: Nation | "all") => {
     setNation(n);
@@ -262,6 +266,14 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
     track("filter_applied", { surface: "bombs", filter: "kind", value: kind, state: turningOn ? "on" : "off" });
   };
 
+  const toggleColumn = (column: ExtraColumn) => {
+    const next = new Set(columns);
+    if (next.has(column)) next.delete(column);
+    else next.add(column);
+    setColumns(next);
+    track("filter_applied", { surface: "bombs", filter: "column", value: column });
+  };
+
   const rangesActive =
     massMin !== null || massMax !== null || tntMin !== null || tntMax !== null || dmgMin !== null || dmgMax !== null;
   const clearRanges = () => {
@@ -273,13 +285,17 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
     setDmgMax(null);
   };
 
-  const filtersActive = query.trim() !== "" || nation !== "all" || kinds.size > 0 || rangesActive;
+  const filtersActive = query.trim() !== "" || nation !== "all" || kinds.size > 0 || source !== "all" || rangesActive;
   const clearFilters = () => {
     setQuery("");
     setNation("all");
     setKinds(new Set());
+    setSource("all");
     clearRanges();
   };
+
+  const extraHeaders: Record<ExtraColumn, string> = m.bombChart.extraColumns;
+  const shownSources = new Set(listed.map(({ bomb }) => bomb.damageSource));
 
   return (
     <div className="space-y-6">
@@ -315,6 +331,13 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
       </section>
 
       <section className="card p-4 space-y-4">
+        <Segmented
+          label={m.bombChart.show}
+          value={view}
+          onChange={selectView}
+          options={CHART_VIEWS.map((v) => ({ value: v, label: m.bombChart.views[v] }))}
+        />
+
         <div className="space-y-1.5">
           <div className="text-xs uppercase tracking-wider text-ink-faint">{m.common.nation}</div>
           <div className="flex flex-wrap gap-1.5">
@@ -334,7 +357,7 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
         <div className="space-y-1.5">
           <div className="text-xs uppercase tracking-wider text-ink-faint">{m.common.type}</div>
           <div className="flex flex-wrap gap-1.5">
-            {PRICED_KINDS.map((kind) => (
+            {viewKinds.map((kind) => (
               <CheckChip key={kind} checked={kinds.has(kind)} onClick={() => toggleKind(kind)}>
                 {m.bombKinds[kind]}
                 <Count>{kindCount(kind)}</Count>
@@ -370,6 +393,15 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
           />
         </div>
 
+        <CheckChip
+          checked={source === "game"}
+          onClick={() => {
+            setSource(source === "game" ? "all" : "game");
+            track("filter_applied", { surface: "bombs", filter: "source", value: source === "game" ? "all" : "game" });
+          }}
+        >
+          {m.bombChart.gameOnly}
+        </CheckChip>
       </section>
 
       <div className="space-y-3">
@@ -381,6 +413,17 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
           aria-label={m.bombChart.filterLabel}
           className="card px-3 py-2 outline-none placeholder:text-ink-faint focus:border-accent transition-colors w-full sm:w-72"
         />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wider text-ink-faint">{m.bombChart.moreColumns}</span>
+          <div role="group" aria-label={m.bombChart.moreColumns} className="flex flex-wrap gap-1">
+            {EXTRA_COLUMNS.map((column) => (
+              <CheckChip key={column} checked={columns.has(column)} onClick={() => toggleColumn(column)}>
+                {extraHeaders[column]}
+              </CheckChip>
+            ))}
+          </div>
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -419,85 +462,135 @@ export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLa
           {m.bombChart.empty}
         </p>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-ink-faint">
-              <tr className="hairline">
-                <SortTh column="name" label={m.bombChart.columns.name} sort={sort} dir={dir} onSort={handleSort} />
-                <SortTh
-                  column="needed"
-                  label={m.bombChart.columns.needed}
-                  align="right"
-                  sort={sort}
-                  dir={dir}
-                  onSort={handleSort}
-                />
-                <SortTh
-                  column="damage"
-                  label={m.bombChart.columns.damage}
-                  align="right"
-                  sort={sort}
-                  dir={dir}
-                  onSort={handleSort}
-                />
-                <SortTh
-                  column="mass"
-                  label={m.bombChart.columns.mass}
-                  align="right"
-                  className="hidden sm:table-cell"
-                  sort={sort}
-                  dir={dir}
-                  onSort={handleSort}
-                />
-                <SortTh
-                  column="tnt"
-                  label={m.bombChart.columns.tnt}
-                  align="right"
-                  className="hidden md:table-cell"
-                  sort={sort}
-                  dir={dir}
-                  onSort={handleSort}
-                />
-                <SortTh
-                  column="efficiency"
-                  label={m.bombChart.columns.efficiency}
-                  align="right"
-                  className="hidden md:table-cell"
-                  sort={sort}
-                  dir={dir}
-                  onSort={handleSort}
-                />
-                <SortTh
-                  column="kind"
-                  label={m.bombChart.columns.kind}
-                  className="hidden lg:table-cell"
-                  sort={sort}
-                  dir={dir}
-                  onSort={handleSort}
-                />
-              </tr>
-            </thead>
-            <BombRows rows={listed} massUnit={shownUnit} guidanceLabels={guidanceLabels} />
-          </table>
+        <div className="space-y-2">
+          <div className="card overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-ink-faint">
+                <tr className="hairline">
+                  <SortTh column="name" label={m.bombChart.columns.name} sort={sort} dir={dir} onSort={handleSort} />
+                  <SortTh
+                    column="needed"
+                    label={m.bombChart.columns.needed}
+                    align="right"
+                    sort={sort}
+                    dir={dir}
+                    onSort={handleSort}
+                  />
+                  <SortTh
+                    column="damage"
+                    label={m.bombChart.columns.damage}
+                    align="right"
+                    sort={sort}
+                    dir={dir}
+                    onSort={handleSort}
+                  />
+                  <SortTh
+                    column="mass"
+                    label={m.bombChart.columns.mass}
+                    align="right"
+                    className="hidden sm:table-cell"
+                    sort={sort}
+                    dir={dir}
+                    onSort={handleSort}
+                  />
+                  <SortTh
+                    column="tnt"
+                    label={m.bombChart.columns.tnt}
+                    align="right"
+                    className="hidden md:table-cell"
+                    sort={sort}
+                    dir={dir}
+                    onSort={handleSort}
+                  />
+                  <SortTh
+                    column="efficiency"
+                    label={m.bombChart.columns.efficiency}
+                    align="right"
+                    className="hidden md:table-cell"
+                    sort={sort}
+                    dir={dir}
+                    onSort={handleSort}
+                  />
+                  <SortTh
+                    column="kind"
+                    label={m.bombChart.columns.kind}
+                    className="hidden lg:table-cell"
+                    sort={sort}
+                    dir={dir}
+                    onSort={handleSort}
+                  />
+                  {EXTRA_COLUMNS.filter((column) => shownColumns.has(column)).map((column) => (
+                    <SortTh
+                      key={column}
+                      column={column}
+                      label={extraHeaders[column]}
+                      align={column === "warhead" || column === "explosive" ? "left" : "right"}
+                      sort={sort}
+                      dir={dir}
+                      onSort={handleSort}
+                    />
+                  ))}
+                </tr>
+              </thead>
+              <BombRows rows={listed} massUnit={shownUnit} columns={shownColumns} guidanceLabels={guidanceLabels} />
+            </table>
+          </div>
+          {shownSources.has("estimate") || shownSources.has("sheet") ? (
+            <ul className="space-y-1 text-xs text-ink-faint">
+              {shownSources.has("estimate") ? (
+                <li>
+                  <span className="text-ink-dim">≈</span> {m.bombChart.estimateLegend}
+                </li>
+              ) : null}
+              {shownSources.has("sheet") ? (
+                <li>
+                  <span className="text-ink-dim">{m.bombChart.sheetTag}</span> — {m.bombChart.sheetLegend}
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
         </div>
       )}
     </div>
   );
 }
 
-type SortableRow = { bomb: Bomb; needed: number | null };
+type SortableRow = { bomb: ChartRow; needed: number | null };
 
 /** The table's body, apart so the rest of the page can re-render without it. */
 const BombRows = memo(function BombRows({
   rows,
   massUnit,
+  columns,
   guidanceLabels,
 }: {
   rows: SortableRow[];
   massUnit: MassUnit;
+  columns: ReadonlySet<ExtraColumn>;
   guidanceLabels: Record<string, string>;
 }) {
   const { m, number, path } = useI18n();
+  const decimal = (value: number, digits: number) => number(value, { maximumFractionDigits: digits });
+  const extraCell = (bomb: ChartRow, column: ExtraColumn): string | null => {
+    switch (column) {
+      case "range":
+        return bomb.launchRangeM !== undefined ? `${decimal(bomb.launchRangeM / 1000, 1)} km` : null;
+      case "speed":
+        // As the game's tooltip gives it: Mach to one decimal, else m/s.
+        if (bomb.machMax !== undefined) return `${number(bomb.machMax, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M`;
+        return bomb.maxSpeedMs !== undefined ? `${decimal(bomb.maxSpeedMs, 0)} m/s` : null;
+      case "guidanceTime":
+        return bomb.guidanceTimeS !== undefined ? `${decimal(bomb.guidanceTimeS, 1)} s` : null;
+      case "warhead":
+        return bomb.warhead ?? null;
+      case "explosive":
+        return bomb.explosive ?? null;
+      case "charge":
+        return bomb.explosiveMassKg !== undefined ? `${decimal(bomb.explosiveMassKg, 2)} kg` : null;
+    }
+  };
+  const extras = EXTRA_COLUMNS.filter((column) => columns.has(column));
+
   return (
     <tbody>
       {rows.map(({ bomb, needed }) => (
@@ -507,61 +600,119 @@ const BombRows = memo(function BombRows({
               <BombIcon bomb={bomb} size={28} />
               <div className="min-w-0">
                 <Link
-                  href={path(`/bombs/${bomb.id}/`)}
+                  href={path(`/armament/${bomb.id}/`)}
                   transitionTypes={["nav-forward"]}
                   className="flex items-center gap-1.5 font-medium hover:text-accent transition-colors"
                 >
                   {bomb.nation ? <Flag nation={bomb.nation} size={13} /> : null}
                   {bomb.chartName || bomb.fullName}
                 </Link>
-                <div className="text-xs text-ink-faint truncate max-w-[22rem]">
+                <div className="text-xs text-ink-faint truncate max-w-[9rem] sm:max-w-[22rem]">
                   {bomb.fullName}
                 </div>
               </div>
             </div>
           </td>
-          <td className="nums px-3 py-2 text-right text-accent font-semibold text-base">
-            {needed !== null && Number.isFinite(needed) ? needed : "—"}
+          <td className="nums px-3 py-2 text-right text-accent font-semibold text-base whitespace-nowrap">
+            {needed !== null && Number.isFinite(needed) ? (
+              <>
+                {bomb.damageSource === "estimate" ? <span className="font-normal text-ink-faint">≈ </span> : null}
+                {needed}
+              </>
+            ) : (
+              "—"
+            )}
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim">
-            {bomb.damageValue !== null ? number(bomb.damageValue) : "—"}
+          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap">
+            <DamageValue bomb={bomb} />
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim hidden sm:table-cell">
+          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap hidden sm:table-cell">
             {formatMass(bomb, massUnit)}
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim hidden md:table-cell">
+          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell">
             {bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : "—"}
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim hidden md:table-cell">
+          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell">
             {bomb.efficiency ?? "—"}
           </td>
-          <td className="px-3 py-2 text-ink-faint hidden lg:table-cell">
+          <td className="px-3 py-2 text-ink-faint whitespace-nowrap hidden lg:table-cell">
             {bomb.guidance ? (guidanceLabels[bomb.guidance] ?? bomb.guidance) : m.bombKinds[bomb.kind]}
           </td>
+          {extras.map((column) => (
+            <td
+              key={column}
+              className={cn(
+                "px-3 py-2 text-ink-dim whitespace-nowrap",
+                column === "warhead" || column === "explosive" ? "text-left" : "nums text-right",
+              )}
+            >
+              {extraCell(bomb, column) ?? "—"}
+            </td>
+          ))}
         </tr>
       ))}
     </tbody>
   );
 });
 
+/**
+ * A row's damage to a base, marked by where it comes from: the game's own
+ * price bare, an estimate from its explosion model "≈", the sheet's figure
+ * tagged — so a number the game never gave is never read as one it did.
+ */
+function DamageValue({ bomb }: { bomb: Pick<ChartRow, "damageValue" | "damageSource"> }) {
+  const { m, number } = useI18n();
+  if (bomb.damageValue === null) return <>—</>;
+  if (bomb.damageSource === "estimate") {
+    return (
+      <span title={m.bombChart.estimateLegend} className="underline decoration-dotted underline-offset-4 cursor-help">
+        ≈ {number(bomb.damageValue)}
+      </span>
+    );
+  }
+  return (
+    <>
+      {number(bomb.damageValue)}
+      {bomb.damageSource === "sheet" ? (
+        <span title={m.bombChart.sheetLegend} className="ml-1 text-[10px] uppercase tracking-wide text-ink-faint cursor-help">
+          {m.bombChart.sheetTag}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 type KindLabels = Record<BombKind, string>;
 
 function sortKeyOf(row: SortableRow, column: Sort, kinds: KindLabels): number | string | null {
+  const { bomb } = row;
   switch (column) {
     case "name":
-      return row.bomb.chartName || row.bomb.fullName;
+      return bomb.chartName || bomb.fullName;
     case "needed":
       return row.needed;
     case "damage":
-      return row.bomb.damageValue;
+      return bomb.damageValue;
     case "mass":
-      return row.bomb.massKg;
+      return bomb.massKg;
     case "tnt":
-      return row.bomb.tntKg;
+      return bomb.tntKg;
     case "efficiency":
-      return row.bomb.efficiency;
+      return bomb.efficiency;
     case "kind":
-      return kinds[row.bomb.kind];
+      return kinds[bomb.kind];
+    case "range":
+      return bomb.launchRangeM ?? null;
+    case "speed":
+      return bomb.machMax !== undefined ? bomb.machMax * MACH_MS : (bomb.maxSpeedMs ?? null);
+    case "guidanceTime":
+      return bomb.guidanceTimeS ?? null;
+    case "warhead":
+      return bomb.warhead ?? null;
+    case "explosive":
+      return bomb.explosive ?? null;
+    case "charge":
+      return bomb.explosiveMassKg ?? null;
   }
 }
 
@@ -619,7 +770,7 @@ function SortTh({
         type="button"
         onClick={() => onSort(column)}
         className={cn(
-          "group inline-flex items-center gap-1 transition-colors hover:text-ink",
+          "group inline-flex items-center gap-1 transition-colors hover:text-ink whitespace-nowrap",
           align === "right" && "flex-row-reverse",
           active && "text-ink",
         )}

@@ -268,14 +268,22 @@ export function weaponDamageOf(build: Build, armament: Armament): number {
  */
 const ORDNANCE = new Set<StoreKind>(["bomb", "mine", "torpedo", "rocket"]);
 
-/** Bombs carried that the chart does not price, so nothing here can count them. */
-export function unpricedIn(build: Build, armament: Armament): Store[] {
+/**
+ * Bombs carried that the chart does not price, so nothing here can count them:
+ * those with no row at all, and those whose row has no damage to give — a
+ * torpedo has a row for its figures, and nothing to do to a base.
+ */
+export function unpricedIn(
+  build: Build,
+  armament: Armament,
+  isPriced: (bombId: string) => boolean = () => true,
+): Store[] {
   const seen = new Map<string, Store>();
   for (const [slot, name] of build) {
     const option = optionAt(armament, slot, name);
     if (!option) continue;
     for (const { store } of option.stores) {
-      if (store.bomb === null && ORDNANCE.has(store.kind)) seen.set(store.name, store);
+      if (ORDNANCE.has(store.kind) && (store.bomb === null || !isPriced(store.bomb.id))) seen.set(store.name, store);
     }
   }
   return [...seen.values()];

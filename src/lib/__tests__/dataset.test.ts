@@ -4,7 +4,7 @@ import { rewardDamageOf } from "../../domain/bomb-chart";
 import { NATIONS } from "../../domain/constants";
 import type { WeaponStats } from "../../domain/types";
 import { bombsIn, buildFor, variantOf, violationsOf } from "../../domain/loadout";
-import { aircraft, aircraftCarrying, armamentFor, bombsById } from "../dataset";
+import { aircraft, aircraftCarrying, armamentFor, bombsById, chartRowsFor, gameLabel, otherCarriersOf, pagedBombs } from "../dataset";
 
 /**
  * `armamentFor` decodes `src/data/armament.json`'s compact shape — stores
@@ -84,6 +84,42 @@ describe("armamentFor", () => {
   it("keeps every hardpoint's own sparse index, gaps and all", () => {
     const armament = armamentFor("usa-f-82e")!;
     expect(armament.hardpoints.map((h) => h.index)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe("the armament chart's rows", () => {
+  it("page every weapon the game catalogues, and no sheet placeholder", () => {
+    expect(pagedBombs.some((bomb) => bomb.kind === "AAM")).toBe(true);
+    expect(pagedBombs.some((bomb) => bomb.kind === "TORPEDO")).toBe(true);
+    expect(pagedBombs.find((bomb) => bomb.id === "fc1000")).toBeUndefined();
+  });
+
+  it("hand the browser the chart's figures only, the game's labels in the page's language", () => {
+    const rows = chartRowsFor("pl");
+    const kd88 = rows.find((row) => row.id === "kd-88")!;
+    expect(kd88).toMatchObject({ damageSource: "estimate", launchRangeM: 230000, machMax: 0.85, guidanceTimeS: 825 });
+    expect(kd88.warhead).toBe(gameLabel("pl", "rocket/warhead/aphe"));
+    expect(kd88.explosive).toBe(gameLabel("pl", "explosiveType/pbxn_3"));
+    expect(rows.every((row) => !("sheetCounts" in row) && !("sheet" in row))).toBe(true);
+    expect(rows.every((row) => Object.values(row).every((value) => value !== undefined))).toBe(true);
+  });
+
+  it("give an unguided rocket no guidance time: its timer is the self-destruct's", () => {
+    expect(chartRowsFor("en").find((row) => row.id === "rz-65")?.guidanceTimeS).toBeUndefined();
+  });
+});
+
+describe("otherCarriersOf", () => {
+  const id = "1000-lb-an-m65a1-fin-m129";
+
+  it("names the aircraft outside the site as the game's tech tree does, in the page's language", () => {
+    expect(otherCarriersOf("en", id)).toContain("F-86A-5");
+    expect(otherCarriersOf("pl", id)).toContain("F-86A-5 Sabre");
+  });
+
+  it("names each once", () => {
+    const names = otherCarriersOf("en", id);
+    expect(new Set(names).size).toBe(names.length);
   });
 });
 

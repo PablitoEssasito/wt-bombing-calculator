@@ -6,7 +6,7 @@ import { BASE_BLEED, BASE_HP_TIERS, THREE_BASE_HP } from "@/domain/constants";
 import { fill, formatNumber, plural } from "@/i18n/format";
 import type { Locale } from "@/i18n/locales";
 import { messagesFor } from "@/i18n/messages";
-import { meta } from "@/lib/dataset";
+import { meta, pagedBombs } from "@/lib/dataset";
 import { canonicalOf, KOFI_URL, pageOpenGraph } from "@/lib/site";
 
 export function aboutMetadata(locale: Locale): Metadata {
@@ -41,7 +41,7 @@ export function AboutView({ locale }: { locale: Locale }) {
           title={a.title}
           stats={[
             plural(locale, m.stats.aircraft, meta.aircraftCount),
-            plural(locale, m.stats.bombs, meta.bombCount),
+            plural(locale, m.stats.weapons, pagedBombs.length),
             ...(meta.sheetVersion ? [fill(m.stats.sheet, { version: meta.sheetVersion })] : []),
           ]}
         >

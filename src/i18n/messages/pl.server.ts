@@ -16,12 +16,12 @@ export const plServer: ServerMessages = {
       "Wyszukiwarka {aircraft} samolotów z filtrami nacji i BR, a dla każdego samolotu plan zrzutu przeliczany na bieżąco przy zmianie BR, trybu gry czy liczby baz.",
       "Każda notatka do zestawu przypisana do tego, co naprawdę znaczy — polecane, warto wiedzieć, uwaga albo odradzane — zamiast gołego znacznika, nad który trzeba najechać.",
       "Kreator uzbrojenia wzorowany na menu uzbrojenia z gry: pylon po pylonie, z pilnowanymi limitami masy i wzajemnymi wykluczeniami oraz oznaczonymi brakującymi zależnościami — zbudowany z plików danych gry, a nie zgadywany z samych zestawów.",
-      "Sortowalna tabela bomb z osobnym kalkulatorem dla dowolnej bomby i dowolnej wytrzymałości bazy — łącznie z rakietami, wycenionymi ręcznie według danych z hangaru gry, a nie zostawionymi pustymi.",
+      "Tabela wszystkiego, co przenoszą samoloty w grze, ze statystykami odczytanymi z plików gry i obrażeniami dla baz: wartością samej gry albo szacunkiem z jej modelu wybuchu tam, gdzie gra jej nie podaje.",
       "Samoloty premium i dywizjonowe wyróżnione tak jak w samej grze — złotem i zielenią — żeby w wynikach wyszukiwania nie trzeba było klikać, by je odróżnić.",
       "Każde ustawienie siedzi w adresie URL, więc konkretna konfiguracja to jeden link do udostępnienia.",
     ],
     creditBuilt:
-      "Kreator uzbrojenia, każdy przeliczony plan, obrażenia rakiet (sprawdzone w grze, jedna po drugiej) i ikony są budowane tutaj z plików samego War Thunder. Ręcznie dopracowane plany zrzutu i obrażenia bomb pochodzą z",
+      "Tabela uzbrojenia z obrażeniami, kreator uzbrojenia, każdy przeliczony plan i ikony są budowane tutaj z plików samego War Thunder. Ręcznie dopracowane plany zrzutu i obrażenia tych nielicznych broni, których gra nie wycenia, pochodzą z",
     creditPulled: ", ostatnio pobrane {date}.",
     howNumbers: "Jak działają liczby",
     bleed:
@@ -56,8 +56,8 @@ export const plServer: ServerMessages = {
 
   footer: {
     builtFrom:
-      "Kreator uzbrojenia, przeliczone plany zrzutu, dane rakiet i ikony z gry zbudowane na podstawie plików samego War Thunder.",
-    handTuned: "Ręcznie dopracowane plany zrzutu i obrażenia bomb pochodzą z",
+      "Tabela uzbrojenia, obrażenia dla baz, kreator uzbrojenia, przeliczone plany zrzutu i ikony z gry zbudowane na podstawie plików samego War Thunder.",
+    handTuned: "Ręcznie dopracowane plany zrzutu pochodzą z",
     legion: "LEGION's Loadouts",
     notAffiliated: "Strona niezwiązana z Gaijin Entertainment ani przez nią nie popierana.",
     lastUpdate: "Ostatnia aktualizacja:",
@@ -71,12 +71,6 @@ export const plServer: ServerMessages = {
   },
 
   stats: {
-    bombsAndRockets: {
-      one: "{n} bomba lub rakieta",
-      few: "{n} bomby i rakiety",
-      many: "{n} bomb i rakiet",
-      other: "{n} bomby i rakiety",
-    },
     nations: { one: "{n} nacja", few: "{n} nacje", many: "{n} nacji", other: "{n} nacji" },
     sheet: "Arkusz v{version}",
     patch: "Patch {version}",
@@ -89,14 +83,19 @@ export const plServer: ServerMessages = {
       other: "{n} aktualizacji",
     },
     aircraft: { one: "{n} samolot", few: "{n} samoloty", many: "{n} samolotów", other: "{n} samolotu" },
-    bombs: { one: "{n} bomba", few: "{n} bomby", many: "{n} bomb", other: "{n} bomby" },
+    weapons: {
+      one: "{n} rodzaj uzbrojenia",
+      few: "{n} rodzaje uzbrojenia",
+      many: "{n} rodzajów uzbrojenia",
+      other: "{n} rodzaju uzbrojenia",
+    },
   },
 
   home: {
     heading: "Ile bomb naprawdę potrzebujesz?",
     intro:
       "Wybierz samolot i dostań plan zrzutu: co zrzucić na każdą bazę, ile baz zniszczysz i który zestaw uzbrojenia zarabia najwięcej, wciąż robiąc swoje.",
-    covers: "Obejmuje {aircraft} samolotów i {bombs} bomb.",
+    covers: "Obejmuje samoloty ({aircraft}) i uzbrojenie ({bombs}).",
     facts: [
       {
         title: "Małe bomby biją mocniej",
@@ -114,10 +113,10 @@ export const plServer: ServerMessages = {
   },
 
   bombPage: {
-    back: "← Tabela bomb",
-    metaTitle: "{name} — ile na bazę i jakie samoloty",
+    back: "← Uzbrojenie",
+    metaTitle: "{name} — statystyki, obrażenia dla baz i jakie samoloty",
     metaDescription:
-      "{name} w War Thunder: ile sztuk niszczy bazę przy każdym BR i które samoloty mogą to uzbrojenie przenosić.",
+      "{name} w War Thunder: statystyki z plików gry, ile sztuk niszczy bazę przy każdym BR i które samoloty mogą to uzbrojenie przenosić.",
     perBase: "Sztuk na bazę",
     perBaseHint: "Ile sztuk niszczy jedną bazę, zależnie od BR bitwy.",
     fourBases: "4 bazy",
@@ -127,12 +126,32 @@ export const plServer: ServerMessages = {
     inSheetTitle: "Używa go jeden z loadoutów arkusza dla tego samolotu",
     noAircraft:
       "Tego uzbrojenia nie przenosi żaden samolot opisany na tej stronie — tylko maszyny, dla których arkusz nie ma loadoutów.",
+    groups: { guidance: "Naprowadzanie", flight: "Lot", warhead: "Głowica", blast: "Wybuch" },
+    figures: "W grze",
+    figuresHint: "Tak, jak podaje je opis uzbrojenia w grze, odczytane z jej plików.",
+    fireRate: "Szybkostrzelność (strz./min)",
+    nuclearYield: "Moc",
+    source: {
+      game: "Wartość samej gry — przewidywane uszkodzenie, które pokazuje hangar.",
+      estimate:
+        "Szacunek z modelu wybuchu gry: gra nie pokazuje tej wartości dla tej broni, ale ten sam model odtwarza każdą, którą pokazuje. Gra nie płaci za nią w nagrodzie.",
+      sheet: "Z arkusza LEGION'a: gra nie podaje tej wartości dla tej broni.",
+    },
+    sheetGives: "Arkusz podaje {damage}.",
+    noDamage: "Gra nie przypisuje tej broni obrażeń dla baz.",
+    otherAircraft: "Przenoszą ją też samoloty bez strony tutaj",
+    similar: "Podobne uzbrojenie",
     stats: {
       mass: "Masa",
       tnt: "Równoważnik trotylowy",
       damage: "Obrażenia dla baz",
       efficiency: "Obrażenia na kg",
     },
+  },
+
+  moved: {
+    text: "Tabela bomb jest teraz tabelą uzbrojenia, a ta strona przeniosła się razem z nią.",
+    link: "Przejdź pod nowy adres",
   },
 
   notFound: {

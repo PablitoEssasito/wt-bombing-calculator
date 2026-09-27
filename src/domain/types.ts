@@ -66,8 +66,8 @@ export type Bomb = {
   tntKg: number | null;
   /**
    * Damage one of these does to a base, in base hitpoints: the game's own price
-   * wherever it states one, else an estimate from its explosion model, else the
-   * sheet's figure. `damageSource` says which. Null for what cannot hurt a base
+   * wherever it states one, else the sheet's figure, else an estimate from the
+   * game's explosion model. `damageSource` says which. Null for what cannot hurt a base
    * at all as far as anything says — air-to-air missiles, guns.
    */
   damageValue: number | null;

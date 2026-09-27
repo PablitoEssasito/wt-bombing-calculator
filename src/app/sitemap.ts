@@ -22,7 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date(meta.generatedAt);
   const pages: { path: string; changeFrequency: "weekly" | "monthly" | "yearly"; priority: number }[] = [
     { path: "/", changeFrequency: "weekly", priority: 1 },
-    { path: "/bombs/", changeFrequency: "monthly", priority: 0.6 },
+    { path: "/armament/", changeFrequency: "monthly", priority: 0.6 },
     { path: "/changelog/", changeFrequency: "weekly", priority: 0.4 },
     { path: "/about/", changeFrequency: "yearly", priority: 0.3 },
     ...aircraft.map((plane) => ({
@@ -31,7 +31,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     })),
     ...pagedBombs.map((bomb) => ({
-      path: `/bombs/${bomb.id}/`,
+      path: `/armament/${bomb.id}/`,
       changeFrequency: "monthly" as const,
       priority: 0.5,
     })),

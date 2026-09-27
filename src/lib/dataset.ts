@@ -1,6 +1,7 @@
 import aircraftData from "@/data/aircraft.json";
 import aircraftBombIconData from "@/data/aircraft-bomb-icons.json";
 import armamentData from "@/data/armament.json";
+import armamentStatsData from "@/data/armament-stats.json";
 import battleRatingData from "@/data/battle-ratings.json";
 import bombData from "@/data/bombs.json";
 import carrierData from "@/data/carriers.json";
@@ -11,9 +12,11 @@ import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
 import nameData from "@/data/names.json";
+import otherCarrierData from "@/data/other-carriers.json";
 import squadronData from "@/data/squadron.json";
+import unitNameData from "@/data/unit-names.json";
 import vehicleTypeData from "@/data/vehicle-types.json";
-import { inBombChart } from "@/domain/bomb-chart";
+import { inArmamentChart, type ChartRow } from "@/domain/bomb-chart";
 import { NATIONS, type VehicleType } from "@/domain/constants";
 import type { Locale } from "@/i18n/locales";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
@@ -27,6 +30,7 @@ import {
   type Bomb,
   type ChangelogEntry,
   type Meta,
+  type WeaponStats,
 } from "@/domain/types";
 
 export const bombs = bombData as Bomb[];
@@ -250,8 +254,57 @@ export function guidanceLabels(locale: Locale): Record<string, string> {
   return Object.fromEntries([...keys].map((key) => [key, gameLabel(locale, `missile/guidance/${key}`) ?? key]));
 }
 
-/** The bombs with a page of their own — the bomb chart's rows — for the pages, the sitemap and the palette alike. */
-export const pagedBombs: Bomb[] = bombs.filter(inBombChart);
+/** The weapons with a page of their own — the armament chart's rows — for the pages, the sitemap and the palette alike. */
+export const pagedBombs: Bomb[] = bombs.filter(inArmamentChart);
+
+/** Each weapon's figures as the game's tooltip gives them — see scripts/armament/stats.ts. Read at build time only. */
+const weaponStats = armamentStatsData as unknown as Record<string, WeaponStats>;
+
+export const statsOf = (bombId: string): WeaponStats => weaponStats[bombId] ?? {};
+
+/** The armament chart's rows, cut down to what it shows, with the game's labels in the page's language. */
+export function chartRowsFor(locale: Locale): ChartRow[] {
+  return pagedBombs.map((bomb) => {
+    const stats = statsOf(bomb.id);
+    const guided = Boolean(stats.guidance ?? stats.aiming);
+    const row: ChartRow = {
+      id: bomb.id,
+      chartName: bomb.chartName,
+      fullName: bomb.fullName,
+      kind: bomb.kind,
+      guidance: bomb.guidance,
+      nation: bomb.nation,
+      massKg: bomb.massKg,
+      massLabel: bomb.massLabel,
+      tntKg: bomb.tntKg,
+      damageValue: bomb.damageValue,
+      damageSource: bomb.damageSource,
+      efficiency: bomb.efficiency,
+      usedByNations: bomb.usedByNations,
+      launchRangeM: stats.launchRangeM,
+      machMax: stats.machMax,
+      maxSpeedMs: stats.maxSpeedMs,
+      guidanceTimeS: guided ? stats.timeLifeS : undefined,
+      warhead: stats.warhead ? gameLabel(locale, `rocket/warhead/${stats.warhead}`) : undefined,
+      explosive: stats.explosiveType ? gameLabel(locale, `explosiveType/${stats.explosiveType}`) : undefined,
+      explosiveMassKg: stats.explosiveMassKg,
+    };
+    // Absent rather than undefined: every row crosses to the browser.
+    for (const key of Object.keys(row) as (keyof ChartRow)[]) if (row[key] === undefined) delete row[key];
+    return row;
+  });
+}
+
+/**
+ * Aircraft the game hangs a weapon on that this site has no page for, by
+ * their names in the game's tech tree — see scripts/armament.
+ */
+export function otherCarriersOf(locale: Locale, bombId: string): string[] {
+  const units = (otherCarrierData as Record<string, string[]>)[bombId] ?? [];
+  const names = unitNameData as Record<Locale, Record<string, string>>;
+  const named = units.map((unit) => names[locale][unit] ?? names.en[unit] ?? unit);
+  return [...new Set(named)].sort((a, b) => a.localeCompare(b));
+}
 
 export const aircraftById: Map<string, Aircraft> = new Map(aircraft.map((a) => [a.id, a]));
 

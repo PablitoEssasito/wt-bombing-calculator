@@ -20,7 +20,7 @@ export const INTL_LOCALES: Record<Locale, string> = { en: "en-US", pl: "pl-PL", 
 /** Open Graph's own locale codes. */
 export const OG_LOCALES: Record<Locale, string> = { en: "en_US", pl: "pl_PL", ru: "ru_RU" };
 
-/** A site path in the given language: "/bombs/" becomes "/pl/bombs/". */
+/** A site path in the given language: "/armament/" becomes "/pl/armament/". */
 export function localePath(locale: Locale, path: string): string {
   if (locale === DEFAULT_LOCALE) return path;
   return path === "/" ? `/${locale}/` : `/${locale}${path}`;

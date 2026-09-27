@@ -1,15 +1,15 @@
-import { BombPageView, bombIds, bombMetadata } from "@/views/bomb";
+import { MovedPage, movedBombIds, movedMetadata } from "@/views/moved";
 
 export function generateStaticParams() {
-  return bombIds().map((id) => ({ id }));
+  return movedBombIds().map((id) => ({ id }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/pl/bombs/[id]">) {
   const { id } = await params;
-  return bombMetadata("pl", id);
+  return movedMetadata("pl", `/armament/${id}/`);
 }
 
 export default async function Page({ params }: PageProps<"/pl/bombs/[id]">) {
   const { id } = await params;
-  return <BombPageView locale="pl" id={id} />;
+  return <MovedPage locale="pl" to={`/armament/${id}/`} />;
 }

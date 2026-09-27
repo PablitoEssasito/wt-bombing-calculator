@@ -18,7 +18,7 @@ import type { SearchIndex } from "@/lib/search-index";
 
 const PAGES = [
   { href: "/", key: "aircraft" },
-  { href: "/bombs/", key: "bombs" },
+  { href: "/armament/", key: "bombs" },
   { href: "/changelog/", key: "changelog" },
   { href: "/about/", key: "about" },
 ] as const;
@@ -135,7 +135,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 value={`bomb:${bomb.id}`}
                 onSelect={() => {
                   track("palette_used", { kind: "bomb", value: bomb.id });
-                  go(`/bombs/${bomb.id}/`, ["nav-forward"]);
+                  go(`/armament/${bomb.id}/`, ["nav-forward"]);
                 }}
                 className={ITEM}
               >

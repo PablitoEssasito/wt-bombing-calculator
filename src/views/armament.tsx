@@ -1,28 +1,26 @@
 import type { Metadata } from "next";
 import { Bomb } from "lucide-react";
-import { BombChart } from "@/components/bomb-chart";
+import { ArmamentChart } from "@/components/armament-chart";
 import { PageHeader } from "@/components/page-header";
 import { PageTransition } from "@/components/page-transition";
-import { inBombChart } from "@/domain/bomb-chart";
 import { fill, plural } from "@/i18n/format";
 import type { Locale } from "@/i18n/locales";
 import { messagesFor } from "@/i18n/messages";
-import { bombs, changelog, guidanceLabels } from "@/lib/dataset";
+import { changelog, chartRowsFor, guidanceLabels, pagedBombs } from "@/lib/dataset";
 import { canonicalOf, pageOpenGraph } from "@/lib/site";
 
-export function bombsMetadata(locale: Locale): Metadata {
+export function armamentMetadata(locale: Locale): Metadata {
   const m = messagesFor(locale).bombChart;
   return {
     title: m.title,
     description: m.metaDescription,
-    ...canonicalOf("/bombs", locale),
+    ...canonicalOf("/armament", locale),
     ...pageOpenGraph(m.title, m.metaDescription, undefined, locale),
   };
 }
 
-export function BombsView({ locale }: { locale: Locale }) {
+export function ArmamentView({ locale }: { locale: Locale }) {
   const m = messagesFor(locale);
-  const shown = bombs.filter(inBombChart);
   const patch = changelog[0]?.gameVersion;
 
   return (
@@ -32,13 +30,13 @@ export function BombsView({ locale }: { locale: Locale }) {
           icon={Bomb}
           title={m.bombChart.title}
           stats={[
-            plural(locale, m.stats.bombsAndRockets, shown.length),
-            plural(locale, m.stats.nations, new Set(shown.flatMap((b) => b.usedByNations)).size),
+            plural(locale, m.stats.weapons, pagedBombs.length),
+            plural(locale, m.stats.nations, new Set(pagedBombs.flatMap((b) => b.usedByNations)).size),
             ...(patch ? [fill(m.stats.patch, { version: patch })] : []),
           ]}
         />
         <div className="enter" style={{ "--i": 2 } as React.CSSProperties}>
-          <BombChart bombs={bombs} guidanceLabels={guidanceLabels(locale)} />
+          <ArmamentChart bombs={chartRowsFor(locale)} guidanceLabels={guidanceLabels(locale)} />
         </div>
       </div>
     </PageTransition>

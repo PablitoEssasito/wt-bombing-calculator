@@ -104,6 +104,14 @@ describe("reconcile", () => {
   });
 });
 
+describe("a gun pod", () => {
+  it("gets no mass: its file weighs the round, not the pod", () => {
+    const bk27 = round({ file: "bk27", name: "27 mm Mauser BK27 cannon", short: "BK27", category: "gun", bombId: "bk27", damage: null, damageSource: null, stats: { massKg: 0.26, caliberMm: 27 } });
+    const { rows } = reconcile([], [bk27], countryOf);
+    expect(rows[0]).toMatchObject({ kind: "GUN", massKg: null, massLabel: "", damageValue: null });
+  });
+});
+
 describe("kindOfRound", () => {
   it("sorts a game-only row by what its file says it is", () => {
     expect(kindOfRound(round({ incendiary: true }))).toBe("INC");

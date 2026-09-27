@@ -213,6 +213,11 @@ describe("unpricedIn", () => {
   it("says nothing about ordnance the chart does price", () => {
     expect(unpricedIn(build([[1, "500lb"]]), armament)).toEqual([]);
   });
+
+  it("names ordnance whose row has no damage to give", () => {
+    const names = unpricedIn(build([[1, "500lb"]]), armament, () => false).map((s) => s.name);
+    expect(names.length).toBeGreaterThan(0);
+  });
 });
 
 describe("unmetIn", () => {

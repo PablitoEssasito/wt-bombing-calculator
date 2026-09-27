@@ -23,12 +23,12 @@ export const enServer = {
       "Search across {aircraft} aircraft, filterable by nation and battle rating, with a per-aircraft drop schedule that recalculates as you change BR, game mode, or base count.",
       "Every loadout note sorted into what it actually means — recommended, worth knowing, heads up, or advised against — instead of a bare marker you have to hover to read.",
       "A loadout creator modelled on the game's own weapon menu: pylon by pylon, with mass limits and mutual exclusions enforced and unmet dependencies flagged, built from the game's own data files rather than guessed from the loadouts alone.",
-      "A sortable bomb chart with a standalone calculator for any bomb against any base health — rockets included, priced by hand against the game's own hangar figures rather than left blank.",
+      "An armament chart of everything the game's aircraft carry, its figures read from the game's own files, with the damage each does to a base: the game's own figure, or an estimate from its explosion model where it gives none.",
       "Premium and squadron aircraft picked out the way the game itself does — gold and green — so a search result does not need a click to tell which is which.",
       "Every control lives in the URL, so a specific setup is one link to share.",
     ],
     creditBuilt:
-      "The loadout creator, every recalculated schedule, the rocket damage figures (checked in game, one by one) and the icons are built here from War Thunder's own game files. The hand-tuned drop schedules and bomb damage figures come from",
+      "The armament chart and its damage figures, the loadout creator, every recalculated schedule and the icons are built here from War Thunder's own game files. The hand-tuned drop schedules, and damage for the few weapons the game gives no figure for, come from",
     creditPulled: ", last pulled {date}.",
     howNumbers: "How the numbers work",
     bleed:
@@ -63,8 +63,8 @@ export const enServer = {
 
   footer: {
     builtFrom:
-      "Loadout creator, recalculated schedules, rocket figures and in-game icons built from War Thunder's own game files.",
-    handTuned: "Hand-tuned drop schedules and bomb damage figures from",
+      "Armament chart, damage to bases, loadout creator, recalculated schedules and in-game icons built from War Thunder's own game files.",
+    handTuned: "Hand-tuned drop schedules from",
     legion: "LEGION's Loadouts",
     notAffiliated: "Not affiliated with or endorsed by Gaijin Entertainment.",
     lastUpdate: "Last update:",
@@ -78,7 +78,6 @@ export const enServer = {
   },
 
   stats: {
-    bombsAndRockets: forms({ one: "{n} bomb or rocket", other: "{n} bombs & rockets" }),
     nations: forms({ one: "{n} nation", other: "{n} nations" }),
     sheet: "Sheet v{version}",
     patch: "Patch {version}",
@@ -86,14 +85,14 @@ export const enServer = {
     latestPatch: "patch {version} · {date}",
     updates: forms({ one: "{n} update tracked", other: "{n} updates tracked" }),
     aircraft: forms({ one: "{n} aircraft", other: "{n} aircraft" }),
-    bombs: forms({ one: "{n} bomb", other: "{n} bombs" }),
+    weapons: forms({ one: "{n} weapon", other: "{n} weapons" }),
   },
 
   home: {
     heading: "How many bombs do you actually need?",
     intro:
       "Pick your aircraft and get the drop schedule: what to put on each base, how many bases it flattens, and which loadout earns the most while still doing the job.",
-    covers: "Covers {aircraft} aircraft and {bombs} bombs.",
+    covers: "Covers {aircraft} aircraft and {bombs} weapons.",
     facts: [
       {
         title: "Small bombs hit harder",
@@ -111,10 +110,10 @@ export const enServer = {
   },
 
   bombPage: {
-    back: "← Bomb chart",
-    metaTitle: "{name} — how many per base, and which aircraft",
+    back: "← Armament",
+    metaTitle: "{name} — figures, damage to bases, and which aircraft",
     metaDescription:
-      "How many {name} it takes to destroy a base in War Thunder at every BR, and every aircraft that can carry it.",
+      "{name} in War Thunder: its figures from the game's files, how many it takes to destroy a base at every BR, and every aircraft that can carry it.",
     perBase: "How many per base",
     perBaseHint: "How many it takes to destroy one base, by the match's BR.",
     fourBases: "4 bases",
@@ -124,12 +123,32 @@ export const enServer = {
     inSheetTitle: "One of the sheet's loadouts for this aircraft drops it",
     noAircraft:
       "None of the aircraft this site covers carries it — only ones the sheet has no loadouts for.",
+    groups: { guidance: "Guidance", flight: "Flight", warhead: "Warhead", blast: "Blast" },
+    figures: "In the game",
+    figuresHint: "As the game's own weapon tooltip gives them, read from its files.",
+    fireRate: "Rate of fire (rounds/min)",
+    nuclearYield: "Yield",
+    source: {
+      game: "The game's own figure — the estimated damage its hangar shows.",
+      estimate:
+        "Estimated from the game's explosion model: the game shows no figure for this weapon, but the same model gives back every one it does show. The game pays nothing for it in the reward.",
+      sheet: "From LEGION's sheet: the game gives no figure for this weapon.",
+    },
+    sheetGives: "The sheet gives {damage}.",
+    noDamage: "The game gives this weapon no damage to bases.",
+    otherAircraft: "Also carried by aircraft with no page here",
+    similar: "Similar weapons",
     stats: {
       mass: "Mass",
       tnt: "TNT equivalent",
       damage: "Damage to bases",
       efficiency: "Damage per kg",
     },
+  },
+
+  moved: {
+    text: "The bomb chart is now the armament chart, and this page has moved with it.",
+    link: "Go to its new address",
   },
 
   notFound: {

@@ -195,7 +195,8 @@ export function reconcile(
       if (nation) countries.set(nation, (countries.get(nation) ?? 0) + 1);
     }
     const nation = [...countries].sort((a, b) => b[1] - a[1] || NATIONS.indexOf(a[0]) - NATIONS.indexOf(b[0]))[0]?.[0] ?? null;
-    const massKg = game.massKg ?? first.stats.massKg ?? null;
+    // A gun's file weighs its round, not the pod: no mass beats 0.26 kg for a BK27 pod.
+    const massKg = first.category === "gun" ? null : (game.massKg ?? first.stats.massKg ?? null);
     rows.push({
       id,
       chartName: first.short ?? first.name ?? first.file,

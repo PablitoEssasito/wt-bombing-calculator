@@ -80,7 +80,7 @@ export function languageUrls(pathname: string): Record<Locale | "x-default", str
  * The one true URL for a page, trailing slash and all — the same shape
  * `next.config.ts`'s `trailingSlash` makes every link on the site use, and
  * the one `sitemap.ts` lists. Stating it keeps a search engine from treating
- * `/bombs` and `/bombs/` as two different pages that happen to agree.
+ * `/armament` and `/armament/` as two different pages that happen to agree.
  * Alongside it, the same page in every other language (hreflang), with the
  * English one as the default for anyone else.
  */

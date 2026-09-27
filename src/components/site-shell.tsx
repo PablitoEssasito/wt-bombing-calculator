@@ -34,7 +34,7 @@ export function SiteShell({
   const m = messagesFor(locale);
   const nav = [
     { href: "/", label: m.nav.aircraft, short: null },
-    { href: "/bombs/", label: m.nav.bombs, short: m.nav.bombsShort },
+    { href: "/armament/", label: m.nav.bombs, short: m.nav.bombsShort },
     { href: "/changelog/", label: m.nav.changelog, short: m.nav.changelogShort },
     { href: "/about/", label: m.nav.about, short: m.nav.aboutShort },
   ];

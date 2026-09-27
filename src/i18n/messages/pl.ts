@@ -8,14 +8,14 @@ export const pl: ClientMessages = {
 
   nav: {
     aircraft: "Samoloty",
-    bombs: "Tabela bomb",
-    bombsShort: "Bomby",
+    bombs: "Uzbrojenie",
+    bombsShort: "Uzbrojenie",
     changelog: "Zmiany",
     changelogShort: "Zmiany",
     about: "O stronie",
     aboutShort: "Info",
     coffee: "Postaw mi kawę",
-    search: "Szukaj samolotów, bomb i stron",
+    search: "Szukaj samolotów, uzbrojenia i stron",
     newChanges: "nowe zmiany",
     language: "Język",
     chooseLanguage: "Wybierz język",
@@ -149,23 +149,39 @@ export const pl: ClientMessages = {
   },
 
   bombChart: {
-    title: "Tabela bomb",
+    title: "Uzbrojenie",
     metaDescription:
-      "Każda bomba w War Thunder z jej obrażeniami przeciw bazom i liczbą potrzebną do zniszczenia bazy przy dowolnym BR.",
+      "Wszystko, co przenoszą samoloty War Thunder — bomby, rakiety, pociski, torpedy, zasobniki z działkami — ze statystykami z plików gry, obrażeniami dla baz i liczbą sztuk potrzebną do zniszczenia bazy przy dowolnym BR.",
     massKg: "Masa (kg)",
     tntKg: "Równoważnik trotylowy (kg)",
     damage: "Obrażenia",
     minimum: "{label} — minimum",
     maximum: "{label} — maksimum",
-    filterPlaceholder: "Filtruj bomby…",
-    filterLabel: "Filtruj bomby",
+    filterPlaceholder: "Filtruj uzbrojenie…",
+    filterLabel: "Filtruj uzbrojenie",
     massShownIn: "Masa w",
     massUnit: "Jednostka masy",
     original: "Oryginalna",
-    summary: "Bomby: {count} przeciw bazom {hp} HP",
+    summary: "Uzbrojenie: {count} przeciw bazom {hp} HP",
     empty: "Nic nie pasuje do tych filtrów.",
+    show: "Pokaż",
+    views: { bases: "Na bazy", guided: "Kierowane", all: "Wszystko" },
+    gameOnly: "Tylko obrażenia podane przez grę",
+    moreColumns: "Więcej kolumn",
+    extraColumns: {
+      range: "Zasięg odpalenia",
+      speed: "Prędkość maks.",
+      guidanceTime: "Czas naprowadzania",
+      warhead: "Głowica",
+      explosive: "Materiał wybuchowy",
+      charge: "Masa ładunku",
+    },
+    estimateLegend:
+      "Szacunek z modelu wybuchu gry — gra nie podaje tej wartości dla tej broni i nie płaci za nią w nagrodzie.",
+    sheetTag: "arkusz",
+    sheetLegend: "Z arkusza LEGION'a — gra nie podaje tej wartości dla tej broni.",
     columns: {
-      name: "Bomba",
+      name: "Uzbrojenie",
       needed: "Na bazę",
       damage: "Obrażenia",
       mass: "Masa",
@@ -318,6 +334,8 @@ export const pl: ClientMessages = {
     reward: "nagrody",
     alsoCarrying:
       "Niesie też: {stores} — bez wartości obrażeń przeciw bazom, więc nie wliczają się do wyniku powyżej.",
+    estimated:
+      "{stores}: obrażenia dla baz to szacunek z modelu wybuchu gry. Gra ich nie podaje, więc nic nie dodają do nagrody.",
   },
 
   changelog: {
@@ -367,11 +385,11 @@ export const pl: ClientMessages = {
   },
 
   palette: {
-    placeholder: "Szukaj samolotów, bomb, stron…",
+    placeholder: "Szukaj samolotów, uzbrojenia, stron…",
     loading: "Ładowanie…",
     empty: "Nic o tej nazwie.",
     aircraft: "Samoloty",
-    bombs: "Bomby i rakiety",
+    bombs: "Uzbrojenie",
     pages: "Strony",
   },
 
