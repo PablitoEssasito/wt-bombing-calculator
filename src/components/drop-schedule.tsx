@@ -1,11 +1,16 @@
 "use client";
 
 import { BombRow } from "@/components/bomb-glyph";
-import type { Plan, PlanBase, PlanItem } from "@/domain/schedule";
+import type { Plan, PlanBase, PlanItem, Shortfall } from "@/domain/schedule";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
-export function DropSchedule({ plan }: { plan: Plan }) {
+/**
+ * `shortfalls` marks the bases the sheet counts down that the game's own damage
+ * figures leave standing (see shortfallOf) — shown on the tile rather than
+ * quietly re-counted, since the rest of the sheet's plan still stands.
+ */
+export function DropSchedule({ plan, shortfalls = [] }: { plan: Plan; shortfalls?: Shortfall[] }) {
   const { m, number, count, fill } = useI18n();
   if (plan.bases.length === 0) {
     return (
@@ -20,7 +25,12 @@ export function DropSchedule({ plan }: { plan: Plan }) {
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {plan.bases.map((base, i) => (
           <li key={i}>
-            <BaseTile base={base} index={i} threshold={plan.threshold} />
+            <BaseTile
+              base={base}
+              index={i}
+              threshold={plan.threshold}
+              shortfall={shortfalls.find((s) => s.base === i)}
+            />
           </li>
         ))}
       </ol>
@@ -53,27 +63,30 @@ function BaseTile({
   base,
   index,
   threshold,
+  shortfall,
 }: {
   base: PlanBase;
   index: number;
   threshold: number;
+  shortfall?: Shortfall;
 }) {
   const { m, number, fill } = useI18n();
   const ratio = Math.min(base.damage / threshold, 1);
+  const down = base.destroys && !shortfall;
 
   return (
     <article
       className={cn(
         "card p-3.5 h-full flex flex-col gap-3",
-        base.destroys ? "border-line" : "border-dashed border-line-bright",
+        down ? "border-line" : "border-dashed border-line-bright",
       )}
     >
       <header className="flex items-center justify-between gap-2">
         <span className="text-xs uppercase tracking-wider text-ink-faint">
           {fill(m.drop.base, { n: index + 1 })}
         </span>
-        <span className={cn("text-xs", base.destroys ? "text-live" : "text-warn")}>
-          {base.destroys ? m.drop.destroyed : m.drop.leftovers}
+        <span className={cn("text-xs", down ? "text-live" : "text-warn")}>
+          {shortfall ? m.drop.shortByGame : base.destroys ? m.drop.destroyed : m.drop.leftovers}
         </span>
       </header>
 
@@ -94,7 +107,7 @@ function BaseTile({
       <div className="space-y-1">
         <div className="h-1 rounded-full bg-surface-2 overflow-hidden">
           <div
-            className={cn("h-full rounded-full", base.destroys ? "bg-live" : "bg-warn")}
+            className={cn("h-full rounded-full", down ? "bg-live" : "bg-warn")}
             style={{ width: `${Math.max(ratio * 100, 2)}%` }}
           />
         </div>
@@ -105,6 +118,17 @@ function BaseTile({
           })}
           {base.hasUnpriced ? m.drop.unpriced : ""}
         </p>
+        {shortfall ? (
+          <p className="text-xs text-warn">
+            {shortfall.needed
+              ? fill(m.drop.neededByGame, {
+                  count: shortfall.needed.count,
+                  name: shortfall.needed.bomb.chartName || shortfall.needed.bomb.fullName,
+                  sheetCount: shortfall.needed.sheetCount,
+                })
+              : fill(m.drop.shortDetail, { sheet: number(Math.round(shortfall.sheetDamage)) })}
+          </p>
+        ) : null}
       </div>
     </article>
   );

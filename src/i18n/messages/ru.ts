@@ -272,6 +272,9 @@ export const ru: ClientMessages = {
     destroyed: "уничтожена",
     leftovers: "остатки",
     damageOf: "{damage} из {threshold} урона",
+    shortByGame: "мало по данным игры",
+    neededByGame: "По урону, который указывает игра, нужно {count} × {name}, в таблице — {sheetCount}.",
+    shortDetail: "Таблица считала здесь {sheet}, а по урону, который указывает игра, этого мало.",
     unpriced: " (плюс вооружение без оценки)",
   },
 

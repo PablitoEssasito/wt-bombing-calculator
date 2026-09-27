@@ -272,6 +272,9 @@ export const pl: ClientMessages = {
     destroyed: "zniszczona",
     leftovers: "resztki",
     damageOf: "{damage} z {threshold} obrażeń",
+    shortByGame: "za mało wg danych gry",
+    neededByGame: "Wg obrażeń podanych przez grę potrzeba {count} × {name}, arkusz podaje {sheetCount}.",
+    shortDetail: "Arkusz liczył tu {sheet}, a wg obrażeń podanych przez grę to za mało.",
     unpriced: " (plus uzbrojenie bez wyceny)",
   },
 

@@ -30,7 +30,9 @@
     "localize:cache": "tsx scripts/localize/index.ts --cache",
     "changelog": "tsx scripts/changelog/index.ts",
     "bases": "tsx scripts/bases/index.ts",
-    "bases:cache": "tsx scripts/bases/index.ts --cache"
+    "bases:cache": "tsx scripts/bases/index.ts --cache",
+    "data": "npm run etl && npm run images && npm run armament:fetch && npm run stores && npm run armament:cache && npm run bomb-icons && npm run battle-ratings && npm run localize && npm run bases",
+    "data:cache": "npm run etl:cache && npm run images:cache && npm run stores:cache && npm run armament:cache && npm run bomb-icons:cache && npm run battle-ratings:cache && npm run localize:cache && npm run bases:cache"
   },
   "dependencies": {
     "@dnd-kit/dom": "0.5.0",

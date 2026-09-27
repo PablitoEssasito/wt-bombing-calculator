@@ -258,6 +258,61 @@ export function buildPlan(
 }
 
 /**
+ * A base a sheet schedule counts as flattened that the game's own damage
+ * figures leave standing: the sheet priced one of its bombs higher than the
+ * game does — the AV-8B's ten GBU-38s come to 23 720 by the sheet and 20 720
+ * by the game, against 23 357 to bring a top-tier base down.
+ */
+export type Shortfall = {
+  /** Which base of the schedule, from 0. */
+  base: number;
+  damage: number;
+  sheetDamage: number;
+  threshold: number;
+  /** For a base of one kind of bomb: how many the game's figure takes, where the sheet drops `sheetCount`. */
+  needed: { bomb: Bomb; count: number; sheetCount: number } | null;
+};
+
+/** What the sheet itself priced a bomb at, where the game's figure overrules it. */
+const sheetDamageOf = (bomb: Bomb) =>
+  bomb.sheet && "damageValue" in bomb.sheet ? bomb.sheet.damageValue ?? null : bomb.damageValue;
+
+/**
+ * The bases a schedule's own count takes down (see buildPlan) that fall short
+ * once the game's figures replace the sheet's.
+ *
+ * Only what the game's figures changed: a base the sheet counts short even by
+ * its own numbers is the author's call — a rocket pass to finish it, say — not
+ * a mistake, and a schedule that states no count is decided by damage anyway.
+ */
+export function shortfallOf(schedule: Schedule, bombs: Map<string, Bomb>): Shortfall[] {
+  if (schedule.basesDestroyed === null) return [];
+  const threshold = effectiveBaseHp(schedule.baseHp, "rb", 4) * BASE_BLEED;
+  const shortfalls: Shortfall[] = [];
+  schedule.bases.slice(0, schedule.basesDestroyed).forEach((base, index) => {
+    const items = base.items.flatMap((item) => {
+      const bomb = bombs.get(item.bombId);
+      return bomb ? [{ bomb, count: item.count }] : [];
+    });
+    const damage = items.reduce((sum, { bomb, count }) => sum + (bomb.damageValue ?? 0) * count, 0);
+    const sheetDamage = items.reduce((sum, { bomb, count }) => sum + (sheetDamageOf(bomb) ?? 0) * count, 0);
+    if (damage >= threshold || sheetDamage < threshold) return;
+    const only = items.length === 1 ? items[0] : null;
+    shortfalls.push({
+      base: index,
+      damage,
+      sheetDamage,
+      threshold,
+      needed:
+        only && only.bomb.damageValue
+          ? { bomb: only.bomb, count: Math.ceil(threshold / only.bomb.damageValue), sheetCount: only.count }
+          : null,
+    });
+  });
+  return shortfalls;
+}
+
+/**
  * Lays a payload out over as many bases as it will flatten.
  *
  * The same arithmetic the recomputed path above uses, given the bombs directly

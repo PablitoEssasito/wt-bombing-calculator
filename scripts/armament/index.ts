@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NATIONS, type Nation } from "../../src/domain/constants";
 import type { Aircraft, Bomb } from "../../src/domain/types";
+import { shortfallOf } from "../../src/domain/schedule";
 import { downloadIcons } from "../bomb-icons/fetch";
 import { loadWpcost } from "../shared/wpcost";
 import { parseArmament, presetPath, type Armament } from "./parse";
@@ -200,7 +201,12 @@ async function main() {
   const carriers = sharedAcrossDuplicates(gameCarriersOf(aircraft, unitIds, byUnit, catalogue), bombs);
   await writeFile(
     OUT_CARRIERS,
-    JSON.stringify(Object.fromEntries([...carriers].map(([bombId, planes]) => [bombId, [...planes].sort()]))),
+    // Keys in order: the map fills in whatever order the files came in.
+    JSON.stringify(
+      Object.fromEntries(
+        [...carriers].sort(([a], [b]) => a.localeCompare(b)).map(([bombId, planes]) => [bombId, [...planes].sort()]),
+      ),
+    ),
     "utf8",
   );
   // The game's aircraft the site has no page for, by the price list's unit name.
@@ -233,6 +239,7 @@ async function main() {
   const usedBy = usedByNationsOf(aircraft, carriers, bombs, countriesOf);
   const enrichedBombs = bombs.map((bomb) => ({ ...bomb, usedByNations: usedBy.get(bomb.id) ?? [] }));
   await writeFile(path.join(DATA_DIR, "bombs.json"), JSON.stringify(enrichedBombs), "utf8");
+  reportShortfalls(aircraft, new Map(enrichedBombs.map((bomb) => [bomb.id, bomb])));
   const unmatched = enrichedBombs.filter((b) => b.usedByNations.length === 0);
   console.log(
     `\nNation usage: ${enrichedBombs.length - unmatched.length}/${enrichedBombs.length} bombs matched ` +
@@ -342,6 +349,33 @@ function sharedAcrossDuplicates(carriers: Map<string, Set<string>>, bombs: Bomb[
 }
 
 /** What the game's files changed about the sheet's rows, and what they added. */
+/**
+ * The sheet's own plans that count a base down which the game's damage figures
+ * leave standing — the planner marks each on its tile; listed here so an import
+ * that makes a new one is noticed.
+ */
+function reportShortfalls(aircraft: Aircraft[], bombs: Map<string, Bomb>) {
+  const lines: string[] = [];
+  for (const plane of aircraft) {
+    for (const [index, option] of plane.options.entries()) {
+      for (const schedule of option.schedules) {
+        for (const short of shortfallOf(schedule, bombs)) {
+          const what = short.needed
+            ? `${short.needed.sheetCount} × ${short.needed.bomb.chartName || short.needed.bomb.fullName}, the game's figures need ${short.needed.count}`
+            : `${Math.round(short.damage)} of ${Math.round(short.threshold)} (the sheet's figures: ${Math.round(short.sheetDamage)})`;
+          lines.push(`${plane.name} loadout ${index + 1} at ${schedule.baseHp} HP, base ${short.base + 1}: ${what}`);
+        }
+      }
+    }
+  }
+  if (lines.length === 0) {
+    console.log("ok    every base the sheet's plans count down falls to the game's damage figures too");
+    return;
+  }
+  console.log(`warn  ${lines.length} base(s) the sheet's plans count down stand by the game's damage figures:`);
+  for (const line of lines) console.log(`        ${line}`);
+}
+
 function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], estimates: string[]) {
   const game = rows.filter((row) => row.source === "game");
   const bySource = (source: string) => rows.filter((row) => row.damageSource === source).length;

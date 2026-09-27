@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import aircraftData from "../../data/aircraft.json";
 import bombData from "../../data/bombs.json";
 import { BASE_HP_TIERS } from "../constants";
-import { buildPlan, mountedIn, payloadOf, planPayload, trimToTarget } from "../schedule";
+import { buildPlan, mountedIn, payloadOf, planPayload, shortfallOf, trimToTarget } from "../schedule";
 import type { Aircraft, Bomb } from "../types";
 
 const bombs = new Map((bombData as Bomb[]).map((b) => [b.id, b]));
@@ -270,5 +270,44 @@ describe("planPayload with rockets", () => {
     expect(plan.basesDestroyed).toBe(1);
     expect(plan.bases[0].items.map((i) => i.bomb.id)).toEqual(["hvar"]);
     expect(plan.leftover).toContainEqual({ bomb: bomb("ap-mk-i"), count: 8 });
+  });
+});
+
+describe("shortfallOf", () => {
+  const gbu38 = bombs.get("gbu-38-v")!;
+  const schedule = (count: number, basesDestroyed: number | null) => ({
+    bracket: null,
+    baseHp: 25900 as const,
+    bases: [{ items: [{ bombId: gbu38.id, count }] }],
+    basesDestroyed,
+    bracketNote: null,
+  });
+
+  it("flags a base the sheet counts down that the game's figures leave standing, and says how many would do", () => {
+    // Ten GBU-38s: 23 720 at the sheet's 2372 each, 20 720 at the game's 2072 — against 23 357.
+    const [short] = shortfallOf(schedule(10, 1), bombs);
+    expect(short).toMatchObject({ base: 0, damage: 20720, sheetDamage: 23720 });
+    expect(short.needed).toMatchObject({ count: 12, sheetCount: 10 });
+    expect(short.needed?.bomb.id).toBe("gbu-38-v");
+  });
+
+  it("leaves a base the game's figures still flatten alone", () => {
+    expect(shortfallOf(schedule(12, 1), bombs)).toEqual([]);
+  });
+
+  it("leaves the sheet's own calls alone: a base short by its own numbers, or a schedule with no count", () => {
+    expect(shortfallOf(schedule(9, 1), bombs)).toEqual([]);
+    expect(shortfallOf(schedule(10, null), bombs)).toEqual([]);
+  });
+
+  it("finds the AV-8Bs' ten GBU-38s among the sheet's own loadouts, and few others", () => {
+    const flagged = aircraft.flatMap((plane) =>
+      plane.options.flatMap((option) =>
+        option.schedules.flatMap((s) => (shortfallOf(s, bombs).length > 0 ? [`${plane.id}@${s.baseHp}`] : [])),
+      ),
+    );
+    expect(flagged).toEqual(expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900"]));
+    // A handful at most: more means a damage change the sheet's plans lean on — see the import report.
+    expect(flagged.length).toBeLessThan(10);
   });
 });

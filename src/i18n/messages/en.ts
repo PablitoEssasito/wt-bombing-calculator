@@ -269,6 +269,9 @@ export const en = {
     destroyed: "destroyed",
     leftovers: "leftovers",
     damageOf: "{damage} of {threshold} damage",
+    shortByGame: "short by the game's figures",
+    neededByGame: "The game's own damage figures need {count} × {name}; the sheet drops {sheetCount}.",
+    shortDetail: "The sheet counted this at {sheet}; the game's own damage figures fall short.",
     unpriced: " (plus unpriced ordnance)",
   },
 

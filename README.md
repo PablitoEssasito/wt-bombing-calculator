@@ -30,6 +30,9 @@ npm run build         # static export into out/
 npm test              # domain tests, including the golden test below
 npm run lint           # eslint
 
+npm run data           # every import below in order, as the daily workflow runs it (then changelog)
+npm run data:cache     # the same from cached responses, without hitting the network
+
 npm run etl            # re-import from the spreadsheet
 npm run etl:cache      # re-parse cached responses without hitting the network
 npm run images         # re-match and re-download aircraft renders and tech-tree icons
@@ -39,6 +42,7 @@ npm run armament:fetch # only pull the flight models, which stores reads — see
 npm run bomb-icons     # re-match the bomb chart's own weapon-selector icons
 npm run battle-ratings # every mode's BR and the reward figures from the game's files; overwrites the sheet's Air RB
 npm run localize       # Polish and Russian aircraft and weapon names, from the game's own lang files
+npm run bases          # base HP from the game's mission templates, checked against the site's
 npm run changelog      # record what this import changed, for /changelog — run last
 
 npm run reward-logs    # local only: reward samples from this machine's War Thunder logs — see Rewards

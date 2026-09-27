@@ -49,15 +49,8 @@ jobs:
             echo "::error::Secret GOOGLE_SHEETS_API_KEY is not set"
             exit 1
           fi
-          npm run etl
-          npm run images
-          npm run armament:fetch
-          npm run stores
-          npm run armament:cache
-          npm run bomb-icons
-          npm run battle-ratings
-          npm run localize
-          npm run bases
+          # Every import in order — see "data" in package.json.
+          npm run data
           npm run --silent changelog | tee changelog-summary.txt
 
       - name: Anything changed?

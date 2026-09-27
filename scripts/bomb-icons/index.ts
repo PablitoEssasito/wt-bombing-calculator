@@ -37,7 +37,11 @@ async function main() {
 
   // A row from the game alone is one weapon file, or several alike: its own
   // icon is exactly known, so there is nothing to match by mass.
-  const rounds = JSON.parse(await readFile(ROUNDS, "utf8")) as { bombId: string | null; iconType: string | null }[];
+  const rounds = JSON.parse(await readFile(ROUNDS, "utf8")) as {
+    file: string;
+    bombId: string | null;
+    iconType: string | null;
+  }[];
   const fileIcons = new Map<string, string[]>();
   for (const round of rounds) {
     if (round.bombId && round.iconType) fileIcons.set(round.bombId, [...(fileIcons.get(round.bombId) ?? []), round.iconType]);
@@ -56,12 +60,17 @@ async function main() {
   const armament = JSON.parse(
     await readFile(path.join(process.cwd(), "src", "data", "armament.json"), "utf8"),
   ) as CompactArmament;
+  // A row from the game whose files name no icon at all — a gun pod's — is
+  // drawn as the presets hanging it draw it, as a bomb is.
+  const bombIdOfFile = new Map(
+    rounds.flatMap((round) => (round.bombId && !fileIcons.has(round.bombId) ? [[round.file, round.bombId]] : [])),
+  );
   const presetsOf = (unit: CompactUnit): PresetIcon[] =>
     unit.slots.flatMap((slot) =>
       slot.o.flatMap((option) => {
         if (!option.i) return [];
         const refs = typeof option.w === "number" ? [option.w] : option.w.map(([index]) => index);
-        const bombIds = refs.map((index) => armament.stores[index]?.b?.[0]);
+        const bombIds = refs.map((index) => armament.stores[index]?.b?.[0] ?? bombIdOfFile.get(armament.files[index]));
         return bombIds.every((id): id is string => id !== undefined)
           ? [{ iconType: option.i, bombIds }]
           : [];

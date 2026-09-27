@@ -11,6 +11,7 @@ import {
   mountedIn,
   payloadOf,
   scheduleFor,
+  shortfallOf,
   trimToTarget,
   type Plan,
 } from "@/domain/schedule";
@@ -282,7 +283,7 @@ export function AircraftPlanner({
           <p className="text-sm text-ink-faint">{active.schedule.bracketNote}</p>
         ) : null}
 
-        <DropSchedule plan={shown} />
+        <DropSchedule plan={shown} shortfalls={shown.source === "sheet" ? shortfallOf(active.schedule, bombsById) : []} />
       </section>
 
       {evaluated.length > 1 ? (
