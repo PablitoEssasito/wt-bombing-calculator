@@ -16,6 +16,7 @@ import {
 } from "@/domain/schedule";
 import rewardConstantsData from "@/data/reward-constants.json";
 import { loadoutRewardMul, type AircraftEconomy, type RewardConstants } from "@/domain/reward";
+import { rewardDamageOf } from "@/domain/bomb-chart";
 import type { Aircraft, Bomb, LoadoutOption, Schedule } from "@/domain/types";
 import { AnimatedCount, AnimatedNumber } from "@/components/animated-number";
 import { DropSchedule, ItemList } from "@/components/drop-schedule";
@@ -359,7 +360,10 @@ export function AircraftPlanner({
                   payload:
                     loadoutRewardMul(
                       active.option,
-                      (id) => bombsById.get(id)?.damageValue,
+                      (id) => {
+                        const bomb = bombsById.get(id);
+                        return bomb ? rewardDamageOf(bomb) : undefined;
+                      },
                       economy,
                       (rewardConstantsData as RewardConstants).bombing,
                     ) ?? active.option.rewardMultiplier / 10,

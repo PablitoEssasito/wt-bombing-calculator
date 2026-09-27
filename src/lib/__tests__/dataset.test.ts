@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import statsData from "../../data/armament-stats.json";
+import { rewardDamageOf } from "../../domain/bomb-chart";
 import { NATIONS } from "../../domain/constants";
+import type { WeaponStats } from "../../domain/types";
 import { bombsIn, buildFor, variantOf, violationsOf } from "../../domain/loadout";
 import { aircraft, aircraftCarrying, armamentFor, bombsById } from "../dataset";
 
@@ -120,32 +123,94 @@ describe("aircraftCarrying", () => {
   });
 });
 
-describe("guided bombs' seekers and navigation", () => {
+describe("the armament table, the game's files over the sheet", () => {
+  const stats = statsData as unknown as Record<string, WeaponStats>;
+
+  it("takes the game's price where the sheet's is out of date, keeping the sheet's beside it", () => {
+    // The Navy's GBU-38(V): the game prices it at 2072, the sheet at 2372.
+    expect(bombsById.get("gbu-38-v")).toMatchObject({ damageValue: 2072, damageSource: "game" });
+    expect(bombsById.get("gbu-38-v")!.sheet?.damageValue).toBe(2372);
+    // The BRAB-500 (1938): 162 kg of TNT, which the game prices at 3047.
+    expect(bombsById.get("brab-500-l")).toMatchObject({ damageValue: 3047, damageSource: "game" });
+  });
+
+  it("keeps the sheet's price where the game gives none of its own", () => {
+    // The Pe-8's FAB-5000 is priced only inside a fixed setup, which the sheet copied.
+    expect(bombsById.get("fab-5000")).toMatchObject({ damageValue: 30521, damageSource: "sheet" });
+  });
+
+  it("lists what the sheet never had, from the game alone", () => {
+    expect(bombsById.get("kd-88")).toMatchObject({
+      kind: "AGM",
+      guidance: "tv+IOG+GNSS",
+      source: "game",
+      damageValue: 2064,
+      damageSource: "estimate",
+    });
+    expect(bombsById.get("gbu-62-jdam-er")).toMatchObject({ kind: "GNSS", damageValue: 2464, damageSource: "game" });
+    expect(bombsById.get("b61")).toMatchObject({ damageValue: 1200000, source: "game" });
+    expect(bombsById.get("aim-120c-5")).toMatchObject({ kind: "AAM", damageValue: null });
+  });
+
+  it("splits off what the sheet folded into one row though the game prices it apart", () => {
+    // Eight American HVAR files at 380, one British at 359.
+    expect(bombsById.get("hvar")).toMatchObject({ damageValue: 380 });
+    expect(bombsById.get("hvar-uk-hvar")).toMatchObject({ damageValue: 359, source: "game" });
+  });
+
+  it("gives every figure a source, and an estimate nothing towards the reward", () => {
+    for (const bomb of bombsById.values()) {
+      if (bomb.damageValue !== null) expect(bomb.damageSource, bomb.id).toBeDefined();
+    }
+    expect(rewardDamageOf(bombsById.get("kd-88")!)).toBe(0);
+    expect(rewardDamageOf(bombsById.get("mk-82")!)).toBe(2464);
+  });
+
+  it("reads each weapon's figures as the game's tooltip shows them", () => {
+    // Against the in-game tooltip: 710 kg, TV+IOG+GNSS, 230 km, 0.9 M, 825 s,
+    // PBXN-3, 70.5 kg, 90.95 kg TNT, SAP-HE.
+    expect(stats["kd-88"]).toMatchObject({
+      massKg: 710,
+      guidance: "tv+IOG+GNSS",
+      launchRangeM: 230000,
+      machMax: 0.85,
+      timeLifeS: 825,
+      explosiveType: "pbxn_3",
+      explosiveMassKg: 70.5,
+      warhead: "aphe",
+    });
+    expect(stats["kd-88"].tntKg).toBeCloseTo(90.95, 2);
+    // The KD-88A's IR seeker: 20 km lock range.
+    expect(stats["kd-88a"]).toMatchObject({ guidance: "ir+IOG+GNSS", seekerRangeM: 20000 });
+  });
+});
+
+describe("guided bombs' seekers, as the game labels them", () => {
   const guidance = (id: string) => {
-    const { kind, navigation } = bombsById.get(id)!;
-    return { kind, navigation };
+    const { kind, guidance } = bombsById.get(id)!;
+    return { kind, guidance };
   };
 
   it("tells the AASM's three versions apart, as the game's files do", () => {
     // The sheet files all three under GNSS. The game names its laser version
     // SBU 54 and its infrared one SBU 64.
-    expect(guidance("aasm-250")).toEqual({ kind: "GNSS", navigation: undefined });
-    expect(guidance("aasm-250-hammer-sbu-54")).toEqual({ kind: "LAS", navigation: "INS/GNSS" });
-    expect(guidance("aasm-250-hammer-sbu-64")).toEqual({ kind: "IR", navigation: "INS/GNSS" });
+    expect(guidance("aasm-250")).toEqual({ kind: "GNSS", guidance: "sns" });
+    expect(guidance("aasm-250-hammer-sbu-54")).toEqual({ kind: "LAS", guidance: "laser+IOG+GNSS" });
+    expect(guidance("aasm-250-hammer-sbu-64")).toEqual({ kind: "IR", guidance: "ir+IOG+GNSS" });
   });
 
   it("marks satellite-aided INS apart from INS alone", () => {
-    expect(guidance("paveway-iv")).toEqual({ kind: "LAS", navigation: "INS/GNSS" });
-    expect(guidance("gbu-50")).toEqual({ kind: "LAS", navigation: "INS/GNSS" });
-    expect(guidance("pgm-2000-3")).toEqual({ kind: "IR", navigation: "INS" });
-    expect(guidance("gbu-12")).toEqual({ kind: "LAS", navigation: undefined });
+    expect(guidance("paveway-iv")).toEqual({ kind: "LAS", guidance: "laser+IOG+GNSS" });
+    expect(guidance("gbu-50")).toEqual({ kind: "LAS", guidance: "laser+IOG+GNSS" });
+    expect(guidance("pgm-2000-3")).toEqual({ kind: "IR", guidance: "ir+IOG" });
+    expect(guidance("gbu-12")).toEqual({ kind: "LAS", guidance: "laser" });
   });
 
   it("keeps the sheet's kind where the game's files disagree", () => {
     // Also the game's UMPK glide kit, but a plain bomb in its own file.
-    expect(guidance("500m-62")).toEqual({ kind: "GP", navigation: undefined });
-    // Comes TV- and laser-guided, both on INS.
-    expect(guidance("pgm-2000")).toEqual({ kind: "TV", navigation: "INS" });
+    expect(guidance("500m-62")).toEqual({ kind: "GP", guidance: undefined });
+    // Comes TV- and laser-guided.
+    expect(guidance("pgm-2000")).toEqual({ kind: "TV", guidance: undefined });
   });
 
   it("no longer lets the laser AASM stand in for the GPS one", () => {

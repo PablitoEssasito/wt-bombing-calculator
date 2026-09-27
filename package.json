@@ -28,7 +28,9 @@
     "reward-logs": "tsx scripts/reward-logs/index.ts",
     "localize": "tsx scripts/localize/index.ts",
     "localize:cache": "tsx scripts/localize/index.ts --cache",
-    "changelog": "tsx scripts/changelog/index.ts"
+    "changelog": "tsx scripts/changelog/index.ts",
+    "bases": "tsx scripts/bases/index.ts",
+    "bases:cache": "tsx scripts/bases/index.ts --cache"
   },
   "dependencies": {
     "@dnd-kit/dom": "0.5.0",

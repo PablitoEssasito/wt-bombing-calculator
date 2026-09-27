@@ -1,0 +1,59 @@
+{
+ "four": [
+  {
+   "maxLevel": 3,
+   "hp": 4000
+  },
+  {
+   "maxLevel": 7,
+   "hp": 6000
+  },
+  {
+   "maxLevel": 11,
+   "hp": 10000
+  },
+  {
+   "maxLevel": 16,
+   "hp": 16000
+  },
+  {
+   "maxLevel": 20,
+   "hp": 22000
+  },
+  {
+   "maxLevel": null,
+   "hp": 25900
+  }
+ ],
+ "three": [
+  {
+   "maxLevel": 3,
+   "hp": 6000,
+   "arcadeMul": 2.5
+  },
+  {
+   "maxLevel": 7,
+   "hp": 8000,
+   "arcadeMul": 3.2
+  },
+  {
+   "maxLevel": 11,
+   "hp": 10000,
+   "arcadeMul": 3.2
+  },
+  {
+   "maxLevel": 16,
+   "hp": 12000,
+   "arcadeMul": 4.2
+  },
+  {
+   "maxLevel": null,
+   "hp": 12000,
+   "arcadeMul": 4.2
+  }
+ ],
+ "fire": {
+  "hpFireMult": 0.1,
+  "fireSpeed": 0.03
+ }
+}

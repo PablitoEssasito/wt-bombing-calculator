@@ -7,7 +7,7 @@ import { inBombChart } from "@/domain/bomb-chart";
 import { fill, plural } from "@/i18n/format";
 import type { Locale } from "@/i18n/locales";
 import { messagesFor } from "@/i18n/messages";
-import { bombs, changelog, meta } from "@/lib/dataset";
+import { bombs, changelog, guidanceLabels } from "@/lib/dataset";
 import { canonicalOf, pageOpenGraph } from "@/lib/site";
 
 export function bombsMetadata(locale: Locale): Metadata {
@@ -34,12 +34,11 @@ export function BombsView({ locale }: { locale: Locale }) {
           stats={[
             plural(locale, m.stats.bombsAndRockets, shown.length),
             plural(locale, m.stats.nations, new Set(shown.flatMap((b) => b.usedByNations)).size),
-            ...(meta.sheetVersion ? [fill(m.stats.sheet, { version: meta.sheetVersion })] : []),
             ...(patch ? [fill(m.stats.patch, { version: patch })] : []),
           ]}
         />
         <div className="enter" style={{ "--i": 2 } as React.CSSProperties}>
-          <BombChart bombs={bombs} />
+          <BombChart bombs={bombs} guidanceLabels={guidanceLabels(locale)} />
         </div>
       </div>
     </PageTransition>

@@ -2,10 +2,13 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NATIONS, type Nation } from "../../src/domain/constants";
-import type { Aircraft, Bomb, BombNavigation } from "../../src/domain/types";
+import type { Aircraft, Bomb } from "../../src/domain/types";
 import { downloadIcons } from "../bomb-icons/fetch";
+import { loadWpcost } from "../shared/wpcost";
 import { parseArmament, presetPath, type Armament } from "./parse";
-import { isPhysicalCount } from "./stores";
+import { nationOfCountry, reconcile, sheetView } from "./reconcile";
+import type { Category } from "./stats";
+import { isPhysicalCount, type Round } from "./stores";
 
 const RAW =
   "https://raw.githubusercontent.com/gszabi99/War-Thunder-Datamine/master/aces.vromfs.bin_u/gamedata";
@@ -28,6 +31,12 @@ const STORES_FILE = path.join(process.cwd(), ".cache", "armament", "stores.json"
 const OUT_ARMAMENT = path.join(DATA_DIR, "armament.json");
 /** Build-time only: which aircraft the game lets carry each bomb, for the bomb pages. */
 const OUT_CARRIERS = path.join(DATA_DIR, "carriers.json");
+/** Build-time only: the game's aircraft outside the site that carry each one, by unit. */
+const OUT_OTHER_CARRIERS = path.join(DATA_DIR, "other-carriers.json");
+/** Build-time only: each row's figures as the game's weapon tooltip shows them. */
+const OUT_STATS = path.join(DATA_DIR, "armament-stats.json");
+/** One entry per round of ordnance, from `npm run stores`. */
+const ROUNDS_FILE = path.join(process.cwd(), ".cache", "armament", "rounds.json");
 
 type StoreRecord = {
   file: string;
@@ -38,9 +47,18 @@ type StoreRecord = {
   bomb: { id: string; count: number } | null;
   holds: number;
   iconType: string | null;
-  guidance: { kind: "LAS" | "IR" | "TV" | "GNSS"; navigation: BombNavigation | null } | null;
+  category: Category | null;
+  guidance: string | null;
+  damage: number | null;
   container: boolean;
 };
+
+/**
+ * What a hardpoint choice is priced by in the loadout creator: ordnance meant
+ * for the ground. An air-to-air missile or a gun pod has its own row in the
+ * armament table, but hangs in a build as nothing to price.
+ */
+const PRICED: ReadonlySet<Category> = new Set(["bomb", "guidedBomb", "rocket", "agm", "torpedo", "mine"]);
 
 const CONCURRENCY = 8;
 
@@ -121,6 +139,27 @@ async function main() {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
+  // Aircraft outside the site whose fixed setups the price list does not break
+  // down: their flight models are the only record of what those setups hang,
+  // so the store catalogue reads them too. Pulled, never parsed into anything
+  // shipped — the site has no page for them.
+  const siteUnits = new Set(wanted);
+  const unlisted = (await loadWpcost(useCache)).unlisted.filter((unit) => !siteUnits.has(unit));
+  const unlistedMissing: string[] = [];
+  const extraQueue = [...unlisted];
+  await Promise.all(
+    Array.from({ length: CONCURRENCY }, async () => {
+      for (let unitId = extraQueue.shift(); unitId; unitId = extraQueue.shift()) {
+        if (!(await loadUnit(unitId))) unlistedMissing.push(unitId);
+      }
+    }),
+  );
+  console.log(
+    `Read ${unlisted.length - unlistedMissing.length} more flight models for the armament catalogue, ` +
+      `aircraft whose fixed setups only their flight model lists` +
+      (unlistedMissing.length > 0 ? ` (${unlistedMissing.length} missing)` : ""),
+  );
+
   // stores.ts builds its catalogue from these flight models, and this script
   // reads that catalogue — so a fresh import pulls them first, stops, runs
   // stores, then comes back with --cache.
@@ -139,10 +178,24 @@ async function main() {
   await writeFile(OUT_FULL, JSON.stringify(byUnit), "utf8");
   await writeFile(OUT_MOUNTS, JSON.stringify(mounts), "utf8");
 
-  const bombs = JSON.parse(await readFile(path.join(DATA_DIR, "bombs.json"), "utf8")) as Bomb[];
+  // The sheet's own rows as the sheet printed them: the last import's rows
+  // from the game alone, and what it overruled, are made again from scratch.
+  const sheetRows = (JSON.parse(await readFile(path.join(DATA_DIR, "bombs.json"), "utf8")) as Bomb[])
+    .filter((bomb) => bomb.source !== "game")
+    .map(sheetView);
   await writePayload(byUnit);
   const catalogue = JSON.parse(await readFile(STORES_FILE, "utf8")) as StoreRecord[];
-  report(aircraft, unitIds, byUnit, missing, bombs, catalogue);
+  report(aircraft, unitIds, byUnit, missing, sheetRows, catalogue);
+
+  const rounds = JSON.parse(await readFile(ROUNDS_FILE, "utf8")) as Round[];
+  const wpcost = await loadWpcost(true);
+  const { rows: bombs, stats, changes, unmatched: noFile, estimates } = reconcile(
+    sheetRows,
+    rounds,
+    (unit) => wpcost.units[unit]?.country,
+  );
+  reportReconciled(bombs, changes, noFile, estimates);
+  await writeFile(OUT_STATS, JSON.stringify(stats), "utf8");
 
   const carriers = sharedAcrossDuplicates(gameCarriersOf(aircraft, unitIds, byUnit, catalogue), bombs);
   await writeFile(
@@ -150,18 +203,35 @@ async function main() {
     JSON.stringify(Object.fromEntries([...carriers].map(([bombId, planes]) => [bombId, [...planes].sort()]))),
     "utf8",
   );
-  const usedBy = usedByNationsOf(aircraft, carriers, bombs);
-  // An absent navigation is written as nothing, so a rerun drops a stale one.
-  const enrichedBombs = bombs.map((bomb) => ({
-    ...bomb,
-    ...guidanceOf(bomb, catalogue),
-    usedByNations: usedBy.get(bomb.id) ?? [],
-  }));
-  const reclassified = enrichedBombs.filter((b) => b.navigation || b.kind !== bombs.find((o) => o.id === b.id)?.kind);
-  console.log(
-    `\nGuidance from the game's files: ${reclassified.length} guided bombs — ` +
-      reclassified.map((b) => `${b.chartName || b.fullName} ${b.kind}${b.navigation ? `+${b.navigation}` : ""}`).join(", "),
+  // The game's aircraft the site has no page for, by the price list's unit name.
+  const others = new Map<string, Set<string>>();
+  for (const round of rounds) {
+    if (!round.bombId) continue;
+    const set = others.get(round.bombId) ?? new Set<string>();
+    for (const unit of round.units) if (!siteUnits.has(unit)) set.add(unit);
+    others.set(round.bombId, set);
+  }
+  await writeFile(
+    OUT_OTHER_CARRIERS,
+    JSON.stringify(
+      Object.fromEntries(
+        [...others]
+          .filter(([, units]) => units.size > 0)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([id, units]) => [id, [...units].sort()]),
+      ),
+    ),
+    "utf8",
   );
+
+  const countriesOf = new Map<string, Nation[]>();
+  for (const round of rounds) {
+    if (!round.bombId) continue;
+    const nations = round.units.flatMap((unit) => nationOfCountry(wpcost.units[unit]?.country) ?? []);
+    countriesOf.set(round.bombId, [...(countriesOf.get(round.bombId) ?? []), ...nations]);
+  }
+  const usedBy = usedByNationsOf(aircraft, carriers, bombs, countriesOf);
+  const enrichedBombs = bombs.map((bomb) => ({ ...bomb, usedByNations: usedBy.get(bomb.id) ?? [] }));
   await writeFile(path.join(DATA_DIR, "bombs.json"), JSON.stringify(enrichedBombs), "utf8");
   const unmatched = enrichedBombs.filter((b) => b.usedByNations.length === 0);
   console.log(
@@ -271,26 +341,30 @@ function sharedAcrossDuplicates(carriers: Map<string, Set<string>>, bombs: Bomb[
   return shared;
 }
 
-/**
- * A guided bomb's seeker and navigation as the game's own files state them.
- *
- * The sheet's kind column files by the headline feature: all three AASM
- * versions under GNSS, though the game's SBU 54 homes on a laser spot and its
- * SBU 64 on infrared, both on satellite-aided INS; the GBU-54 LJDAM and the
- * Paveway IV likewise. Taken only for a bomb the sheet already calls guided,
- * and only where every file tying to it agrees — the chart's FAB-500M-62 is
- * also the game's UMPK glide kit and stays a plain bomb, and its PGM 2000
- * comes both TV- and laser-guided and stays as the sheet has it.
- */
-function guidanceOf(bomb: Bomb, catalogue: StoreRecord[]): { kind: Bomb["kind"]; navigation: BombNavigation | undefined } {
-  const files = catalogue.filter((store) => store.bomb?.id === bomb.id);
-  const guided = files.flatMap((store) => (store.guidance ? [store.guidance] : []));
-  if (!["GNSS", "LAS", "IR", "TV"].includes(bomb.kind) || guided.length === 0 || guided.length < files.length) {
-    return { kind: bomb.kind, navigation: undefined };
+/** What the game's files changed about the sheet's rows, and what they added. */
+function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], estimates: string[]) {
+  const game = rows.filter((row) => row.source === "game");
+  const bySource = (source: string) => rows.filter((row) => row.damageSource === source).length;
+  console.log(`\n--- armament table ---`);
+  console.log(`ok    ${rows.length} rows: ${rows.length - game.length} from the sheet, ${game.length} from the game alone`);
+  console.log(
+    `      damage to bases: ${bySource("game")} the game's own, ${bySource("estimate")} estimated from its ` +
+      `explosion model, ${bySource("sheet")} the sheet's alone`,
+  );
+  const damage = changes.filter((line) => line.includes(": damageValue "));
+  console.log(`      ${changes.length} figure(s) the game overrules, ${damage.length} of them damage to bases:`);
+  for (const line of damage) console.log(`        ${line}`);
+  if (changes.length > damage.length) {
+    console.log(`      (${changes.length - damage.length} mass, TNT and kind changes, in full with --verbose)`);
+    if (process.argv.includes("--verbose")) for (const line of changes) if (!damage.includes(line)) console.log(`        ${line}`);
   }
-  const agreed = <T,>(values: T[]) => (new Set(values).size === 1 ? values[0] : null);
-  const navigation = agreed(guided.map((g) => g.navigation));
-  return { kind: agreed(guided.map((g) => g.kind)) ?? bomb.kind, navigation: navigation ?? undefined };
+  if (noFile.length > 0) {
+    console.log(`note  ${noFile.length} sheet row(s) tie to no file in the game: ${noFile.join(", ")}`);
+  }
+  if (estimates.length > 0) {
+    console.log(`note  ${estimates.length} sheet figure(s) the game prices nowhere and the explosion model puts otherwise:`);
+    for (const line of estimates) console.log(`        ${line}`);
+  }
 }
 
 /**
@@ -317,6 +391,7 @@ function usedByNationsOf(
   aircraft: Aircraft[],
   carriers: Map<string, Set<string>>,
   bombs: Bomb[],
+  countriesOf: Map<string, Nation[]>,
 ): Map<string, Nation[]> {
   const nationOf = new Map(aircraft.map((plane) => [plane.id, plane.nation]));
   const sets = new Map<string, Set<Nation>>();
@@ -337,6 +412,10 @@ function usedByNationsOf(
   }
   for (const [bombId, planes] of carriers) {
     for (const plane of planes) add(bombId, nationOf.get(plane)!);
+  }
+  // Every aircraft in the game, not only the site's: the price list says who carries it.
+  for (const [bombId, nations] of countriesOf) {
+    for (const nation of nations) add(bombId, nation);
   }
 
   return new Map(
@@ -488,7 +567,7 @@ async function writePayload(byUnit: Record<string, Armament>) {
       // The game's own figures carry float noise; nothing needs it to the microgram.
       kg: store.massKg === null ? null : Math.round(store.massKg * 100) / 100,
       k: store.kind,
-      ...(store.bomb ? { b: [store.bomb.id, store.bomb.count] } : {}),
+      ...(store.bomb && store.category && PRICED.has(store.category) ? { b: [store.bomb.id, store.bomb.count] } : {}),
       // One round is the ordinary case and is left implicit.
       ...(store.holds > 1 ? { h: store.holds } : {}),
       ...(store.iconType ? { i: store.iconType } : {}),

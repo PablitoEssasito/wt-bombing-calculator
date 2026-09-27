@@ -95,9 +95,10 @@ const PRICED_KINDS = [
   "IR",
   "RC",
   "ROCKET",
+  "AGM",
 ] as const satisfies readonly BombKind[];
 
-export function BombChart({ bombs }: { bombs: Bomb[] }) {
+export function BombChart({ bombs, guidanceLabels }: { bombs: Bomb[]; guidanceLabels: Record<string, string> }) {
   const { m, number, fill } = useI18n();
   const [query, setQuery] = useUrlState("q", urlText());
   const [hp, setHp] = useUrlState("hp", urlInteger(25900));
@@ -476,7 +477,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
                 />
               </tr>
             </thead>
-            <BombRows rows={listed} massUnit={shownUnit} />
+            <BombRows rows={listed} massUnit={shownUnit} guidanceLabels={guidanceLabels} />
           </table>
         </div>
       )}
@@ -487,7 +488,15 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
 type SortableRow = { bomb: Bomb; needed: number | null };
 
 /** The table's body, apart so the rest of the page can re-render without it. */
-const BombRows = memo(function BombRows({ rows, massUnit }: { rows: SortableRow[]; massUnit: MassUnit }) {
+const BombRows = memo(function BombRows({
+  rows,
+  massUnit,
+  guidanceLabels,
+}: {
+  rows: SortableRow[];
+  massUnit: MassUnit;
+  guidanceLabels: Record<string, string>;
+}) {
   const { m, number, path } = useI18n();
   return (
     <tbody>
@@ -527,8 +536,7 @@ const BombRows = memo(function BombRows({ rows, massUnit }: { rows: SortableRow[
             {bomb.efficiency ?? "—"}
           </td>
           <td className="px-3 py-2 text-ink-faint hidden lg:table-cell">
-            {m.bombKinds[bomb.kind]}
-            {bomb.navigation ? ` + ${m.bombNavigation[bomb.navigation]}` : null}
+            {bomb.guidance ? (guidanceLabels[bomb.guidance] ?? bomb.guidance) : m.bombKinds[bomb.kind]}
           </td>
         </tr>
       ))}

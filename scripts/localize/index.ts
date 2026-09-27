@@ -26,11 +26,62 @@ const LANG_URL = (file: string) =>
 const CACHE_DIR = path.join(process.cwd(), ".cache", "lang");
 const DATA = path.join(process.cwd(), "src", "data");
 const OUT = path.join(DATA, "names.json");
+/** The game's own labels for the armament pages' figures, in every language the site has. */
+const OUT_LABELS = path.join(DATA, "game-lang.json");
+/** The game's names for the aircraft outside the site that carry a weapon (other-carriers.json). */
+const OUT_UNITS = path.join(DATA, "unit-names.json");
+/** One entry per round of ordnance, from `npm run stores` — every weapon the armament table lists. */
+const ROUNDS = path.join(process.cwd(), ".cache", "armament", "rounds.json");
+
+/**
+ * The labels the armament pages borrow from the game, whole keys and families:
+ * `missile/guidance/tv+IOG+GNSS` reads "TV+IOG+GNSS", `rocket/warhead/aphe`
+ * "SAP-HE", `explosiveType/pbxn_3` "PBXN-3" — and the names of the figures
+ * themselves, as the game's weapon tooltip words them.
+ */
+const LABEL_PREFIXES = ["missile/guidance/", "missile/aiming/", "rocket/warhead/", "explosiveType/"];
+const LABEL_KEYS = [
+  "missile/guidance",
+  "missile/launchRange",
+  "missile/seekerRange",
+  "missile/seekerRange/rearAspect",
+  "missile/seekerRange/allAspect",
+  "missile/aspect",
+  "missile/aspect/allAspect",
+  "missile/aspect/rearAspect",
+  "missile/loadFactorMax",
+  "missile/timeGuidance",
+  "missile/timeSelfdestruction",
+  "missile/armingDistance",
+  "rocket/maxSpeed",
+  "rocket/warhead",
+  "guaranteedRange",
+  "firingRange",
+  "torpedo/maxSpeedInWater",
+  "torpedo/distanceToLive",
+  "torpedo/armingDistance",
+  "weapons/drop_speed_range_text",
+  "weapons/drop_height_range_text",
+  "bullet_properties/explosiveType",
+  "bullet_properties/explosiveMass",
+  "bullet_properties/explosiveMassInTNTEquivalent",
+  "bullet_properties/proximityFuze/triggerRadius",
+  "bullet_properties/diveDepth",
+  "bullet_properties/caliber",
+  "bullet_properties/armorPiercing",
+  "bombProperties/maxArmorPenetration",
+  "bombProperties/destroyRadiusArmored",
+  "bombProperties/destroyRadiusNotArmored",
+  "shop/tank_mass/tooltip",
+  "shop/estimated_damage_to_base",
+];
 
 const useCache = process.argv.includes("--cache");
 
 /** The column each language's text sits in, by the header's own names. */
 const COLUMN_OF = { pl: "Polish", ru: "Russian" } as const;
+
+type Round = { file: string; name: string | null; short: string | null };
 
 async function loadCsv(file: string): Promise<string> {
   const cached = path.join(CACHE_DIR, file);
@@ -53,6 +104,11 @@ async function main() {
 
   const units = parseLangCsv(await loadCsv("units.csv"));
   const weaponry = parseLangCsv(await loadCsv("units_weaponry.csv"));
+  const menu = parseLangCsv(await loadCsv("menu.csv"));
+  const rounds = existsSync(ROUNDS) ? (JSON.parse(await readFile(ROUNDS, "utf8")) as Round[]) : [];
+  const otherUnits = [
+    ...new Set(Object.values(await read<Record<string, string[]>>("other-carriers.json")).flat()),
+  ].sort();
 
   const out: Record<string, { aircraft: Record<string, string>; weapons: Record<string, string> }> = {};
   for (const locale of PREFIXED_LOCALES) {
@@ -67,13 +123,15 @@ async function main() {
     }
 
     const weapons: Record<string, string> = {};
-    armament.files.forEach((file, i) => {
-      const store = armament.stores[i];
-      const full = weaponNames.get(`weapons/${file}`);
-      const short = weaponNames.get(`weapons/${file}/short`);
-      if (store?.n && full?.translated && full.translated !== store.n) weapons[store.n] = full.translated;
-      if (store?.s && short?.translated && short.translated !== store.s) weapons[store.s] = short.translated;
-    });
+    const nameWeapon = (file: string, full: string | null | undefined, short: string | null | undefined) => {
+      const fullName = weaponNames.get(`weapons/${file}`);
+      const shortName = weaponNames.get(`weapons/${file}/short`);
+      if (full && fullName?.translated && fullName.translated !== full) weapons[full] = fullName.translated;
+      if (short && shortName?.translated && shortName.translated !== short) weapons[short] = shortName.translated;
+    };
+    armament.files.forEach((file, i) => nameWeapon(file, armament.stores[i]?.n, armament.stores[i]?.s));
+    // Every round the armament table lists, the game's own rows' names among them.
+    for (const round of rounds) nameWeapon(round.file, round.name, round.short);
 
     out[locale] = { aircraft: aircraftNames, weapons };
     console.log(
@@ -83,6 +141,48 @@ async function main() {
   }
 
   await writeFile(OUT, JSON.stringify(out));
+
+  // Labels, English included: the site shows the game's wording in every language.
+  const labels: Record<string, Record<string, string>> = { en: {}, pl: {}, ru: {} };
+  for (const table of [weaponry, menu]) {
+    for (const locale of ["en", ...PREFIXED_LOCALES] as const) {
+      const column = locale === "en" ? "English" : COLUMN_OF[locale];
+      for (const [key, text] of langColumns(table, "English", column)) {
+        if (!LABEL_KEYS.includes(key) && !LABEL_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
+        const value = locale === "en" ? text.english : text.translated || text.english;
+        if (value) labels[locale][key] ??= value;
+      }
+    }
+  }
+  const missingLabels = LABEL_KEYS.filter((key) => !labels.en[key]);
+  await writeFile(OUT_LABELS, JSON.stringify(sortKeys(labels)));
+  console.log(
+    `labels: ${Object.keys(labels.en).length} of the game's own` +
+      (missingLabels.length > 0 ? `; not found: ${missingLabels.join(", ")}` : ""),
+  );
+
+  // The aircraft outside the site, as the game names them in its tech tree.
+  const unitNames: Record<string, Record<string, string>> = { en: {}, pl: {}, ru: {} };
+  for (const locale of ["en", ...PREFIXED_LOCALES] as const) {
+    const names = langColumns(units, "English", locale === "en" ? "Polish" : COLUMN_OF[locale]);
+    for (const unit of otherUnits) {
+      const name = names.get(`${unit}_shop`) ?? names.get(`${unit}_0`);
+      const value = locale === "en" ? name?.english : name?.translated || name?.english;
+      if (value) unitNames[locale][unit] = value;
+    }
+  }
+  await writeFile(OUT_UNITS, JSON.stringify(unitNames));
+  console.log(`aircraft outside the site: ${Object.keys(unitNames.en).length}/${otherUnits.length} named`);
+}
+
+/** Keys in order, so a rerun that finds the same labels writes the same file. */
+function sortKeys(byLocale: Record<string, Record<string, string>>) {
+  return Object.fromEntries(
+    Object.entries(byLocale).map(([locale, labels]) => [
+      locale,
+      Object.fromEntries(Object.entries(labels).sort(([a], [b]) => a.localeCompare(b))),
+    ]),
+  );
 }
 
 main().catch((error) => {

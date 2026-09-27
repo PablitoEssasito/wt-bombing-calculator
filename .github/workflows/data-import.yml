@@ -57,6 +57,7 @@ jobs:
           npm run bomb-icons
           npm run battle-ratings
           npm run localize
+          npm run bases
           npm run --silent changelog | tee changelog-summary.txt
 
       - name: Anything changed?

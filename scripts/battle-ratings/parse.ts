@@ -11,6 +11,10 @@ export type UnitCost = Partial<Record<`economicRank${string}`, number>> & {
   premPackAir?: boolean;
   unitClass?: string;
   rank?: number;
+  /** `country_usa` and so on. */
+  country?: string;
+  /** `air` for an aircraft; helicopters, tanks and ships have their own. */
+  unitMoveType?: string;
 };
 
 /** The game stores a battle rating as an economic rank: 0 is 1.0, and each step is a third. */

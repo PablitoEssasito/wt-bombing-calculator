@@ -68,6 +68,7 @@ import {
   type RewardConstants,
 } from "@/domain/reward";
 import { planPayload, type PlanItem } from "@/domain/schedule";
+import { rewardDamageOf } from "@/domain/bomb-chart";
 import type { Bomb } from "@/domain/types";
 import { bombIconUrl, bombIconsById } from "@/lib/assets";
 import { urlBuild } from "@/lib/build-url";
@@ -336,7 +337,7 @@ export function LoadoutCreator({
   // game data prices nothing on this aircraft.
   const gameDamage = weaponDamageOf(build, armament);
   const damage =
-    gameDamage > 0 ? gameDamage : items.reduce((sum, { bomb, count }) => sum + (bomb.damageValue ?? 0) * count, 0);
+    gameDamage > 0 ? gameDamage : items.reduce((sum, { bomb, count }) => sum + (rewardDamageOf(bomb) ?? 0) * count, 0);
   const earner = economy ?? {
     goldPriced: plane.category.startsWith("premium"),
     fighter: plane.category.endsWith("fighter"),

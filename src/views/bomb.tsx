@@ -10,7 +10,7 @@ import { BASE_HP_TIERS, type BaseCount, type GameMode, type Nation } from "@/dom
 import { fill, formatNumber, plural } from "@/i18n/format";
 import { localePath, type Locale } from "@/i18n/locales";
 import { messagesFor } from "@/i18n/messages";
-import { aircraftCarrying, aircraftName, bombsById, pagedBombs, type Carrier } from "@/lib/dataset";
+import { aircraftCarrying, aircraftName, bombsById, gameLabel, pagedBombs, type Carrier } from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
 import { canonicalOf, pageOpenGraph } from "@/lib/site";
 
@@ -95,7 +95,7 @@ export function BombPageView({ locale, id }: { locale: Locale; id: string }) {
               </>
             ) : null}{" "}
             {m.bombKinds[bomb.kind]}
-            {bomb.navigation ? ` + ${m.bombNavigation[bomb.navigation]}` : null}
+            {bomb.guidance ? ` · ${gameLabel(locale, `missile/guidance/${bomb.guidance}`) ?? bomb.guidance}` : null}
           </p>
         </header>
 

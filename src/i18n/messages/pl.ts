@@ -49,11 +49,13 @@ export const pl: ClientMessages = {
     IR: "Naprowadzane na podczerwień",
     RC: "Naprowadzane radiowo",
     ROCKET: "Rakieta",
+    AGM: "Pocisk powietrze-ziemia",
+    AAM: "Pocisk powietrze-powietrze",
+    TORPEDO: "Torpeda",
+    GUN: "Zasobnik z działkiem",
     OTHER: "Inne",
   },
 
-  /** Suffixed to a guided bomb's kind: "Laser guided + INS/GNSS". */
-  bombNavigation: { INS: "INS", "INS/GNSS": "INS/GNSS" },
 
   common: {
     rank: "Era {rank}",

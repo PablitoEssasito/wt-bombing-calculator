@@ -6,6 +6,7 @@ import bombData from "@/data/bombs.json";
 import carrierData from "@/data/carriers.json";
 import changelogData from "@/data/changelog.json";
 import economyData from "@/data/economy.json";
+import gameLangData from "@/data/game-lang.json";
 import imageData from "@/data/images.json";
 import metaData from "@/data/meta.json";
 import mountData from "@/data/mounts.json";
@@ -232,6 +233,22 @@ export const bombIconsFor = (aircraftId: string): Record<string, string> =>
   (aircraftBombIconData as Record<string, Record<string, string>>)[aircraftId] ?? {};
 
 export const bombsById: Map<string, Bomb> = new Map(bombs.map((b) => [b.id, b]));
+
+const gameLang = gameLangData as Record<Locale, Record<string, string>>;
+
+/**
+ * A label in the game's own words (`missile/guidance/tv+IOG+GNSS` → "TV+IOG+GNSS"),
+ * in the page's language, English where the game has no translation.
+ */
+export function gameLabel(locale: Locale, key: string): string | undefined {
+  return gameLang[locale]?.[key] ?? gameLang.en[key];
+}
+
+/** Every guidance a row carries, labelled — all the bomb table needs of the game's wording. */
+export function guidanceLabels(locale: Locale): Record<string, string> {
+  const keys = new Set(bombs.flatMap((bomb) => (bomb.guidance ? [bomb.guidance] : [])));
+  return Object.fromEntries([...keys].map((key) => [key, gameLabel(locale, `missile/guidance/${key}`) ?? key]));
+}
 
 /** The bombs with a page of their own — the bomb chart's rows — for the pages, the sitemap and the palette alike. */
 export const pagedBombs: Bomb[] = bombs.filter(inBombChart);

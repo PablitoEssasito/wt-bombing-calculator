@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { buildModel, readCurve, zoneDamage, type BaseDamageModel } from "../../src/domain/base-damage";
+import type { WeaponStats } from "../../src/domain/types";
+import { slugifyBomb } from "../etl/aliases";
+import { loadWpcost, WEAPON_PREFIXES, type Wpcost, type WpcostWeapon } from "../shared/wpcost";
+import { explosivesOf, guidanceOf, payloadOf, statsOf, tntOf, type Category, type Explosives } from "./stats";
 
 const RAW =
   "https://raw.githubusercontent.com/gszabi99/War-Thunder-Datamine/master/aces.vromfs.bin_u/gamedata";
@@ -9,6 +14,11 @@ const ARMAMENT_DIR = path.join(process.cwd(), ".cache", "armament");
 const UNITS_DIR = path.join(ARMAMENT_DIR, "raw");
 const STORES_DIR = path.join(ARMAMENT_DIR, "stores");
 const OUT = path.join(ARMAMENT_DIR, "stores.json");
+/** One entry per round of ordnance — what the armament pages list. */
+const OUT_ROUNDS = path.join(ARMAMENT_DIR, "rounds.json");
+/** Shipped: the explosion model a base-damage estimate is read off (src/domain/base-damage.ts). */
+const OUT_MODEL = path.join(process.cwd(), "src", "data", "base-damage-model.json");
+const DAMAGE_MODEL_DIR = path.join(ARMAMENT_DIR, "damage_model");
 
 const CONCURRENCY = 10;
 
@@ -58,12 +68,22 @@ export type Store = {
    */
   iconType: string | null;
   /**
-   * How the ordnance inside homes, resolved like `iconType`: its seeker, and
-   * the inertial navigation it flies on — satellite-aided where the file
-   * gives it no drift, which is how the game tells the Paveway IV or SPICE
-   * apart from the INS-only PGM 2000 or AIM-120. Null for anything unguided.
+   * What the game's weapon tooltip treats the ordnance inside as — which
+   * decides the figures it shows. Null for what is no weapon: tanks, pods,
+   * flares.
    */
-  guidance: { kind: "LAS" | "IR" | "TV" | "GNSS"; navigation: "INS" | "INS/GNSS" | null } | null;
+  category: Category | null;
+  /**
+   * The key the game labels the ordnance inside's guidance by, resolved like
+   * `iconType`: "laser+IOG+GNSS" for a Paveway IV — see `guidanceOf` in
+   * stats.ts. Null for anything unguided.
+   */
+  guidance: string | null;
+  /**
+   * The game's own price for the whole store against a base, rack and all:
+   * `weaponDamage` in wpcost.blkx. Null where the game prices none.
+   */
+  damage: number | null;
   /**
    * Whether this file itself holds something else — a rack, a rail, a launcher
    * pod — as opposed to being ordnance in its own right.
@@ -142,7 +162,8 @@ export function classify(reference: string, body: Record<string, unknown>): Stor
   if (dir.includes("/containers/")) return "pod";
   if (dir.includes("/rocketguns/")) {
     if (/countermeasure|flare|chaff/.test(dir)) return "countermeasure";
-    return payload.guidance != null || body.guidance != null ? "missile" : "rocket";
+    // Wire- and radio-steered ones state no guidance block, only that they are flown.
+    return payload.guidance != null || body.guidance != null || payload.operated === true ? "missile" : "rocket";
   }
   if (/^weapons\/(cannon|gun|mg)/.test(dir) || /cannon|gun/.test(dir.split("/").pop() ?? "")) {
     return "gun";
@@ -169,26 +190,6 @@ function iconTypeOf(body: Record<string, unknown>, kind: StoreKind): string | nu
   const payload = (body.rocket ?? body.bomb ?? body.torpedo ?? {}) as Record<string, unknown>;
   const candidate = body.iconType ?? payload.iconType;
   return typeof candidate === "string" ? candidate : null;
-}
-
-function guidanceOf(body: Record<string, unknown>): Store["guidance"] {
-  const payload = (body.rocket ?? body.bomb ?? {}) as Record<string, unknown>;
-  const guidance = (payload.guidance ?? {}) as Record<string, unknown>;
-  const signature = ((guidance.opticalSeeker ?? {}) as Record<string, unknown>).targetSignatureType;
-  const kind =
-    payload.guidanceType === "laser"
-      ? "LAS"
-      : payload.guidanceType === "sns"
-        ? "GNSS"
-        : payload.guidanceType === "optical" && signature === "infraRed"
-          ? "IR"
-          : payload.guidanceType === "optical" && signature === "optic"
-            ? "TV"
-            : null;
-  if (!kind) return null;
-  const navigation =
-    guidance.inertialNavigation !== true ? null : guidance.inertialNavigationDriftSpeed === 0 ? "INS/GNSS" : "INS";
-  return { kind, navigation };
 }
 
 /** What a store weighs on its own, before anything it might be holding. */
@@ -276,9 +277,13 @@ function innermost(
   return { file: deeper.file, count: deeper.count * inner.count };
 }
 
+/** A mark written in Roman numerals, the way the game spells what the sheet writes "Mk.1". */
+const ROMAN: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10 };
+
 const wordsOf = (value: string) =>
   value
     .toLowerCase()
+    .replace(/\bmk[\s.]*(x|ix|viii|vii|vi|v|iv|iii|ii|i)\b/g, (_, roman: string) => `mk ${ROMAN[roman]}`)
     .replace(/\(.*?\)/g, " ")
     // Spelled apart in the chart, together in the game.
     .replace(/snake\s*eye/g, "snakeye")
@@ -362,6 +367,16 @@ const bracketed = (value: string) =>
  * guided bomb — a weight that happens to be unique in the chart says only that,
  * and the chart is not a complete catalogue of what the game hangs.
  */
+/**
+ * Chart names the sheet misspells against the game's own, corrected before
+ * matching. There is no "FeBd" in the game: its 400 kg Napalmbombe is the
+ * FeBb (sws_400kg_febb_napalmbombe), priced at the 12 943 the chart gives.
+ */
+const CHART_NAME_CORRECTIONS: Record<string, string> = {
+  FeBd: "FeBb",
+  "400 kg FeBd Napalmbombe": "400 kg FeBb Napalmbombe",
+};
+
 /** Normalised characters beyond which a leading match is too specific to be chance. */
 const TRUSTED_PREFIX = 10;
 function matchBomb(
@@ -464,35 +479,174 @@ function matchBomb(
  * Every distinct weapon file any aircraft can hang — from its hardpoints, and
  * from its ready-made setups, which are all a bomber like the Pe-8 has: its
  * FAB-5000 is named in a setup and nowhere else.
+ *
+ * The site's own aircraft come from their flight models; every other aircraft
+ * in the game from the price list, which names each store it can carry
+ * (`<kind>_<file>`, the kind being the directory the file lives in). Files hung
+ * from a pylon are marked too: that is what tells a gun pod from an aircraft's
+ * own guns, which a fixed setup names alongside its bombs.
  */
-async function referenced(): Promise<Map<string, string>> {
+async function referenced(
+  wpcost: Wpcost,
+): Promise<{ files: Map<string, string>; onPylon: Set<string>; carriers: Map<string, Set<string>> }> {
   const byFile = new Map<string, string>();
+  const onPylon = new Set<string>();
+  // Which aircraft each file hangs from, by unit — the price list's own list
+  // misses what an older fixed setup hangs, which only the flight model names.
+  const carriers = new Map<string, Set<string>>();
+  const carriedBy = (file: string, unit: string) => carriers.set(file, (carriers.get(file) ?? new Set()).add(unit));
   for (const name of await readdir(UNITS_DIR)) {
+    const unit = name.replace(/\.json$/, "");
     const raw = JSON.parse(await readFile(path.join(UNITS_DIR, name), "utf8")) as {
       fm: { WeaponSlots?: { WeaponSlot?: unknown } };
       presets?: Record<string, { Weapon?: unknown }>;
     };
     for (const preset of Object.values(raw.presets ?? {})) {
       for (const weapon of many<Record<string, unknown>>(preset.Weapon)) {
-        if (typeof weapon.blk === "string") byFile.set(storeFile(weapon.blk), weapon.blk);
+        if (typeof weapon.blk !== "string") continue;
+        byFile.set(storeFile(weapon.blk), weapon.blk);
+        carriedBy(storeFile(weapon.blk), unit);
       }
     }
     for (const slot of many<Record<string, unknown>>(raw.fm.WeaponSlots?.WeaponSlot)) {
       if (Number(slot.index) <= 0) continue;
       for (const preset of many<Record<string, unknown>>(slot.WeaponPreset)) {
         for (const weapon of many<Record<string, unknown>>(preset.Weapon)) {
-          if (typeof weapon.blk === "string") byFile.set(storeFile(weapon.blk), weapon.blk);
+          if (typeof weapon.blk !== "string") continue;
+          byFile.set(storeFile(weapon.blk), weapon.blk);
+          onPylon.add(storeFile(weapon.blk));
+          carriedBy(storeFile(weapon.blk), unit);
         }
       }
     }
   }
-  return byFile;
+  for (const [key, weapon] of Object.entries(wpcost.weapons)) {
+    if (weapon.units.length === 0) continue;
+    const prefix = WEAPON_PREFIXES.find((p) => key.startsWith(`${p}_`))!;
+    const file = key.slice(prefix.length + 1).toLowerCase();
+    if (!byFile.has(file)) byFile.set(file, `gameData/Weapons/${prefix}/${file}.blk`);
+    onPylon.add(file);
+    for (const unit of weapon.units) carriedBy(file, unit);
+  }
+  return { files: byFile, onPylon, carriers };
+}
+
+/** The price list's entry for a store file, whichever kind the game files it under. */
+function wpcostOf(file: string, wpcost: Wpcost): WpcostWeapon | undefined {
+  for (const prefix of WEAPON_PREFIXES) {
+    const entry = wpcost.weapons[`${prefix}_${file}`];
+    if (entry) return entry;
+  }
+  return undefined;
+}
+
+/**
+ * Sorts one round the way the game's weapon selector would: a bomb with a
+ * seeker (or flown by radio, like the Fritz X) is a guided bomb; a missile is
+ * air-to-air or air-to-ground as the price list files it — the one place the
+ * game states which — and by what its seeker is set to look for where the
+ * price list is silent.
+ */
+function categoryOf(kind: StoreKind, payload: Record<string, unknown>, role: WpcostWeapon["role"]): Category | null {
+  switch (kind) {
+    case "bomb":
+      return payload.guidance != null || payload.operated === true ? "guidedBomb" : "bomb";
+    case "mine":
+      return "mine";
+    case "torpedo":
+      return "torpedo";
+    case "rocket":
+      return "rocket";
+    case "gun":
+      return "gun";
+    case "missile": {
+      if (role === "aam") return "aam";
+      if (role === "agm" || role === "guidedBomb") return "agm";
+      const guidance = (payload.guidance ?? {}) as Record<string, unknown>;
+      const optical = (guidance.opticalSeeker ?? {}) as Record<string, unknown>;
+      const radar = (guidance.radarSeeker ?? {}) as Record<string, unknown>;
+      const againstGround =
+        payload.operated === true ||
+        optical.groundVehiclesAsTarget === true ||
+        optical.surfaceAsTarget === true ||
+        radar.targetSignatureType === "radarIntercept" ||
+        (typeof payload.guidanceType === "string" && ["laser", "sns"].includes(payload.guidanceType));
+      return againstGround ? "agm" : "aam";
+    }
+    default:
+      return null;
+  }
+}
+
+/** What a base-damage estimate can be made for: a blast meant for the ground. */
+const ESTIMATED: ReadonlySet<Category> = new Set(["bomb", "guidedBomb", "rocket", "agm"]);
+
+/** One round of ordnance — a bomb, a missile, a torpedo — and what it takes to price it. */
+export type Round = {
+  /** Its own file, the one every rack and rail holding it comes down to. */
+  file: string;
+  name: string | null;
+  short: string | null;
+  category: Category;
+  /** The chart row it prices as, or the game-only row made for it. */
+  bombId: string | null;
+  /** Damage to a base, and where that figure comes from. */
+  damage: number | null;
+  damageSource: "game" | "estimate" | null;
+  tntKg: number | null;
+  /** A fire bomb, priced by what it burns rather than by its blast. */
+  incendiary: boolean;
+  /** A bomb slowed by a parachute or fins so it can be dropped low. */
+  drag: boolean;
+  iconType: string | null;
+  stats: WeaponStats;
+  /** Every aircraft in the game that can carry it, by the price list's unit name. */
+  units: string[];
+};
+
+async function loadDamageModelFile(name: string, useCache: boolean): Promise<Record<string, unknown>> {
+  const cachePath = path.join(DAMAGE_MODEL_DIR, `${name}.json`);
+  if (useCache && existsSync(cachePath)) return JSON.parse(await readFile(cachePath, "utf8"));
+  const response = await fetch(`${RAW}/damage_model/${name}.blkx`);
+  if (!response.ok) throw new Error(`damage_model/${name}: HTTP ${response.status}`);
+  const body = (await response.json()) as Record<string, unknown>;
+  await mkdir(DAMAGE_MODEL_DIR, { recursive: true });
+  await writeFile(cachePath, JSON.stringify(body), "utf8");
+  return body;
+}
+
+/**
+ * The bombing zone's armour and the blast table to hold it against — the two
+ * things the model needs besides the game's own prices (see base-damage.ts).
+ */
+function zoneOf(armorClasses: Record<string, unknown>, explosives: Explosives) {
+  const zone = (armorClasses.bombing_zone ?? {}) as Record<string, unknown>;
+  const armorThickness = zone.armorThickness;
+  const restrain = zone.restrainExplosionDamage;
+  if (typeof armorThickness !== "number" || typeof restrain !== "number") {
+    throw new Error("armor_classes.blk: bombing_zone has no armorThickness/restrainExplosionDamage");
+  }
+  return { armorThickness, restrain, penetration: explosives.splash.penetration };
+}
+
+/**
+ * Two prices for one weapon: a round's share of a rack's price is rounded, so
+ * a pair priced 761 puts each HVAR at 381 against the lone one's 380.
+ */
+const samePrice = (a: number, b: number) => Math.abs(a - b) <= 1;
+
+/** The most common of a list of values, the lower one on a tie. */
+function mostCommon(values: number[]): number {
+  const counts = new Map<number, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
 }
 
 async function main() {
   const useCache = process.argv.includes("--cache");
-  const hung = await referenced();
-  console.log(`${hung.size} distinct stores hang from hardpoints across the roster`);
+  const wpcost = await loadWpcost(useCache);
+  const { files: hung, onPylon, carriers } = await referenced(wpcost);
+  console.log(`${hung.size} distinct stores hang from hardpoints across the game's aircraft`);
 
   await mkdir(STORES_DIR, { recursive: true });
 
@@ -541,16 +695,42 @@ async function main() {
   }
 
   const names = await weaponNames(useCache);
-  const chart = JSON.parse(
+  const explosives = explosivesOf(await loadDamageModelFile("explosive", useCache));
+  const zone = zoneOf(await loadDamageModelFile("armor_classes", useCache), explosives);
+  const allRows = JSON.parse(
     await readFile(path.join(process.cwd(), "src", "data", "bombs.json"), "utf8"),
-  ) as { id: string; chartName: string; fullName: string; massKg: number | null; kind: string }[];
+  ) as {
+    id: string;
+    chartName: string;
+    fullName: string;
+    massKg: number | null;
+    kind: string;
+    damageValue: number | null;
+    source?: string;
+    sheet?: { massKg?: number | null; kind?: string; damageValue?: number | null };
+  }[];
+  // Only the sheet's own rows, with the sheet's own figures: rows the last
+  // import made from the game alone, or figures it overruled, must not steer
+  // this one's matching — it would drift from run to run.
+  const chart = allRows
+    .filter((row) => row.source !== "game")
+    .map((row) => ({
+      ...row,
+      chartName: CHART_NAME_CORRECTIONS[row.chartName] ?? row.chartName,
+      fullName: CHART_NAME_CORRECTIONS[row.fullName] ?? row.fullName,
+      massKg: row.sheet && "massKg" in row.sheet ? (row.sheet.massKg ?? null) : row.massKg,
+      kind: row.sheet?.kind ?? row.kind,
+      damageValue: row.sheet && "damageValue" in row.sheet ? (row.sheet.damageValue ?? null) : row.damageValue,
+    }));
 
   const stores: Store[] = [];
+  const coreOf = new Map<string, { file: string; count: number }>();
   for (const [file, reference] of hung) {
     const body = bodies.get(file);
     if (!body) continue;
 
     const core = innermost(file, bodies);
+    coreOf.set(file, core);
     // The directory is what says whether a file is a bomb or a missile, so the
     // core's own reference has to be used rather than a path rebuilt from its name.
     const coreRef = storePath(references.get(core.file) ?? reference);
@@ -559,6 +739,8 @@ async function main() {
     const coreMass = massOfStore(core.file, bodies);
 
     const kind = classify(coreRef, coreBody);
+    const payload = payloadOf(coreBody) ?? {};
+    const category = categoryOf(kind, payload, wpcostOf(core.file, wpcost)?.role);
     // Missiles too: the chart prices the few that bomb bases, rocket-boosted
     // guided bombs like the AGM-123 Skipper the game files as missiles.
     const bombId = ["bomb", "mine", "torpedo", "rocket", "missile"].includes(kind)
@@ -577,13 +759,37 @@ async function main() {
       holds: core.count,
       // ...and its icon lives there too, same as the name and kind above.
       iconType: iconTypeOf(coreBody, kind),
-      guidance: guidanceOf(coreBody),
+      category,
+      guidance: category && category !== "gun" ? (guidanceOf(payload) ?? null) : null,
+      damage: wpcostOf(file, wpcost)?.weaponDamage ?? null,
       container: contained(body) !== null,
     });
   }
 
+  const rounds = roundsOf(stores, coreOf, bodies, names, wpcost, explosives, onPylon, carriers);
+  const model = buildModel(pricedBlasts([...rounds.values()]), zone);
+  for (const round of rounds.values()) {
+    if (round.damage !== null || !ESTIMATED.has(round.category) || round.incendiary) continue;
+    if (round.stats.nuclearYieldKt) {
+      round.damage = Math.round(readCurve(explosives.nuclearDamage, round.stats.nuclearYieldKt));
+      round.damageSource = "game";
+    } else if (round.tntKg) {
+      round.damage = zoneDamage(round.tntKg, model);
+      round.damageSource = "estimate";
+    }
+  }
+
+  const rows = assignRows(rounds, stores, coreOf, chart);
+  for (const store of stores) {
+    const round = rounds.get(coreOf.get(store.file)!.file);
+    store.bomb = round?.bombId ? { id: round.bombId, count: store.holds } : null;
+  }
+
   stores.sort((a, b) => a.file.localeCompare(b.file));
   await writeFile(OUT, JSON.stringify(stores), "utf8");
+  const roundList = [...rounds.values()].sort((a, b) => a.file.localeCompare(b.file));
+  await writeFile(OUT_ROUNDS, JSON.stringify(roundList), "utf8");
+  await writeFile(OUT_MODEL, JSON.stringify(model), "utf8");
 
   const byKind = new Map<StoreKind, number>();
   for (const s of stores) byKind.set(s.kind, (byKind.get(s.kind) ?? 0) + 1);
@@ -601,18 +807,21 @@ async function main() {
   const named = stores.filter((s) => s.name !== null).length;
   const iconed = stores.filter((s) => s.iconType !== null).length;
   console.log(`  ${named} carry the game's own name, ${iconed} its own icon`);
-  const ordnance = stores.filter((s) => ["bomb", "mine", "torpedo"].includes(s.kind));
-  const priced = ordnance.filter((s) => s.bomb !== null);
+
+  const byCategory = new Map<string, number>();
+  for (const round of roundList) byCategory.set(round.category, (byCategory.get(round.category) ?? 0) + 1);
   console.log(
-    `  ${priced.length}/${ordnance.length} pieces of ordnance tie to a bomb chart entry`,
+    `\n${roundList.length} rounds of ordnance: ` +
+      [...byCategory].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(", "),
   );
-  const unpriced = ordnance.filter((s) => s.bomb === null);
-  if (unpriced.length > 0) {
-    console.log(
-      `note  ${unpriced.length} the chart does not price, e.g. ` +
-        unpriced.slice(0, 6).map((s) => s.name ?? s.file).join("; "),
-    );
+  const fromSheet = roundList.filter((r) => r.bombId && !rows.gameRows.has(r.bombId)).length;
+  console.log(`  ${fromSheet} price as a sheet row, the rest as ${rows.gameRows.size} rows of the game's own`);
+  if (rows.split.length > 0) {
+    console.log(`  ${rows.split.length} split off a sheet row the game prices differently:`);
+    for (const line of rows.split) console.log(`    ${line}`);
   }
+  reportModel(model, roundList, zone);
+
   const noMass = stores.filter((s) => s.massKg === null);
   if (noMass.length > 0) {
     console.log(
@@ -623,6 +832,214 @@ async function main() {
   if (missing.length > 0) {
     console.log(`warn  ${missing.length} store file(s) could not be fetched: ${missing.slice(0, 6).join(", ")}`);
   }
+}
+
+/**
+ * One entry per round of ordnance — the file at the bottom of every rack —
+ * with the game's own price for it where there is one.
+ *
+ * The price list prices stores, not rounds: a bare bomb is priced on its own,
+ * but a missile is often priced only on the rail holding two. So a round's
+ * price is its own entry where it has one, and otherwise each holding store's
+ * price shared out over what it holds — racks round to a whole point, so the
+ * most common share is taken.
+ */
+function roundsOf(
+  stores: Store[],
+  coreOf: Map<string, { file: string; count: number }>,
+  bodies: Map<string, Record<string, unknown>>,
+  names: { full: Map<string, string>; short: Map<string, string> },
+  wpcost: Wpcost,
+  explosives: Explosives,
+  onPylon: Set<string>,
+  carriers: Map<string, Set<string>>,
+): Map<string, Round> {
+  const rounds = new Map<string, Round>();
+  for (const store of stores) {
+    const core = coreOf.get(store.file)!;
+    if (!store.category) continue;
+    // A gun counts only as a pod on a pylon, not as the aircraft's own guns.
+    if (store.category === "gun" && !onPylon.has(store.file)) continue;
+    const body = bodies.get(core.file) ?? bodies.get(store.file)!;
+    let round = rounds.get(core.file);
+    if (!round) {
+      const payload = payloadOf(body) ?? {};
+      round = {
+        file: core.file,
+        name: names.full.get(core.file) ?? store.name,
+        short: names.short.get(core.file) ?? store.short,
+        category: store.category,
+        bombId: null,
+        damage: null,
+        damageSource: null,
+        tntKg: tntOf(payload, explosives) ?? null,
+        incendiary: payload.fireDamage != null,
+        drag: store.category === "bomb" && (payload.brakeArm != null || payload.brakeCxK != null),
+        iconType: store.iconType,
+        stats: statsOf(body, store.category, explosives),
+        units: [],
+      };
+      rounds.set(core.file, round);
+    }
+    // Only aircraft the game lists in its price list: a unit id there is what
+    // the game's own names and nations are keyed by.
+    const units = [...(carriers.get(store.file) ?? [])].filter((unit) => wpcost.units[unit]?.unitMoveType === "air");
+    round.units = [...new Set([...round.units, ...units])].sort();
+  }
+
+  for (const round of rounds.values()) {
+    const own = wpcostOf(round.file, wpcost)?.weaponDamage;
+    const shares = stores.flatMap((store) =>
+      coreOf.get(store.file)?.file === round.file && store.damage !== null && store.holds > 0
+        ? [Math.round(store.damage / store.holds)]
+        : [],
+    );
+    const damage = own ?? (shares.length > 0 ? mostCommon(shares) : null);
+    if (damage !== null) {
+      round.damage = damage;
+      round.damageSource = "game";
+    }
+  }
+  return rounds;
+}
+
+/**
+ * Which row each round prices as.
+ *
+ * A round the sheet names keeps the sheet's row — unless the game prices the
+ * rounds tied to that row differently, in which case they are not one weapon:
+ * the chart's "AN-M64A1" row caught the game's AN-M64A1 with its daisy-cutter
+ * rod too, 2 496 to the row's 3 060. Most of the rounds keep the row (on a
+ * tie, those the game prices as the sheet does); the rest are split off to
+ * rows of their own — the one British HVAR among eight American ones.
+ *
+ * Every round the sheet has no row for gets one from the game: one per
+ * weapon, several files the game names alike and prices and weighs the same
+ * sharing it, the way the AIM-9M comes in one file per launch rail.
+ */
+function assignRows(
+  rounds: Map<string, Round>,
+  stores: Store[],
+  coreOf: Map<string, { file: string; count: number }>,
+  chart: { id: string; damageValue: number | null }[],
+): { gameRows: Set<string>; split: string[] } {
+  for (const store of stores) {
+    const round = rounds.get(coreOf.get(store.file)!.file);
+    if (round && store.bomb && !round.bombId) round.bombId = store.bomb.id;
+  }
+
+  const split: string[] = [];
+  const byRow = new Map<string, Round[]>();
+  for (const round of rounds.values()) {
+    if (round.bombId) byRow.set(round.bombId, [...(byRow.get(round.bombId) ?? []), round]);
+  }
+  for (const [rowId, members] of byRow) {
+    const priced = members.filter((r) => r.damageSource === "game");
+    if (priced.every((r) => samePrice(r.damage!, priced[0].damage!))) continue;
+    // Most of the row's rounds keep it; on a tie, the ones priced as the sheet prices it.
+    const sheetDamage = chart.find((row) => row.id === rowId)?.damageValue ?? null;
+    const votes = new Map<number, number>();
+    for (const round of priced) {
+      const price = [...votes.keys()].find((p) => samePrice(p, round.damage!)) ?? round.damage!;
+      votes.set(price, (votes.get(price) ?? 0) + 1);
+    }
+    const keep = [...votes].sort(
+      (a, b) =>
+        b[1] - a[1] ||
+        Number(sheetDamage !== null && samePrice(b[0], sheetDamage)) - Number(sheetDamage !== null && samePrice(a[0], sheetDamage)) ||
+        a[0] - b[0],
+    )[0][0];
+    for (const round of priced) {
+      if (samePrice(round.damage!, keep)) continue;
+      split.push(`${round.name ?? round.file} (${round.damage}) from "${rowId}" (${keep})`);
+      round.bombId = null;
+    }
+  }
+
+  const taken = new Set(chart.map((row) => row.id));
+  const gameRows = new Set<string>();
+  const byName = new Map<string, Round[]>();
+  for (const round of [...rounds.values()].sort((a, b) => a.file.localeCompare(b.file))) {
+    if (round.bombId) continue;
+    const name = (round.name ?? round.short ?? round.file).toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const key = [round.category, name, Math.round(round.stats.massKg ?? 0)].join("|");
+    byName.set(key, [...(byName.get(key) ?? []), round]);
+  }
+  // Alike in name and weight, and priced alike: one weapon.
+  const groups: Round[][] = [];
+  for (const alike of byName.values()) {
+    const sorted = [...alike].sort((a, b) => (a.damage ?? -1) - (b.damage ?? -1) || a.file.localeCompare(b.file));
+    for (const round of sorted) {
+      const last = groups.at(-1);
+      const joins =
+        last !== undefined &&
+        alike.includes(last[0]) &&
+        (round.damage === null ? last[0].damage === null : last[0].damage !== null && samePrice(round.damage, last[0].damage));
+      if (joins) last.push(round);
+      else groups.push([round]);
+    }
+  }
+  // The plain name goes to the weapon most aircraft carry, then the one that
+  // does most to a base — not to whichever file sorts first.
+  const reach = (members: Round[]) => new Set(members.flatMap((r) => r.units)).size;
+  groups.sort(
+    (a, b) =>
+      reach(b) - reach(a) || (b[0].damage ?? -1) - (a[0].damage ?? -1) || a[0].file.localeCompare(b[0].file),
+  );
+  for (const members of groups) {
+    const [first] = members;
+    let id = slugifyBomb(first.short ?? first.name ?? first.file);
+    if (taken.has(id)) id = slugifyBomb(`${first.short ?? first.name ?? ""} ${first.file}`);
+    for (let n = 2; taken.has(id); n++) id = `${slugifyBomb(first.file)}-${n}`;
+    taken.add(id);
+    gameRows.add(id);
+    for (const round of members) round.bombId = id;
+  }
+  return { gameRows, split };
+}
+
+/** The blasts the game prices itself: high explosive, neither a fire bomb nor a nuclear one. */
+function pricedBlasts(rounds: Round[]): { tntKg: number; damage: number; file: string }[] {
+  return rounds.flatMap((round) =>
+    round.damageSource === "game" && !round.incendiary && !round.stats.nuclearYieldKt && round.tntKg
+      ? [{ tntKg: round.tntKg, damage: round.damage!, file: round.file }]
+      : [],
+  );
+}
+
+/**
+ * How well the model holds the game's own prices: every one reproduced, and
+ * — the test of an estimate — each one worked out again with itself left out.
+ */
+function reportModel(model: BaseDamageModel, rounds: Round[], zone: Parameters<typeof buildModel>[1]) {
+  const priced = pricedBlasts(rounds);
+  const held = priced.filter((p) => Math.abs(zoneDamage(p.tntKg, model) - p.damage) <= 1).length;
+  const errors = priced
+    .map((p, i) => {
+      const without = buildModel(priced.filter((_, j) => j !== i), zone);
+      const off = Math.abs(zoneDamage(p.tntKg, without) - p.damage);
+      return { ...p, off, error: off / p.damage };
+    })
+    .sort((a, b) => a.error - b.error);
+  const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+  const heaviest = priced.reduce((max, p) => Math.max(max, p.tntKg), 0);
+  console.log(
+    `\nBase-damage model: ${model.points.length} corners read off ${priced.length} priced blasts, ` +
+      `zone armour ${model.armorThickness} mm (×${model.restrain} below); ${held}/${priced.length} reproduced to the point`,
+  );
+  const worst = errors.slice(-3).reverse();
+  console.log(
+    `  each left out in turn: off by ${pct(errors[Math.floor(errors.length / 2)]?.error ?? 0)} median, worst ` +
+      worst.map((w) => `${w.file} ${pct(w.error)} (${w.off} pt)`).join(", "),
+  );
+  const estimated = rounds.filter((r) => r.damageSource === "estimate");
+  const heat = estimated.filter((r) => r.stats.warhead === "heat" || r.stats.warhead === "tandem").length;
+  const beyond = estimated.filter((r) => (r.tntKg ?? 0) > heaviest).length;
+  console.log(
+    `  estimated for ${estimated.length} rounds the game does not price` +
+      (heat > 0 ? `; ${heat} shaped charges, on their blast alone` : "") +
+      (beyond > 0 ? `; ${beyond} heavier than any it prices (${Math.round(heaviest)} kg TNT), carried on past it` : ""),
+  );
 }
 
 // `index.ts` imports `isPhysicalCount` from here, and an import must not pull

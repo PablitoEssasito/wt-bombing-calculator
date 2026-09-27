@@ -49,11 +49,13 @@ export const ru: ClientMessages = {
     IR: "С ИК-наведением",
     RC: "С радиокомандным наведением",
     ROCKET: "Ракета",
+    AGM: "Ракета «воздух — поверхность»",
+    AAM: "Ракета «воздух — воздух»",
+    TORPEDO: "Торпеда",
+    GUN: "Пушечный контейнер",
     OTHER: "Другое",
   },
 
-  /** Suffixed to a guided bomb's kind: "Laser guided + INS/GNSS". */
-  bombNavigation: { INS: "ИНС", "INS/GNSS": "ИНС/ГНСС" },
 
   common: {
     rank: "Ранг {rank}",

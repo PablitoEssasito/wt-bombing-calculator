@@ -58,11 +58,13 @@ export const en = {
     IR: "IR guided",
     RC: "Radio guided",
     ROCKET: "Rocket",
+    AGM: "Air-to-ground missile",
+    AAM: "Air-to-air missile",
+    TORPEDO: "Torpedo",
+    GUN: "Gun pod",
     OTHER: "Other",
   },
 
-  /** Suffixed to a guided bomb's kind: "Laser guided + INS/GNSS". */
-  bombNavigation: { INS: "INS", "INS/GNSS": "INS/GNSS" },
 
   common: {
     rank: "Rank {rank}",

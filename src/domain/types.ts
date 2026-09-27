@@ -12,28 +12,45 @@ export type BombKind =
   | "IR"
   | "RC"
   | "ROCKET"
+  | "AGM"
+  | "AAM"
+  | "TORPEDO"
+  | "GUN"
   | "OTHER";
 
-export type BombNavigation = "INS" | "INS/GNSS";
+/** Where a row's damage to a base comes from. */
+export type DamageSource =
+  /** `weaponDamage` in the game's own wpcost.blkx — the hangar's "Estimated damage to bases". */
+  | "game"
+  /** Worked out from the game's own explosion model, for what the game does not price (see base-damage.ts). */
+  | "estimate"
+  /** The sheet's figure, for a row nothing in the game's files ties to. */
+  | "sheet";
 
 export type Bomb = {
   id: string;
-  /** Short name used by the loadout tabs — the join key between the two datasets. */
+  /**
+   * Short name used by the loadout tabs — the join key between the two datasets.
+   * Empty for a row that comes from the game's files alone.
+   */
   chartName: string;
   fullName: string;
   /**
-   * The sheet's kind column — except for a guided bomb, whose seeker is read
-   * off the game's own files where every file tying to it agrees (see
-   * `guidanceOf` in scripts/armament/index.ts): the sheet files the AASM's
-   * laser and IR versions under GNSS alongside the GPS one.
+   * The sheet's kind column for its own rows — except a guided bomb's, which
+   * follows the seeker the game's files give it (the sheet files the AASM's
+   * laser and IR versions under GNSS beside the GPS one). A row from the game
+   * alone takes its kind from its file.
    */
   kind: BombKind;
   /**
-   * The inertial navigation a guided bomb flies on alongside its seeker, as the
-   * game's files state it: satellite-aided, or on its own. Absent for anything
-   * without — including the plain GNSS bombs, whose guidance that already is.
+   * The key the game labels a guided weapon's guidance by
+   * (`missile/guidance/<key>` in its lang files): "laser+IOG+GNSS" for a
+   * Paveway IV, "tv+IOG+GNSS" for a KD-88, "sns" for a JDAM. Absent for
+   * anything unguided.
    */
-  navigation?: BombNavigation;
+  guidance?: string;
+  /** Present, as "game", only on a row the sheet has no entry for. */
+  source?: "game";
   /**
    * The nation block of the Bomb Chart tab this row was printed under. Null for
    * anything with no chart row at all — every rocket (see scripts/etl/rockets.ts)
@@ -48,18 +65,26 @@ export type Bomb = {
   massLabel: string;
   tntKg: number | null;
   /**
-   * Damage one of these does to a base, in base hitpoints. From the chart for
-   * bombs, from an in-game check for rockets (0 for kinetic rounds that cannot
-   * hurt a base at all); null only for the two bombs the chart is missing.
+   * Damage one of these does to a base, in base hitpoints: the game's own price
+   * wherever it states one, else an estimate from its explosion model, else the
+   * sheet's figure. `damageSource` says which. Null for what cannot hurt a base
+   * at all as far as anything says — air-to-air missiles, guns.
    */
   damageValue: number | null;
-  /** damageValue per kg of carried mass; the 💡 column of the source chart, or derived for rockets. */
+  damageSource?: DamageSource;
+  /** damageValue per kg of carried mass; the 💡 column of the source chart, or derived. */
   efficiency: number | null;
   /**
    * Bombs-per-base as printed in the source chart, one entry per BASE_HP_TIERS
    * value. Kept so the test suite can check our formula against the source.
    */
   sheetCounts: number[] | null;
+  /**
+   * What the sheet itself printed, for each figure the game's files overrule —
+   * kept so the difference can be shown and reported, and so a rerun of the
+   * import compares against the sheet rather than its own last answer.
+   */
+  sheet?: Partial<Pick<Bomb, "kind" | "massKg" | "massLabel" | "tntKg" | "damageValue" | "efficiency">>;
   /**
    * Every nation whose aircraft actually carry this bomb in their loadouts —
    * read off the loadout data itself (`scripts/etl/index.ts`), not the chart's
@@ -69,6 +94,52 @@ export type Bomb = {
    * aircraft. This is the field the bomb chart's own nation filter reads.
    */
   usedByNations: Nation[];
+};
+
+/**
+ * One round's figures as the game's weapon tooltip shows them
+ * (gui/scripts/weaponry/weaponryinfo.nut), in the game's own units.
+ */
+export type WeaponStats = {
+  massKg?: number;
+  massLbs?: number;
+  caliberMm?: number;
+  /** Rounds a minute, for a gun. */
+  fireRate?: number;
+  /** See `Bomb.guidance`. */
+  guidance?: string;
+  /** How a wire- or radio-steered weapon is flown, where it is. */
+  aiming?: "manual" | "semiautomatic" | "beamRiding";
+  launchRangeM?: number;
+  seekerRangeM?: number;
+  seekerRangeRearM?: number;
+  seekerRangeAllM?: number;
+  allAspect?: boolean;
+  guaranteedRangeM?: number;
+  operatedDistM?: number;
+  machMax?: number;
+  maxSpeedMs?: number;
+  loadFactorMax?: number;
+  /** Guidance time for a guided weapon, self-destruct time for anything else. */
+  timeLifeS?: number;
+  armDistanceM?: number;
+  proximityFuseM?: number;
+  explosiveType?: string;
+  explosiveMassKg?: number;
+  tntKg?: number;
+  warhead?: "multidart" | "smoke" | "tandem" | "heat" | "aphe" | "he" | "ap";
+  /** A shaped charge's penetration. */
+  penetrationMm?: number;
+  /** A bomb blast's own armour penetration, and what it wrecks around it. */
+  blastPenetrationMm?: number;
+  destroyRadiusArmoredM?: number;
+  destroyRadiusUnarmoredM?: number;
+  nuclearYieldKt?: number;
+  speedInWaterMs?: number;
+  distToLiveM?: number;
+  diveDepthM?: number;
+  dropSpeedRange?: [number, number];
+  dropHeightRange?: [number, number];
 };
 
 export type LoadoutItem = { bombId: string; count: number };

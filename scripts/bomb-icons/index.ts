@@ -9,6 +9,8 @@ import { matchBombIcons } from "./match";
 
 const OUT_DATA = path.join(process.cwd(), "src", "data", "bomb-icons.json");
 const OUT_AIRCRAFT = path.join(process.cwd(), "src", "data", "aircraft-bomb-icons.json");
+/** One entry per round of ordnance, as `npm run stores` writes them. */
+const ROUNDS = path.join(process.cwd(), ".cache", "armament", "rounds.json");
 /** Raw flight models, as `npm run armament` caches them. */
 const RAW_DIR = path.join(process.cwd(), ".cache", "armament", "raw");
 
@@ -32,6 +34,22 @@ async function main() {
   console.log(`Loaded ${defs.length} weapon definitions`);
 
   const { matches, unmatched: unmatchedByMass } = matchBombIcons(bombs, defs);
+
+  // A row from the game alone is one weapon file, or several alike: its own
+  // icon is exactly known, so there is nothing to match by mass.
+  const rounds = JSON.parse(await readFile(ROUNDS, "utf8")) as { bombId: string | null; iconType: string | null }[];
+  const fileIcons = new Map<string, string[]>();
+  for (const round of rounds) {
+    if (round.bombId && round.iconType) fileIcons.set(round.bombId, [...(fileIcons.get(round.bombId) ?? []), round.iconType]);
+  }
+  for (const bomb of bombs) {
+    const icons = bomb.source === "game" ? fileIcons.get(bomb.id) : undefined;
+    if (!icons) continue;
+    const counts = new Map<string, number>();
+    for (const icon of icons) counts.set(icon, (counts.get(icon) ?? 0) + 1);
+    const iconType = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+    matches.set(bomb.id, { iconType, confidence: "matched" });
+  }
 
   // Where the loadout menu draws a bomb, that icon wins over the weapon file's
   // own — see presetIcons. Needs `npm run armament` to have run first.
