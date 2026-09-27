@@ -80,7 +80,7 @@ export const pl: ClientMessages = {
     addedFavorite: "Dodano do ulubionych",
     removedFavorite: "Usunięto z ulubionych",
     sourceLanguage: "EN",
-    sourceLanguageTitle: "Napisane przez autora arkusza, po angielsku",
+    sourceLanguageTitle: "Napisane po angielsku",
   },
 
   conditions: {
@@ -151,7 +151,7 @@ export const pl: ClientMessages = {
   bombChart: {
     title: "Uzbrojenie",
     metaDescription:
-      "Wszystko, co przenoszą samoloty War Thunder — bomby, rakiety, pociski, torpedy, zasobniki z działkami — ze statystykami z plików gry, obrażeniami dla baz i liczbą sztuk potrzebną do zniszczenia bazy przy dowolnym BR.",
+      "Wszystko, co przenoszą samoloty War Thunder — bomby, rakiety, pociski, torpedy, zasobniki z działkami — ze specyfikacją, obrażeniami dla baz i liczbą sztuk potrzebną do zniszczenia bazy przy dowolnym BR.",
     massKg: "Masa (kg)",
     tntKg: "Równoważnik trotylowy (kg)",
     damage: "Obrażenia",
@@ -166,7 +166,7 @@ export const pl: ClientMessages = {
     empty: "Nic nie pasuje do tych filtrów.",
     show: "Pokaż",
     views: { bases: "Na bazy", guided: "Kierowane", all: "Wszystko" },
-    gameOnly: "Tylko obrażenia podane przez grę",
+    gameOnly: "Ukryj szacowane obrażenia",
     moreColumns: "Więcej kolumn",
     extraColumns: {
       range: "Zasięg odpalenia",
@@ -176,10 +176,7 @@ export const pl: ClientMessages = {
       explosive: "Materiał wybuchowy",
       charge: "Masa ładunku",
     },
-    estimateLegend:
-      "Szacunek z modelu wybuchu gry — gra nie podaje tej wartości dla tej broni i nie płaci za nią w nagrodzie.",
-    sheetTag: "arkusz",
-    sheetLegend: "Z arkusza LEGION'a — gra nie podaje tej wartości dla tej broni.",
+    estimateLegend: "szacunek z modelu wybuchu — nie liczy się do nagrody",
     columns: {
       name: "Uzbrojenie",
       needed: "Na bazę",
@@ -272,9 +269,8 @@ export const pl: ClientMessages = {
     destroyed: "zniszczona",
     leftovers: "resztki",
     damageOf: "{damage} z {threshold} obrażeń",
-    shortByGame: "za mało wg danych gry",
-    neededByGame: "Wg obrażeń podanych przez grę potrzeba {count} × {name}, arkusz podaje {sheetCount}.",
-    shortDetail: "Arkusz liczył tu {sheet}, a wg obrażeń podanych przez grę to za mało.",
+    shortByGame: "za mało",
+    neededByGame: "Potrzeba {count} × {name}, plan zakłada {planned}.",
     unpriced: " (plus uzbrojenie bez wyceny)",
   },
 
@@ -337,27 +333,38 @@ export const pl: ClientMessages = {
     reward: "nagrody",
     alsoCarrying:
       "Niesie też: {stores} — bez wartości obrażeń przeciw bazom, więc nie wliczają się do wyniku powyżej.",
-    estimated:
-      "{stores}: obrażenia dla baz to szacunek z modelu wybuchu gry. Gra ich nie podaje, więc nic nie dodają do nagrody.",
+    releaseUpTo: "do {mach}",
+    releaseLimit: "zrzut do {mach}",
+    releaseLimitTitle: "Maksymalna dozwolona prędkość zrzutu",
+    estimated: "{stores}: szacowane obrażenia dla baz — nic nie dodają do nagrody.",
   },
 
   changelog: {
     title: "Zmiany",
-    metaDescription: "Co zmieniła każda aktualizacja danych: nowe samoloty i bomby, zmiany BR i wartości bomb.",
+    metaDescription: "Co zmieniła każda aktualizacja danych: nowe samoloty i uzbrojenie, zmiany BR i wartości uzbrojenia.",
     empty: "Jeszcze nic — pierwszy wpis pojawi się przy następnej aktualizacji.",
     patch: "Patch {version}",
     new: "Nowe",
     groups: {
-      bombValues: "Zmienione wartości bomb",
-      newBombs: "Nowe bomby i rakiety",
-      bombsRemoved: "Usunięte bomby",
+      bombValues: "Zmienione wartości uzbrojenia",
+      newBombs: "Nowe uzbrojenie",
+      bombsRemoved: "Usunięte uzbrojenie",
       newAircraft: "Nowe samoloty",
       brChanges: "Zmiany BR",
       loadouts: "Zaktualizowane zestawy",
       aircraftRemoved: "Usunięte samoloty",
     },
     showAll: "Pokaż wszystkie ({n})",
-    fields: { damageValue: "Obrażenia", tntKg: "TNT", massKg: "Masa" },
+    fields: {
+      damageValue: "Obrażenia",
+      tntKg: "TNT",
+      massKg: "Masa",
+      launchRangeM: "Zasięg odpalenia",
+      seekerRangeM: "Zasięg namierzania",
+      machMax: "Prędkość maks.",
+      maxSpeedMs: "Prędkość maks.",
+      explosiveMassKg: "Masa ładunku",
+    },
     favoritesChanged: {
       one: "Zmienił się {n} z twoich ulubionych{patch}",
       few: "Zmieniły się {n} z twoich ulubionych{patch}",
@@ -385,6 +392,25 @@ export const pl: ClientMessages = {
     perSortie: "Za lot",
     rbOnly: "Kwoty za lot: tylko lotnicze RB.",
     accuracy: "Szacunek: SL ±2%, PB ±6%; poniżej BR 5.0 mniej pewny.",
+  },
+
+  compare: {
+    title: "Porównanie uzbrojenia",
+    metaDescription: "Uzbrojenie War Thunder obok siebie: specyfikacja i obrażenia dla baz.",
+    intro: "Do sześciu broni obok siebie — najlepsza wartość w każdym wierszu wyróżniona.",
+    add: "Dodaj broń do porównania",
+    searchPlaceholder: "Szukaj broni do dodania…",
+    full: "Najwyżej sześć naraz — usuń jedną, żeby dodać inną",
+    remove: "Usuń {name}",
+    empty: "Nie ma jeszcze czego porównać. Wyszukaj powyżej albo zaznacz bronie w tabeli uzbrojenia.",
+    failed: "Nie udało się wczytać statystyk. Zwykle pomaga odświeżenie strony.",
+    bestHint: "najlepsza z pokazanych, tam gdzie więcej znaczy lepiej",
+    compareThis: "Porównaj",
+    withSimilar: "Porównaj z nimi",
+    addToCompare: "Dodaj {name} do porównania",
+    removeFromCompare: "Usuń {name} z porównania",
+    compareSelected: "Porównaj ({n})",
+    clear: "Wyczyść",
   },
 
   palette: {

@@ -58,6 +58,8 @@ export type SlotOption = {
    * ~2% of presets that state none, where a store's own `iconType` stands in.
    */
   iconType: string | null;
+  /** The fastest its bombs or rockets may be released at, in Mach; null where the game states none. */
+  machLimit: number | null;
 };
 
 export type Hardpoint = {
@@ -260,6 +262,18 @@ export function weaponDamageOf(build: Build, armament: Armament): number {
     for (const entry of option.stores) damage += (entry.store.damage ?? 0) * entry.count;
   }
   return damage;
+}
+
+/**
+ * The fastest the whole build may release its ordnance at, in Mach: the lowest
+ * limit any chosen preset states. Null where none states one.
+ */
+export function releaseLimitOf(build: Build, armament: Armament): number | null {
+  const limits = [...build].flatMap(([slot, name]) => {
+    const limit = optionAt(armament, slot, name)?.machLimit;
+    return limit != null ? [limit] : [];
+  });
+  return limits.length > 0 ? Math.min(...limits) : null;
 }
 
 /**

@@ -118,15 +118,13 @@ function BaseTile({
           })}
           {base.hasUnpriced ? m.drop.unpriced : ""}
         </p>
-        {shortfall ? (
+        {shortfall?.needed ? (
           <p className="text-xs text-warn">
-            {shortfall.needed
-              ? fill(m.drop.neededByGame, {
-                  count: shortfall.needed.count,
-                  name: shortfall.needed.bomb.chartName || shortfall.needed.bomb.fullName,
-                  sheetCount: shortfall.needed.sheetCount,
-                })
-              : fill(m.drop.shortDetail, { sheet: number(Math.round(shortfall.sheetDamage)) })}
+            {fill(m.drop.neededByGame, {
+              count: shortfall.needed.count,
+              name: shortfall.needed.bomb.chartName || shortfall.needed.bomb.fullName,
+              planned: shortfall.needed.sheetCount,
+            })}
           </p>
         ) : null}
       </div>

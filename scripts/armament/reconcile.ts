@@ -3,13 +3,14 @@ import type { Bomb, BombKind, WeaponStats } from "../../src/domain/types";
 import type { Round } from "./stores";
 
 /**
- * The armament table's rows, the game's files over the sheet.
+ * The armament table's rows, from the game's files.
  *
  * A sheet row keeps its name, its place in the loadouts and its id, but every
- * figure the game's own files state in one voice — damage to a base, mass,
- * TNT, guidance — comes from the game, and what the sheet printed instead is
- * kept beside it (`Bomb.sheet`). Every weapon the sheet has no row for gets a
- * row of the game's own.
+ * figure — damage to a base, mass, TNT, guidance — comes from the game: its
+ * own price, else an estimate from its explosion model, never the sheet's.
+ * What the sheet printed is kept beside it (`Bomb.sheet`), for the import's
+ * report and to start a rerun from. Every weapon the sheet has no row for gets
+ * a row of the game's own.
  */
 
 type SheetFigures = NonNullable<Bomb["sheet"]>;
@@ -21,6 +22,7 @@ export function sheetView(bomb: Bomb): Bomb {
   delete row.sheet;
   delete row.damageSource;
   delete row.guidance;
+  delete row.aliasOf;
   return row;
 }
 
@@ -111,6 +113,8 @@ export type Reconciled = {
   unmatched: string[];
   /** Sheet rows the game prices nowhere whose figure the explosion model does not reproduce. */
   estimates: string[];
+  /** Sheet rows with no file of their own that take a same-named weapon's figures. */
+  aliased: string[];
 };
 
 /**
@@ -133,31 +137,34 @@ export function reconcile(
   const changes: string[] = [];
   const unmatched: string[] = [];
   const estimates: string[] = [];
+  const aliased: string[] = [];
 
-  const rows = sheetRows.map((sheet) => {
-    const members = byRow.get(sheet.id) ?? [];
-    if (members.length === 0) {
-      unmatched.push(sheet.chartName || sheet.fullName);
-      return sheet.damageValue !== null ? { ...sheet, damageSource: "sheet" as const } : sheet;
+  /** Keeps what the sheet printed for each figure the game overruled, and reports it. */
+  const withSheet = (sheet: Bomb, next: Bomb): Bomb => {
+    const overruled: SheetFigures = {};
+    for (const key of OVERRULED) {
+      if (next[key] === sheet[key]) continue;
+      (overruled as Record<string, unknown>)[key] = sheet[key];
+      if (key !== "efficiency") changes.push(`${sheet.chartName || sheet.fullName}: ${key} ${sheet[key]} → ${next[key]}`);
     }
+    if (Object.keys(overruled).length > 0) next.sheet = overruled;
+    return next;
+  };
+
+  const tied = sheetRows.map((sheet): Bomb | null => {
+    const members = byRow.get(sheet.id) ?? [];
+    if (members.length === 0) return null;
     stats[sheet.id] = representative(members).stats;
     const game = figuresOf(members);
     const next: Bomb = { ...sheet };
 
-    // The game's own price first; then the sheet's, which for a weapon the
-    // game prices only inside a fixed setup (the Pe-8's FAB-5000) is the
-    // game's price too; the estimate only where neither says anything.
-    if (game.damageSource === "game") {
-      next.damageValue = game.damage;
-      next.damageSource = "game";
-    } else if (sheet.damageValue !== null) {
-      next.damageSource = "sheet";
-      if (game.damage !== null && Math.abs(game.damage - sheet.damageValue) > 1) {
-        estimates.push(`${sheet.chartName || sheet.fullName}: sheet ${sheet.damageValue}, estimate ${game.damage}`);
-      }
-    } else if (game.damage !== null) {
-      next.damageValue = game.damage;
-      next.damageSource = "estimate";
+    // The game's own price — a store's, or a fixed setup's over its bombs —
+    // else the estimate from its explosion model. Never the sheet's.
+    next.damageValue = game.damage;
+    if (game.damageSource) next.damageSource = game.damageSource;
+    else delete next.damageSource;
+    if (game.damageSource === "estimate" && sheet.damageValue !== null && Math.abs(game.damage! - sheet.damageValue) > 1) {
+      estimates.push(`${sheet.chartName || sheet.fullName}: sheet ${sheet.damageValue}, estimate ${game.damage}`);
     }
     if (game.massKg !== undefined) {
       next.massKg = round2(game.massKg);
@@ -170,20 +177,13 @@ export function reconcile(
     }
     if (next.damageValue !== sheet.damageValue || next.massKg !== sheet.massKg) {
       next.efficiency =
-        next.damageValue !== null && next.massKg ? Math.round(next.damageValue / next.massKg) : sheet.efficiency;
+        next.damageValue !== null && next.massKg ? Math.round(next.damageValue / next.massKg) : null;
     }
-
-    const overruled: SheetFigures = {};
-    for (const key of OVERRULED) {
-      if (next[key] === sheet[key]) continue;
-      (overruled as Record<string, unknown>)[key] = sheet[key];
-      if (key !== "efficiency") changes.push(`${sheet.chartName || sheet.fullName}: ${key} ${sheet[key]} → ${next[key]}`);
-    }
-    if (Object.keys(overruled).length > 0) next.sheet = overruled;
-    return next;
+    return withSheet(sheet, next);
   });
 
   const sheetIds = new Set(sheetRows.map((row) => row.id));
+  const gameRows: Bomb[] = [];
   for (const [id, members] of byRow) {
     if (sheetIds.has(id)) continue;
     const first = representative(members);
@@ -197,7 +197,7 @@ export function reconcile(
     const nation = [...countries].sort((a, b) => b[1] - a[1] || NATIONS.indexOf(a[0]) - NATIONS.indexOf(b[0]))[0]?.[0] ?? null;
     // A gun's file weighs its round, not the pod: no mass beats 0.26 kg for a BK27 pod.
     const massKg = first.category === "gun" ? null : (game.massKg ?? first.stats.massKg ?? null);
-    rows.push({
+    gameRows.push({
       id,
       chartName: first.short ?? first.name ?? first.file,
       fullName: first.name ?? first.short ?? first.file,
@@ -215,5 +215,35 @@ export function reconcile(
       usedByNations: [],
     });
   }
-  return { rows, stats, changes, unmatched, estimates };
+
+  // A sheet row no file ties to is a weapon the game has under the same name
+  // (the sheet's "G.P.1000(l)" is the one 1000 lb G.P. Mk.I the Hampden hangs,
+  // at the game's 2906 rather than the sheet's 5279), or nothing it has at all.
+  const byName = new Map(
+    [...tied.filter((row): row is Bomb => row !== null), ...gameRows].map((row) => [row.fullName.toLowerCase(), row]),
+  );
+  const rows = sheetRows.map((sheet, index) => {
+    const row = tied[index];
+    if (row) return row;
+    unmatched.push(sheet.chartName || sheet.fullName);
+    const twin = byName.get(sheet.fullName.toLowerCase());
+    const next: Bomb = { ...sheet, damageValue: null, efficiency: null };
+    delete next.damageSource;
+    if (twin) {
+      aliased.push(`${sheet.chartName || sheet.fullName} → ${twin.chartName || twin.fullName}`);
+      Object.assign(next, {
+        kind: twin.kind,
+        massKg: twin.massKg,
+        massLabel: twin.massLabel,
+        tntKg: twin.tntKg,
+        damageValue: twin.damageValue,
+        efficiency: twin.efficiency,
+        aliasOf: twin.id,
+        ...(twin.damageSource ? { damageSource: twin.damageSource } : {}),
+        ...(twin.guidance ? { guidance: twin.guidance } : {}),
+      });
+    }
+    return withSheet(sheet, next);
+  });
+  return { rows: [...rows, ...gameRows], stats, changes, unmatched, estimates, aliased };
 }

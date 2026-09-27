@@ -16,7 +16,8 @@ import otherCarrierData from "@/data/other-carriers.json";
 import squadronData from "@/data/squadron.json";
 import unitNameData from "@/data/unit-names.json";
 import vehicleTypeData from "@/data/vehicle-types.json";
-import { inArmamentChart, type ChartRow } from "@/domain/bomb-chart";
+import { inArmamentChart, rewardDamageOf, type ChartRow } from "@/domain/bomb-chart";
+import { FIGURE_LABEL_PREFIXES, type CompareData } from "@/lib/weapon-figures";
 import { NATIONS, type VehicleType } from "@/domain/constants";
 import type { Locale } from "@/i18n/locales";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
@@ -33,7 +34,18 @@ import {
   type WeaponStats,
 } from "@/domain/types";
 
-export const bombs = bombData as Bomb[];
+/**
+ * Every row, a sheet row standing in for a weapon the game has under the same
+ * name (`aliasOf`) shown by that weapon's name — it is that weapon.
+ */
+export const bombs: Bomb[] = (() => {
+  const rows = bombData as Bomb[];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return rows.map((row) => {
+    const twin = row.aliasOf ? byId.get(row.aliasOf) : undefined;
+    return twin ? { ...row, chartName: twin.chartName, fullName: twin.fullName } : row;
+  });
+})();
 export const meta = metaData as Meta;
 /** What each import changed, newest first — see scripts/changelog. */
 export const changelog = changelogData as ChangelogEntry[];
@@ -98,7 +110,8 @@ const economy = economyData as unknown as {
 
 export const economyFor = (aircraftId: string): AircraftEconomy | null => economy.aircraft[aircraftId] ?? null;
 
-const bombDamage = new Map(bombs.map((b) => [b.id, b.damageValue]));
+/** What each bomb counts for in the reward: the game's price, an estimate nothing — see rewardDamageOf. */
+const rewardDamage = new Map(bombs.map((b) => [b.id, rewardDamageOf(b)]));
 
 /**
  * Each loadout's reward multiplier as the game works it out (`loadoutRewardMul`,
@@ -111,7 +124,7 @@ const bombDamage = new Map(bombs.map((b) => [b.id, b.damageValue]));
 function gameMultiplier(plane: Aircraft, option: Aircraft["options"][number]): number | null {
   const unit = economy.aircraft[plane.id];
   if (!unit || option.rewardMultiplier === null) return option.rewardMultiplier;
-  const mul = loadoutRewardMul(option, (id) => bombDamage.get(id), unit, (rewardConstantsData as RewardConstants).bombing);
+  const mul = loadoutRewardMul(option, (id) => rewardDamage.get(id), unit, (rewardConstantsData as RewardConstants).bombing);
   return mul === null ? option.rewardMultiplier : Math.round(mul * 100) / 10;
 }
 
@@ -160,7 +173,7 @@ type CompactArmament = {
       left: number | null;
       right: number | null;
       diff: number | null;
-      slots: { i: number; o: { n: string; w: number | [number, number][]; i?: string }[] }[];
+      slots: { i: number; o: { n: string; w: number | [number, number][]; i?: string; m?: number }[] }[];
       bans: [number, string, number, string][];
       reqs: [number, string, number, string][];
     }
@@ -196,13 +209,14 @@ export function armamentFor(aircraftId: string): Armament | null {
     };
   };
 
-  const optionOf = (option: { n: string; w: number | [number, number][]; i?: string }): SlotOption => ({
+  const optionOf = (option: { n: string; w: number | [number, number][]; i?: string; m?: number }): SlotOption => ({
     name: option.n,
     stores:
       typeof option.w === "number"
         ? [{ store: storeAt(option.w), count: 1 }]
         : option.w.map(([index, count]) => ({ store: storeAt(index), count })),
     iconType: option.i ?? null,
+    machLimit: option.m ?? null,
   });
 
   return {
@@ -295,6 +309,33 @@ export function chartRowsFor(locale: Locale): ChartRow[] {
   });
 }
 
+/** Everything the weapon comparison fetches: each paged weapon's row and its figures. */
+export function compareData(): CompareData {
+  return {
+    rows: pagedBombs.map((bomb) => ({
+      id: bomb.id,
+      chartName: bomb.chartName,
+      fullName: bomb.fullName,
+      kind: bomb.kind,
+      ...(bomb.guidance ? { guidance: bomb.guidance } : {}),
+      nation: bomb.nation,
+      massKg: bomb.massKg,
+      massLabel: bomb.massLabel,
+      tntKg: bomb.tntKg,
+      damageValue: bomb.damageValue,
+      ...(bomb.damageSource ? { damageSource: bomb.damageSource } : {}),
+      efficiency: bomb.efficiency,
+    })),
+    stats: Object.fromEntries(pagedBombs.map((bomb) => [bomb.id, statsOf(bomb.id)])),
+  };
+}
+
+/** The game's own words for a weapon's figures, in one language — all the comparison needs of game-lang.json. */
+export function figureLabels(locale: Locale): Record<string, string> {
+  const keys = Object.keys(gameLang.en).filter((key) => FIGURE_LABEL_PREFIXES.some((prefix) => key.startsWith(prefix)));
+  return Object.fromEntries(keys.map((key) => [key, gameLabel(locale, key)!]));
+}
+
 /**
  * Aircraft the game hangs a weapon on that this site has no page for, by
  * their names in the game's tech tree — see scripts/armament.
@@ -302,7 +343,9 @@ export function chartRowsFor(locale: Locale): ChartRow[] {
 export function otherCarriersOf(locale: Locale, bombId: string): string[] {
   const units = (otherCarrierData as Record<string, string[]>)[bombId] ?? [];
   const names = unitNameData as Record<Locale, Record<string, string>>;
-  const named = units.map((unit) => names[locale][unit] ?? names.en[unit] ?? unit);
+  // An event's or another nation's copy of an aircraft with a page reads as that aircraft twice.
+  const paged = new Set(aircraft.map((plane) => aircraftName(locale, plane)));
+  const named = units.map((unit) => names[locale][unit] ?? names.en[unit] ?? unit).filter((name) => !paged.has(name));
   return [...new Set(named)].sort((a, b) => a.localeCompare(b));
 }
 

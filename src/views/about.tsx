@@ -42,7 +42,6 @@ export function AboutView({ locale }: { locale: Locale }) {
           stats={[
             plural(locale, m.stats.aircraft, meta.aircraftCount),
             plural(locale, m.stats.weapons, pagedBombs.length),
-            ...(meta.sheetVersion ? [fill(m.stats.sheet, { version: meta.sheetVersion })] : []),
           ]}
         >
           <p className="text-ink-dim">{a.intro}</p>

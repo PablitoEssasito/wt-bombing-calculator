@@ -20,12 +20,10 @@ export type BombKind =
 
 /** Where a row's damage to a base comes from. */
 export type DamageSource =
-  /** `weaponDamage` in the game's own wpcost.blkx — the hangar's "Estimated damage to bases". */
+  /** `weaponDamage` in the game's own wpcost.blkx — a store's, or a fixed setup's over its bombs. */
   | "game"
   /** Worked out from the game's own explosion model, for what the game does not price (see base-damage.ts). */
-  | "estimate"
-  /** The sheet's figure, for a row nothing in the game's files ties to. */
-  | "sheet";
+  | "estimate";
 
 export type Bomb = {
   id: string;
@@ -51,6 +49,12 @@ export type Bomb = {
   guidance?: string;
   /** Present, as "game", only on a row the sheet has no entry for. */
   source?: "game";
+  /**
+   * A sheet row no file of the game's ties to, standing for the weapon the game
+   * has under the same name — its figures that weapon's. Gets no page of its
+   * own: it is that weapon's, twice.
+   */
+  aliasOf?: string;
   /**
    * The nation block of the Bomb Chart tab this row was printed under. Null for
    * anything with no chart row at all — every rocket (see scripts/etl/rockets.ts)
@@ -216,6 +220,17 @@ type BombRef = { id: string; name: string };
  * What one import changed, worked out by `npm run changelog` from the data it
  * replaced — see scripts/changelog/diff.ts.
  */
+/** A weapon's figure a changelog entry reports: its row's, or one off its own file (armament-stats.json). */
+export type ChangedField =
+  | "damageValue"
+  | "tntKg"
+  | "massKg"
+  | "launchRangeM"
+  | "seekerRangeM"
+  | "machMax"
+  | "maxSpeedMs"
+  | "explosiveMassKg";
+
 export type ChangelogEntry = {
   /** The day that patch went live, YYYY-MM-DD — the import's own date where it cannot be found. */
   date: string;
@@ -232,7 +247,7 @@ export type ChangelogEntry = {
     added: BombRef[];
     removed: BombRef[];
     changed: (BombRef & {
-      fields: { field: "damageValue" | "tntKg" | "massKg"; from: number | null; to: number | null }[];
+      fields: { field: ChangedField; from: number | null; to: number | null }[];
     })[];
   };
 };

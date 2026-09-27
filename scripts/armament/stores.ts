@@ -636,6 +636,44 @@ function zoneOf(armorClasses: Record<string, unknown>, explosives: Explosives) {
 const samePrice = (a: number, b: number) => Math.abs(a - b) <= 1;
 
 /** The most common of a list of values, the lower one on a tie. */
+/**
+ * What a round is priced at inside the fixed setups that hang it alone: the
+ * setup's price over its rounds. The only price the game gives a bomb only a
+ * bomber's bay carries — the Pe-8's FAB-5000 is priced as `pe-8_fab5000`,
+ * 30 521 for its one bomb, and nowhere on its own. A setup mixing two kinds of
+ * round says nothing of either.
+ */
+async function fixedSetupShares(
+  wpcost: Wpcost,
+  coreOf: Map<string, { file: string; count: number }>,
+): Promise<Map<string, number[]>> {
+  const shares = new Map<string, number[]>();
+  for (const name of await readdir(UNITS_DIR)) {
+    const unit = name.replace(/\.json$/, "");
+    const prices = wpcost.presets[unit];
+    if (!prices) continue;
+    const raw = JSON.parse(await readFile(path.join(UNITS_DIR, name), "utf8")) as {
+      presets?: Record<string, { Weapon?: unknown }>;
+    };
+    for (const [preset, body] of Object.entries(raw.presets ?? {})) {
+      const price = prices[preset];
+      if (price === undefined) continue;
+      const rounds = new Map<string, number>();
+      for (const weapon of many<Record<string, unknown>>(body.Weapon)) {
+        if (typeof weapon.blk !== "string") continue;
+        const core = coreOf.get(storeFile(weapon.blk));
+        if (!core) continue;
+        const bullets = typeof weapon.bullets === "number" ? weapon.bullets : 1;
+        rounds.set(core.file, (rounds.get(core.file) ?? 0) + bullets * core.count);
+      }
+      if (rounds.size !== 1) continue;
+      const [[file, count]] = [...rounds];
+      shares.set(file, [...(shares.get(file) ?? []), Math.round(price / count)]);
+    }
+  }
+  return shares;
+}
+
 function mostCommon(values: number[]): number {
   const counts = new Map<number, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
@@ -766,7 +804,8 @@ async function main() {
     });
   }
 
-  const rounds = roundsOf(stores, coreOf, bodies, names, wpcost, explosives, onPylon, carriers);
+  const setupShares = await fixedSetupShares(wpcost, coreOf);
+  const rounds = roundsOf(stores, coreOf, bodies, names, wpcost, explosives, onPylon, carriers, setupShares);
   const model = buildModel(pricedBlasts([...rounds.values()]), zone);
   for (const round of rounds.values()) {
     if (round.damage !== null || !ESTIMATED.has(round.category) || round.incendiary) continue;
@@ -775,6 +814,10 @@ async function main() {
       round.damageSource = "game";
     } else if (round.tntKg) {
       round.damage = zoneDamage(round.tntKg, model);
+      round.damageSource = "estimate";
+    } else if (round.category === "rocket" && round.stats.explosiveType === undefined) {
+      // No explosive at all — an AP or flechette rocket: the blast model gives it nothing.
+      round.damage = 0;
       round.damageSource = "estimate";
     }
   }
@@ -853,6 +896,7 @@ function roundsOf(
   explosives: Explosives,
   onPylon: Set<string>,
   carriers: Map<string, Set<string>>,
+  setupShares: Map<string, number[]>,
 ): Map<string, Round> {
   const rounds = new Map<string, Round>();
   for (const store of stores) {
@@ -894,7 +938,9 @@ function roundsOf(
         ? [Math.round(store.damage / store.holds)]
         : [],
     );
-    const damage = own ?? (shares.length > 0 ? mostCommon(shares) : null);
+    const setups = setupShares.get(round.file) ?? [];
+    const damage =
+      own ?? (shares.length > 0 ? mostCommon(shares) : setups.length > 0 ? mostCommon(setups) : null);
     if (damage !== null) {
       round.damage = damage;
       round.damageSource = "game";

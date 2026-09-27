@@ -74,7 +74,11 @@ const atRef = <T>(ref: string, file: string): T | null => {
 
 async function main() {
   const read = async <T>(file: string) => JSON.parse(await readFile(path.join(DATA, file), "utf8")) as T;
-  const now: DataSnapshot = { aircraft: await read("aircraft.json"), bombs: await read("bombs.json") };
+  const now: DataSnapshot = {
+    aircraft: await read("aircraft.json"),
+    bombs: await read("bombs.json"),
+    stats: await read("armament-stats.json"),
+  };
   const meta = await read<Meta>("meta.json");
 
   const aircraft = atRef<DataSnapshot["aircraft"]>(since, "aircraft.json");
@@ -86,7 +90,8 @@ async function main() {
   const released = version ? await releaseDate(version) : null;
   if (!version) console.log("note  could not read the game version — the entry goes unlabelled");
   else if (!released) console.log(`note  could not find when ${version} went live — dated by the import instead`);
-  const diff = diffData({ aircraft, bombs }, now, {
+  const stats = atRef<DataSnapshot["stats"]>(since, "armament-stats.json") ?? undefined;
+  const diff = diffData({ aircraft, bombs, stats }, now, {
     date: released ?? meta.generatedAt.slice(0, 10),
     gameVersion: version,
   });

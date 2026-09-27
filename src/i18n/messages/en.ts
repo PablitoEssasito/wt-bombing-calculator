@@ -89,7 +89,7 @@ export const en = {
     addedFavorite: "Added to favorites",
     removedFavorite: "Removed from favorites",
     sourceLanguage: "EN",
-    sourceLanguageTitle: "Written by the sheet's author, in English",
+    sourceLanguageTitle: "Written in English",
   },
 
   conditions: {
@@ -160,7 +160,7 @@ export const en = {
   bombChart: {
     title: "Armament",
     metaDescription:
-      "Everything War Thunder's aircraft carry — bombs, rockets, missiles, torpedoes, gun pods — with its figures from the game's own files, its damage to bases, and how many it takes to flatten one at any battle rating.",
+      "Everything War Thunder's aircraft carry — bombs, rockets, missiles, torpedoes, gun pods — with its specification, its damage to bases, and how many it takes to flatten one at any battle rating.",
     massKg: "Mass (kg)",
     tntKg: "TNT equivalent (kg)",
     damage: "Damage",
@@ -175,7 +175,7 @@ export const en = {
     empty: "Nothing matches these filters.",
     show: "Show",
     views: { bases: "Against bases", guided: "Guided", all: "Everything" },
-    gameOnly: "Only the game's own damage figures",
+    gameOnly: "Hide estimated damage",
     moreColumns: "More columns",
     extraColumns: {
       range: "Launch range",
@@ -185,10 +185,7 @@ export const en = {
       explosive: "Explosive",
       charge: "Explosive mass",
     },
-    estimateLegend:
-      "Estimated from the game's explosion model — the game gives no figure for this weapon, and pays nothing for it in the reward.",
-    sheetTag: "sheet",
-    sheetLegend: "From LEGION's sheet — the game gives no figure for this weapon.",
+    estimateLegend: "estimated from the explosion model — not counted towards the reward",
     columns: {
       name: "Weapon",
       needed: "Per base",
@@ -269,9 +266,8 @@ export const en = {
     destroyed: "destroyed",
     leftovers: "leftovers",
     damageOf: "{damage} of {threshold} damage",
-    shortByGame: "short by the game's figures",
-    neededByGame: "The game's own damage figures need {count} × {name}; the sheet drops {sheetCount}.",
-    shortDetail: "The sheet counted this at {sheet}; the game's own damage figures fall short.",
+    shortByGame: "falls short",
+    neededByGame: "Takes {count} × {name}; the plan drops {planned}.",
     unpriced: " (plus unpriced ordnance)",
   },
 
@@ -329,27 +325,38 @@ export const en = {
     reward: "reward",
     alsoCarrying:
       "Also carrying: {stores} — no base-damage figure for these, so they're left out of the count above.",
-    estimated:
-      "{stores}: damage to bases estimated from the game's explosion model. The game gives no figure for it, so it adds nothing to the reward.",
+    releaseUpTo: "up to {mach}",
+    releaseLimit: "released at up to {mach}",
+    releaseLimitTitle: "Maximum allowed release speed",
+    estimated: "{stores}: estimated damage to bases — adds nothing to the reward.",
   },
 
   changelog: {
     title: "Changelog",
-    metaDescription: "What each data update changed: new aircraft and bombs, BR moves, and bomb values.",
+    metaDescription: "What each data update changed: new aircraft and weapons, BR moves, and weapon figures.",
     empty: "Nothing yet — the first entry lands with the next update.",
     patch: "Patch {version}",
     new: "New",
     groups: {
-      bombValues: "Bomb values changed",
-      newBombs: "New bombs & rockets",
-      bombsRemoved: "Bombs removed",
+      bombValues: "Weapon figures changed",
+      newBombs: "New weapons",
+      bombsRemoved: "Weapons removed",
       newAircraft: "New aircraft",
       brChanges: "BR changes",
       loadouts: "Loadouts updated",
       aircraftRemoved: "Aircraft removed",
     },
     showAll: "Show all {n}",
-    fields: { damageValue: "Damage", tntKg: "TNT", massKg: "Mass" },
+    fields: {
+      damageValue: "Damage",
+      tntKg: "TNT",
+      massKg: "Mass",
+      launchRangeM: "Launch range",
+      seekerRangeM: "Lock range",
+      machMax: "Max speed",
+      maxSpeedMs: "Max speed",
+      explosiveMassKg: "Explosive mass",
+    },
     favoritesChanged: forms({
       one: "{n} of your favorites changed{patch}",
       other: "{n} of your favorites changed{patch}",
@@ -375,6 +382,25 @@ export const en = {
     perSortie: "Per sortie",
     rbOnly: "Amounts per sortie: Air RB only.",
     accuracy: "Estimate: SL ±2%, RP ±6%; less certain below BR 5.0.",
+  },
+
+  compare: {
+    title: "Compare weapons",
+    metaDescription: "War Thunder weapons side by side: specification and damage to bases.",
+    intro: "Up to six weapons side by side — the best of each figure marked.",
+    add: "Add a weapon to compare",
+    searchPlaceholder: "Search weapons to add…",
+    full: "Six side by side at most — remove one to add another",
+    remove: "Remove {name}",
+    empty: "Nothing to compare yet. Search above, or tick weapons in the armament chart.",
+    failed: "Couldn't load the weapons' figures. Reloading usually fixes it.",
+    bestHint: "the best of those shown, where more is plainly better",
+    compareThis: "Compare",
+    withSimilar: "Compare with these",
+    addToCompare: "Add {name} to the comparison",
+    removeFromCompare: "Take {name} out of the comparison",
+    compareSelected: "Compare {n}",
+    clear: "Clear",
   },
 
   palette: {

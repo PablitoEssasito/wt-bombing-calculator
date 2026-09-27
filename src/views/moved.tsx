@@ -3,7 +3,7 @@ import Link from "next/link";
 import { localePath, type Locale } from "@/i18n/locales";
 import { messagesFor } from "@/i18n/messages";
 import { withBasePath } from "@/lib/base-path";
-import { pagedBombs } from "@/lib/dataset";
+import { bombs, bombsById, pagedBombs } from "@/lib/dataset";
 import { canonicalOf } from "@/lib/site";
 
 /**
@@ -35,7 +35,27 @@ export function MovedPage({ locale, to }: { locale: Locale; to: string }) {
   );
 }
 
-/** Every weapon that had a page under /bombs/: the sheet's rows — the game's own came with the armament chart. */
+/**
+ * Every weapon that had a page under /bombs/: the sheet's rows with a figure
+ * to show — the game's own rows came with the armament chart.
+ */
 export function movedBombIds(): string[] {
-  return pagedBombs.filter((bomb) => bomb.source !== "game").map((bomb) => bomb.id);
+  return bombs
+    .filter(
+      (bomb) =>
+        bomb.source !== "game" &&
+        (bomb.damageValue !== null || bomb.sheet?.damageValue != null || bomb.kind === "ROCKET"),
+    )
+    .map((bomb) => bomb.id);
+}
+
+/**
+ * Where an old bomb page lives now: its own page, the page of the weapon the
+ * game has it as (`aliasOf`), or the chart where it has none.
+ */
+export function movedTarget(id: string): string {
+  const bomb = bombsById.get(id);
+  if (bomb && pagedBombs.includes(bomb)) return `/armament/${id}/`;
+  if (bomb?.aliasOf) return `/armament/${bomb.aliasOf}/`;
+  return "/armament/";
 }

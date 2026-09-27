@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3 } from "lucide-react";
 import Link from "next/link";
-import { memo, useDeferredValue, useEffect, useMemo } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { BombIcon } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
@@ -25,14 +25,18 @@ import { ShareButton } from "@/components/share-button";
 import { track } from "@/lib/analytics";
 import { useI18n } from "@/i18n/client";
 import {
+  readUrlState,
   urlInteger,
+  urlList,
   urlLiteral,
   urlOptionalInteger,
   urlStringSet,
   urlText,
   useUrlState,
+  writeUrlState,
 } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
+import { MAX_COMPARED } from "@/lib/weapon-figures";
 
 /**
  * Columns off the weapon's own file, shown on request — the table is wide
@@ -112,8 +116,11 @@ const KINDS = [
 
 const SOURCES = ["all", "game"] as const;
 
+/** The weapons ticked for the comparison, in the order they were ticked. */
+const COMPARED = urlList();
+
 export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; guidanceLabels: Record<string, string> }) {
-  const { m, number, fill } = useI18n();
+  const { m, number, fill, path } = useI18n();
   const [view, setView] = useUrlState("view", urlLiteral(CHART_VIEWS, "bases"));
   const [query, setQuery] = useUrlState("q", urlText());
   const [hp, setHp] = useUrlState("hp", urlInteger(25900));
@@ -126,6 +133,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const [kinds, setKinds] = useUrlState("kinds", urlStringSet<BombKind>(KINDS));
   const [source, setSource] = useUrlState("src", urlLiteral(SOURCES, "all"));
   const [columns, setColumns] = useUrlState("cols", urlStringSet<ExtraColumn>(EXTRA_COLUMNS));
+  const [compared, setCompared] = useUrlState("cmp", COMPARED);
   const [massMin, setMassMin] = useUrlState("massMin", urlOptionalInteger());
   const [massMax, setMassMax] = useUrlState("massMax", urlOptionalInteger());
   const [tntMin, setTntMin] = useUrlState("tntMin", urlOptionalInteger());
@@ -295,6 +303,15 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   };
 
   const extraHeaders: Record<ExtraColumn, string> = m.bombChart.extraColumns;
+
+  // Stable, so ticking one row doesn't redraw the other six hundred.
+  const comparedKey = compared.join(",");
+  const comparedSet = useMemo(() => new Set(comparedKey ? comparedKey.split(",") : []), [comparedKey]);
+  const toggleCompared = useCallback((id: string) => {
+    const now = readUrlState("cmp", COMPARED);
+    if (now.includes(id)) writeUrlState("cmp", COMPARED, now.filter((other) => other !== id));
+    else if (now.length < MAX_COMPARED) writeUrlState("cmp", COMPARED, [...now, id]);
+  }, []);
   const shownSources = new Set(listed.map(({ bomb }) => bomb.damageSource));
 
   return (
@@ -532,25 +549,44 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                   ))}
                 </tr>
               </thead>
-              <BombRows rows={listed} massUnit={shownUnit} columns={shownColumns} guidanceLabels={guidanceLabels} />
+              <BombRows
+                rows={listed}
+                massUnit={shownUnit}
+                columns={shownColumns}
+                guidanceLabels={guidanceLabels}
+                compared={comparedSet}
+                onCompare={toggleCompared}
+              />
             </table>
           </div>
-          {shownSources.has("estimate") || shownSources.has("sheet") ? (
-            <ul className="space-y-1 text-xs text-ink-faint">
-              {shownSources.has("estimate") ? (
-                <li>
-                  <span className="text-ink-dim">≈</span> {m.bombChart.estimateLegend}
-                </li>
-              ) : null}
-              {shownSources.has("sheet") ? (
-                <li>
-                  <span className="text-ink-dim">{m.bombChart.sheetTag}</span> — {m.bombChart.sheetLegend}
-                </li>
-              ) : null}
-            </ul>
+          {shownSources.has("estimate") ? (
+            <p className="text-xs text-ink-faint">
+              <span className="text-ink-dim">≈</span> {m.bombChart.estimateLegend}
+            </p>
           ) : null}
         </div>
       )}
+
+      {compared.length > 0 ? (
+        <div className="sticky bottom-4 z-30 flex justify-center">
+          <div className="card flex items-center gap-3 px-3 py-2 shadow-lg">
+            <Link
+              href={`${path("/armament/compare/")}?ids=${compared.join(",")}`}
+              transitionTypes={["nav-forward"]}
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent-dim px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent/20"
+            >
+              <Columns3 size={15} aria-hidden /> {fill(m.compare.compareSelected, { n: compared.length })}
+            </Link>
+            <button
+              type="button"
+              onClick={() => setCompared([])}
+              className="text-sm text-ink-faint underline underline-offset-4 hover:text-accent"
+            >
+              {m.compare.clear}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -563,13 +599,18 @@ const BombRows = memo(function BombRows({
   massUnit,
   columns,
   guidanceLabels,
+  compared,
+  onCompare,
 }: {
   rows: SortableRow[];
   massUnit: MassUnit;
   columns: ReadonlySet<ExtraColumn>;
   guidanceLabels: Record<string, string>;
+  compared: ReadonlySet<string>;
+  onCompare: (id: string) => void;
 }) {
-  const { m, number, path } = useI18n();
+  const { m, number, path, fill } = useI18n();
+  const full = compared.size >= MAX_COMPARED;
   const decimal = (value: number, digits: number) => number(value, { maximumFractionDigits: digits });
   const extraCell = (bomb: ChartRow, column: ExtraColumn): string | null => {
     switch (column) {
@@ -597,6 +638,14 @@ const BombRows = memo(function BombRows({
         <tr key={bomb.id} className="border-t border-line hover:bg-surface-2">
           <td className="px-3 py-2">
             <div className="flex items-center gap-2.5">
+              <CompareToggle
+                on={compared.has(bomb.id)}
+                disabled={full && !compared.has(bomb.id)}
+                label={fill(compared.has(bomb.id) ? m.compare.removeFromCompare : m.compare.addToCompare, {
+                  name: bomb.chartName || bomb.fullName,
+                })}
+                onClick={() => onCompare(bomb.id)}
+              />
               <BombIcon bomb={bomb} size={28} />
               <div className="min-w-0">
                 <Link
@@ -656,9 +705,8 @@ const BombRows = memo(function BombRows({
 });
 
 /**
- * A row's damage to a base, marked by where it comes from: the game's own
- * price bare, an estimate from its explosion model "≈", the sheet's figure
- * tagged — so a number the game never gave is never read as one it did.
+ * A row's damage to a base: the price bare, an estimate from the explosion
+ * model marked "≈" — it counts towards the bases but not the reward.
  */
 function DamageValue({ bomb }: { bomb: Pick<ChartRow, "damageValue" | "damageSource"> }) {
   const { m, number } = useI18n();
@@ -670,15 +718,37 @@ function DamageValue({ bomb }: { bomb: Pick<ChartRow, "damageValue" | "damageSou
       </span>
     );
   }
+  return <>{number(bomb.damageValue)}</>;
+}
+
+/** Ticks a row for the comparison: a box, not a switch, as more than one can be on. */
+function CompareToggle({
+  on,
+  disabled,
+  label,
+  onClick,
+}: {
+  on: boolean;
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+}) {
   return (
-    <>
-      {number(bomb.damageValue)}
-      {bomb.damageSource === "sheet" ? (
-        <span title={m.bombChart.sheetLegend} className="ml-1 text-[10px] uppercase tracking-wide text-ink-faint cursor-help">
-          {m.bombChart.sheetTag}
-        </span>
-      ) : null}
-    </>
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={on}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors disabled:opacity-30",
+        on ? "border-accent bg-accent text-ground" : "border-line-bright hover:border-accent",
+      )}
+    >
+      {on ? <Check size={12} strokeWidth={3} /> : null}
+    </button>
   );
 }
 

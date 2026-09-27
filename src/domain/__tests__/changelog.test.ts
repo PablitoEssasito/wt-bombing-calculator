@@ -84,6 +84,27 @@ describe("diffData", () => {
   });
 });
 
+describe("diffData on a weapon's own figures", () => {
+  const kd88 = bomb({ id: "kd-88", fullName: "KD-88 air-to-ground missiles" });
+
+  it("reports a figure off the weapon's file that changed", () => {
+    const entry = diffData(
+      { aircraft: [], bombs: [kd88], stats: { "kd-88": { launchRangeM: 230000, machMax: 0.85 } } },
+      { aircraft: [], bombs: [kd88], stats: { "kd-88": { launchRangeM: 250000, machMax: 0.85 } } },
+      label,
+    );
+    expect(entry?.bombs.changed).toEqual([
+      { id: "kd-88", name: "KD-88 air-to-ground missiles", fields: [{ field: "launchRangeM", from: 230000, to: 250000 }] },
+    ]);
+  });
+
+  it("says nothing of figures read for the first time, or where an import predates them", () => {
+    const now = { aircraft: [], bombs: [kd88], stats: { "kd-88": { launchRangeM: 230000 } } };
+    expect(diffData({ aircraft: [], bombs: [kd88], stats: {} }, now, label)).toBeNull();
+    expect(diffData({ aircraft: [], bombs: [kd88] }, now, label)).toBeNull();
+  });
+});
+
 describe("mergeEntries", () => {
   const entry = (over: { br?: { from: number; to: number }[]; damage?: [number, number] }) =>
     diffData(

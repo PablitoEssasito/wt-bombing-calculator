@@ -7,6 +7,7 @@ import {
   equivalentOption,
   massOf,
   unmetIn,
+  releaseLimitOf,
   unpricedIn,
   variantOf,
   violationsOf,
@@ -31,6 +32,7 @@ const store = (over: Partial<Store> & { name: string }): Store => ({
 const option = (over: Partial<SlotOption> & { name: string }): SlotOption => ({
   stores: [],
   iconType: null,
+  machLimit: null,
   ...over,
 });
 
@@ -172,6 +174,26 @@ describe("bombsIn", () => {
 
   it("leaves out what the chart does not price", () => {
     expect(bombsIn(build([[2, "jdam"]]), armament)).toEqual([]);
+  });
+});
+
+describe("releaseLimitOf", () => {
+  const limited: Armament = {
+    ...armament,
+    hardpoints: [
+      { index: 1, options: [option({ name: "gbu", machLimit: 1.01 }), option({ name: "free" })] },
+      { index: 2, options: [option({ name: "rockets", machLimit: 0.9 })] },
+    ],
+  };
+
+  it("holds the whole build to its strictest preset", () => {
+    expect(releaseLimitOf(build([[1, "gbu"], [2, "rockets"]]), limited)).toBe(0.9);
+    expect(releaseLimitOf(build([[1, "gbu"]]), limited)).toBe(1.01);
+  });
+
+  it("states none where no chosen preset does", () => {
+    expect(releaseLimitOf(build([[1, "free"]]), limited)).toBeNull();
+    expect(releaseLimitOf(build([]), limited)).toBeNull();
   });
 });
 

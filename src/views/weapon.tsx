@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Columns3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BombIcon } from "@/components/bomb-glyph";
@@ -7,10 +8,10 @@ import { PageTransition } from "@/components/page-transition";
 import { VehicleTypeIcon } from "@/components/vehicle-type-icon";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
 import { BASE_HP_TIERS, type BaseCount, type GameMode, type Nation } from "@/domain/constants";
-import type { Bomb, BombKind, WeaponStats } from "@/domain/types";
+import type { Bomb, BombKind } from "@/domain/types";
 import { fill, formatNumber, plural } from "@/i18n/format";
 import { localePath, type Locale } from "@/i18n/locales";
-import { messagesFor, type Messages } from "@/i18n/messages";
+import { messagesFor } from "@/i18n/messages";
 import {
   aircraftCarrying,
   aircraftName,
@@ -22,6 +23,7 @@ import {
   type Carrier,
 } from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
+import { MAX_COMPARED, figureGroups } from "@/lib/weapon-figures";
 import { canonicalOf, pageOpenGraph } from "@/lib/site";
 
 export function weaponIds(): string[] {
@@ -63,6 +65,9 @@ const FAMILIES: BombKind[][] = [
 ];
 const SIMILAR = 6;
 
+/** Kinds already named after their seeker. */
+const SEEKER_KINDS = new Set<BombKind>(["GNSS", "LAS", "TV", "IR"]);
+
 /** The weapons most like this one: its family, nearest by damage to a base, or by mass where nothing prices it. */
 function similarTo(bomb: Bomb): Bomb[] {
   const family = FAMILIES.find((kinds) => kinds.includes(bomb.kind)) ?? [bomb.kind];
@@ -76,90 +81,6 @@ function similarTo(bomb: Bomb): Bomb[] {
     .sort((a, z) => a.distance - z.distance)
     .slice(0, SIMILAR)
     .map(({ b }) => b);
-}
-
-type StatLine = { label: string; value: string };
-
-/**
- * The weapon's figures in the groups, words and units the game's own weapon
- * tooltip uses (`weaponryinfo.nut`), so the page reads like the hangar does.
- */
-function statGroups(stats: WeaponStats, locale: Locale, m: Messages): { title: string; lines: StatLine[] }[] {
-  const label = (key: string) => gameLabel(locale, key) ?? key;
-  const n = (value: number, digits = 0) => formatNumber(locale, value, { maximumFractionDigits: digits });
-  const distance = (meters: number) => (meters >= 1000 ? `${n(meters / 1000, 1)} km` : `${n(meters, 1)} m`);
-  const line = (key: string, value: string | undefined): StatLine[] => (value ? [{ label: label(key), value }] : []);
-  const some = <T,>(value: T | undefined, show: (v: T) => string) => (value !== undefined ? show(value) : undefined);
-  const guided = Boolean(stats.guidance ?? stats.aiming);
-
-  return [
-    {
-      title: m.bombPage.groups.guidance,
-      lines: [
-        ...line("missile/guidance", some(stats.guidance, (key) => label(`missile/guidance/${key}`))),
-        ...line("missile/guidance", some(stats.aiming, (key) => label(`missile/aiming/${key}`))),
-        ...line(
-          "missile/aspect",
-          some(stats.allAspect, (all) => label(all ? "missile/aspect/allAspect" : "missile/aspect/rearAspect")),
-        ),
-        ...line("missile/seekerRange", some(stats.seekerRangeM, distance)),
-        ...line("missile/seekerRange/rearAspect", some(stats.seekerRangeRearM, distance)),
-        ...line("missile/seekerRange/allAspect", some(stats.seekerRangeAllM, distance)),
-        ...line("missile/launchRange", some(stats.launchRangeM, distance)),
-        ...line("guaranteedRange", some(stats.guaranteedRangeM, distance)),
-        ...line("firingRange", some(stats.operatedDistM, distance)),
-        ...line(guided ? "missile/timeGuidance" : "missile/timeSelfdestruction", some(stats.timeLifeS, (s) => `${n(s, 1)} s`)),
-      ],
-    },
-    {
-      title: m.bombPage.groups.flight,
-      lines: [
-        ...line(
-          "rocket/maxSpeed",
-          stats.machMax !== undefined
-            ? `${formatNumber(locale, stats.machMax, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M`
-            : some(stats.maxSpeedMs, (v) => `${n(v)} m/s`),
-        ),
-        ...line("missile/loadFactorMax", some(stats.loadFactorMax, (g) => `${n(g)} G`)),
-        ...line("torpedo/maxSpeedInWater", some(stats.speedInWaterMs, (v) => `${n(v * 3.6)} km/h`)),
-        ...line("torpedo/distanceToLive", some(stats.distToLiveM, distance)),
-        ...line("bullet_properties/diveDepth", some(stats.diveDepthM, (v) => `${n(v, 1)} m`)),
-        ...line(
-          "weapons/drop_speed_range_text",
-          some(stats.dropSpeedRange, ([min, max]) => `${n(min * 3.6)}–${n(max * 3.6)} km/h`),
-        ),
-        ...line("weapons/drop_height_range_text", some(stats.dropHeightRange, ([min, max]) => `${n(min)}–${n(max)} m`)),
-        ...line(
-          stats.speedInWaterMs !== undefined ? "torpedo/armingDistance" : "missile/armingDistance",
-          some(stats.armDistanceM, (v) => `${n(v)} m`),
-        ),
-        ...line("bullet_properties/proximityFuze/triggerRadius", some(stats.proximityFuseM, (v) => `${n(v, 1)} m`)),
-      ],
-    },
-    {
-      title: m.bombPage.groups.warhead,
-      lines: [
-        ...line("bullet_properties/caliber", some(stats.caliberMm, (v) => `${n(v, 1)} mm`)),
-        ...(stats.fireRate !== undefined ? [{ label: m.bombPage.fireRate, value: `${n(stats.fireRate)}` }] : []),
-        ...line("rocket/warhead", some(stats.warhead, (key) => label(`rocket/warhead/${key}`))),
-        ...line("bullet_properties/explosiveType", some(stats.explosiveType, (key) => label(`explosiveType/${key}`))),
-        ...line("bullet_properties/explosiveMass", some(stats.explosiveMassKg, (v) => `${n(v, 2)} kg`)),
-        ...line("bullet_properties/explosiveMassInTNTEquivalent", some(stats.tntKg, (v) => `${n(v, 2)} kg`)),
-        ...line("bullet_properties/armorPiercing", some(stats.penetrationMm, (v) => `${n(v)} mm`)),
-        ...(stats.nuclearYieldKt !== undefined
-          ? [{ label: m.bombPage.nuclearYield, value: `${n(stats.nuclearYieldKt)} kt` }]
-          : []),
-      ],
-    },
-    {
-      title: m.bombPage.groups.blast,
-      lines: [
-        ...line("bombProperties/maxArmorPenetration", some(stats.blastPenetrationMm, (v) => `${n(v)} mm`)),
-        ...line("bombProperties/destroyRadiusArmored", some(stats.destroyRadiusArmoredM, (v) => `${n(v, 1)} m`)),
-        ...line("bombProperties/destroyRadiusNotArmored", some(stats.destroyRadiusUnarmoredM, (v) => `${n(v, 1)} m`)),
-      ],
-    },
-  ].filter((group) => group.lines.length > 0);
 }
 
 /**
@@ -193,9 +114,14 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
     },
     { label: m.bombPage.stats.efficiency, value: bomb.efficiency !== null ? number(bomb.efficiency) : null },
   ];
-  const groups = statGroups(statsOf(bomb.id), locale, m);
+  const groups = figureGroups(statsOf(bomb.id), {
+    label: (key) => gameLabel(locale, key) ?? key,
+    number: (value, options) => formatNumber(locale, value, options),
+    groups: m.bombPage.groups,
+    fireRate: m.bombPage.fireRate,
+    nuclearYield: m.bombPage.nuclearYield,
+  });
   const similar = similarTo(bomb);
-  const sheetDamage = bomb.sheet?.damageValue;
 
   return (
     <PageTransition>
@@ -224,7 +150,17 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
               </>
             ) : null}{" "}
             {m.bombKinds[bomb.kind]}
-            {bomb.guidance ? ` · ${gameLabel(locale, `missile/guidance/${bomb.guidance}`) ?? bomb.guidance}` : null}
+            {/* "Laser guided · Laser" says it twice; "· TV+IOG+GNSS" adds what the kind doesn't. */}
+            {bomb.guidance && (bomb.guidance.includes("+") || !SEEKER_KINDS.has(bomb.kind))
+              ? ` · ${gameLabel(locale, `missile/guidance/${bomb.guidance}`) ?? bomb.guidance}`
+              : null}
+            {" · "}
+            <Link
+              href={`${localePath(locale, "/armament/compare/")}?ids=${bomb.id}`}
+              className="inline-flex items-center gap-1 text-accent hover:underline underline-offset-4"
+            >
+              <Columns3 size={13} aria-hidden /> {m.compare.compareThis}
+            </Link>
           </p>
         </header>
 
@@ -245,16 +181,7 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
             {damage !== null && damage > 0 ? (
               <>
                 <p className="text-sm text-ink-dim">{m.bombPage.perBaseHint}</p>
-                <p className="text-sm text-ink-dim">
-                  {estimated
-                    ? m.bombPage.source.estimate
-                    : bomb.damageSource === "sheet"
-                      ? m.bombPage.source.sheet
-                      : m.bombPage.source.game}
-                  {sheetDamage !== undefined && sheetDamage !== damage
-                    ? ` ${fill(m.bombPage.sheetGives, { damage: sheetDamage === null ? "—" : number(sheetDamage) })}`
-                    : null}
-                </p>
+                {estimated ? <p className="text-sm text-ink-dim">≈ {m.bombPage.estimated}</p> : null}
               </>
             ) : (
               <p className="text-sm text-ink-dim">{m.bombPage.noDamage}</p>
@@ -310,15 +237,14 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
               <h2 id="figures" className="text-lg font-semibold tracking-tight">
                 {m.bombPage.figures}
               </h2>
-              <p className="text-sm text-ink-dim">{m.bombPage.figuresHint}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {groups.map((group) => (
-                <div key={group.title} className="card px-4 py-3">
+                <div key={group.key} className="card px-4 py-3">
                   <h3 className="text-xs uppercase tracking-wider text-ink-faint pb-1">{group.title}</h3>
                   <dl className="divide-y divide-line text-sm">
-                    {group.lines.map(({ label, value }) => (
-                      <div key={label} className="flex items-baseline justify-between gap-4 py-1.5">
+                    {group.lines.map(({ key, label, value }) => (
+                      <div key={key} className="flex items-baseline justify-between gap-4 py-1.5">
                         <dt className="text-ink-dim">{label}</dt>
                         <dd className="nums text-right font-medium">{value}</dd>
                       </div>
@@ -392,9 +318,20 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
 
         {similar.length > 0 ? (
           <section className="space-y-3" aria-labelledby="similar">
-            <h2 id="similar" className="text-lg font-semibold tracking-tight">
-              {m.bombPage.similar}
-            </h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h2 id="similar" className="text-lg font-semibold tracking-tight">
+                {m.bombPage.similar}
+              </h2>
+              <Link
+                href={`${localePath(locale, "/armament/compare/")}?ids=${[bomb, ...similar]
+                  .slice(0, MAX_COMPARED)
+                  .map((b) => b.id)
+                  .join(",")}`}
+                className="inline-flex items-center gap-1 text-sm text-accent hover:underline underline-offset-4"
+              >
+                <Columns3 size={14} aria-hidden /> {m.compare.withSimilar}
+              </Link>
+            </div>
             <ul className="card grid divide-y divide-line sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-3">
               {similar.map((other) => (
                 <li key={other.id}>

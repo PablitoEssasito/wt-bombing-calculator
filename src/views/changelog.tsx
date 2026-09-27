@@ -6,11 +6,11 @@ import { Flag } from "@/components/flag";
 import { PageHeader } from "@/components/page-header";
 import { PageTransition } from "@/components/page-transition";
 import { ChangelogSeen, NewTag } from "@/components/whats-new";
-import type { ChangelogEntry } from "@/domain/types";
+import type { ChangedField, ChangelogEntry } from "@/domain/types";
 import { fill, formatDay, formatNumber, plural } from "@/i18n/format";
 import { localePath, type Locale } from "@/i18n/locales";
 import { messagesFor, type Messages } from "@/i18n/messages";
-import { aircraftName, changelog, changelogKey } from "@/lib/dataset";
+import { aircraftName, changelog, changelogKey, pagedBombs } from "@/lib/dataset";
 import { canonicalOf, pageOpenGraph } from "@/lib/site";
 
 export function changelogMetadata(locale: Locale): Metadata {
@@ -88,7 +88,7 @@ function Entry({ entry, locale, m }: { entry: ChangelogEntry; locale: Locale; m:
               <li key={bomb.id} className="flex items-center gap-2.5">
                 <BombIcon bomb={{ id: bomb.id, chartName: "", fullName: bomb.name }} size={24} />
                 <div className="min-w-0">
-                  <p className="text-ink">{bomb.name}</p>
+                  <WeaponLink bomb={bomb} locale={locale} />
                   <p className="nums text-sm text-ink-dim">{describeChange(bomb, locale, m)}</p>
                 </div>
               </li>
@@ -103,7 +103,7 @@ function Entry({ entry, locale, m }: { entry: ChangelogEntry; locale: Locale; m:
             {bombs.added.map((bomb) => (
               <li key={bomb.id} className="flex items-center gap-2.5 text-ink">
                 <BombIcon bomb={{ id: bomb.id, chartName: "", fullName: bomb.name }} size={24} />
-                {bomb.name}
+                <WeaponLink bomb={bomb} locale={locale} />
               </li>
             ))}
           </ul>
@@ -197,11 +197,39 @@ function AircraftLink({ plane, locale }: { plane: AircraftRef; locale: Locale })
   );
 }
 
+/** Weapons with a page of their own; one gone since, or never paged, reads as plain text. */
+const pagedIds = new Set(pagedBombs.map((bomb) => bomb.id));
+
+function WeaponLink({ bomb, locale }: { bomb: { id: string; name: string }; locale: Locale }) {
+  if (!pagedIds.has(bomb.id)) return <p className="text-ink">{bomb.name}</p>;
+  return (
+    <Link
+      href={localePath(locale, `/armament/${bomb.id}/`)}
+      className="text-ink hover:text-accent underline-offset-4 hover:underline"
+    >
+      {bomb.name}
+    </Link>
+  );
+}
+
+/** Each field as the armament pages write it: ranges in km, speeds in Mach or m/s, masses in kg. */
+const FIELD_FORMAT: Record<ChangedField, { scale: number; digits: number; unit: string }> = {
+  damageValue: { scale: 1, digits: 0, unit: "" },
+  tntKg: { scale: 1, digits: 0, unit: " kg" },
+  massKg: { scale: 1, digits: 0, unit: " kg" },
+  explosiveMassKg: { scale: 1, digits: 1, unit: " kg" },
+  launchRangeM: { scale: 1 / 1000, digits: 1, unit: " km" },
+  seekerRangeM: { scale: 1 / 1000, digits: 1, unit: " km" },
+  machMax: { scale: 1, digits: 2, unit: " M" },
+  maxSpeedMs: { scale: 1, digits: 0, unit: " m/s" },
+};
+
 function describeChange(bomb: BombChange, locale: Locale, m: Messages): string {
   return bomb.fields
     .map(({ field, from, to }) => {
-      const unit = field === "damageValue" ? "" : " kg";
-      const show = (v: number | null) => (v === null ? "—" : formatNumber(locale, Math.round(v)));
+      const { scale, digits, unit } = FIELD_FORMAT[field];
+      const show = (v: number | null) =>
+        v === null ? "—" : formatNumber(locale, v * scale, { maximumFractionDigits: digits });
       return `${m.changelog.fields[field]} ${show(from)} → ${show(to)}${unit}`;
     })
     .join(" · ");

@@ -4,12 +4,13 @@ import type { Bomb, BombKind } from "./types";
  * Whether a weapon gets a row in the armament chart, and a page, at all.
  *
  * Everything the game's own files catalogue does — an air-to-air missile or
- * a gun pod has figures worth showing even with nothing to do to a base. A
- * sheet row the game has no file for only where it prices something: the
- * sheet keeps a few placeholder rows with nothing in them.
+ * a gun pod has figures worth showing even with nothing to do to a base. Not
+ * a sheet row standing in for a weapon the game has under the same name
+ * (`aliasOf`), which is that weapon's row twice, nor one the game has no file
+ * for at all, which has nothing to show.
  */
-export const inArmamentChart = (bomb: Pick<Bomb, "damageValue" | "kind" | "source">) =>
-  bomb.damageValue !== null || bomb.kind === "ROCKET" || bomb.source === "game";
+export const inArmamentChart = (bomb: Pick<Bomb, "damageValue" | "kind" | "source" | "aliasOf">) =>
+  !bomb.aliasOf && (bomb.damageValue !== null || bomb.kind === "ROCKET" || bomb.source === "game");
 
 /**
  * A row as the armament chart is handed it: the figures its columns show and

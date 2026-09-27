@@ -18,7 +18,7 @@ export const DATAMINE_CONFIG =
 
 const CACHE = path.join(process.cwd(), ".cache", "wpcost-slim.json");
 /** Bumped whenever the cached shape changes, so a stale cache is pulled again. */
-const VERSION = 5;
+const VERSION = 6;
 
 export type WpcostWeapon = {
   /**
@@ -53,6 +53,12 @@ export type Wpcost = {
    * is only in the aircraft's own flight model.
    */
   unlisted: string[];
+  /**
+   * What the price list prices each aircraft's fixed setups at, by setup name
+   * — the price of a bomb it prices nowhere on its own: the Pe-8's one FAB-5000
+   * is priced only as `pe-8_fab5000`.
+   */
+  presets: Record<string, Record<string, number>>;
 };
 
 const UNIT_FIELDS = [
@@ -113,6 +119,7 @@ export async function loadWpcost(useCache: boolean): Promise<Wpcost> {
   const units: Record<string, UnitCost> = {};
   const weapons: Record<string, WpcostWeapon> = {};
   const unlisted = new Set<string>();
+  const presets: Record<string, Record<string, number>> = {};
   const carriedBy = (key: string, unit: string) => {
     const weapon = (weapons[key] ??= { units: [] });
     if (!weapon.units.includes(unit)) weapon.units.push(unit);
@@ -129,6 +136,9 @@ export async function loadWpcost(useCache: boolean): Promise<Wpcost> {
 
     for (const [key, raw] of Object.entries((value as { weapons?: Record<string, RawWeapon> }).weapons ?? {})) {
       if (typeof raw !== "object" || raw === null) continue;
+      if (isAir && !isStore(key) && typeof raw.weaponDamage === "number" && raw.weaponDamage > 0) {
+        (presets[unit] ??= {})[key] = raw.weaponDamage;
+      }
       // A fixed preset lists what it hangs; a custom-slot weapon is its own entry.
       if (raw.sum_weapons) {
         if (isAir) for (const inner of Object.keys(raw.sum_weapons)) if (isStore(inner)) carriedBy(inner, unit);
@@ -152,7 +162,7 @@ export async function loadWpcost(useCache: boolean): Promise<Wpcost> {
   }
   for (const weapon of Object.values(weapons)) weapon.units.sort();
 
-  const slim: Wpcost = { version: VERSION, units, weapons, unlisted: [...unlisted].sort() };
+  const slim: Wpcost = { version: VERSION, units, weapons, unlisted: [...unlisted].sort(), presets };
   await mkdir(path.dirname(CACHE), { recursive: true });
   await writeFile(CACHE, JSON.stringify(slim));
   return slim;

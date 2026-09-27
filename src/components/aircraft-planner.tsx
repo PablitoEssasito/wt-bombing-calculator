@@ -4,7 +4,7 @@ import { Wrench } from "lucide-react";
 import { useMemo } from "react";
 import { effectiveBaseHp, reachableBaseHps } from "@/domain/base-hp";
 import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
-import { buildFor, variantOf, type Armament, type Build } from "@/domain/loadout";
+import { buildFor, releaseLimitOf, variantOf, type Armament, type Build } from "@/domain/loadout";
 import { defaultTarget, pickLoadout, stanceOf, type Stance } from "@/domain/recommend";
 import {
   buildPlan,
@@ -135,6 +135,8 @@ export function AircraftPlanner({
     const wanted = mountedIn(shown).map((item) => ({ bombId: item.bomb.id, count: item.count }));
     return buildFor(armament, wanted, standsIn);
   }, [armament, shown, bombsById]);
+  // Known only where the load maps onto the pylons: the limit is the presets'.
+  const releaseLimit = armament && creatorBuild ? releaseLimitOf(creatorBuild, armament) : null;
 
   return (
     <div className="space-y-8">
@@ -229,6 +231,17 @@ export function AircraftPlanner({
                 </span>{" "}
                 {m.planner.reward}
                 {shown.trimmed ? m.planner.onFullLoad : ""}
+              </>
+            ) : null}
+            {releaseLimit !== null ? (
+              <>
+                {" "}
+                ·{" "}
+                <span title={m.creator.releaseLimitTitle} className="cursor-help">
+                  {fill(m.creator.releaseLimit, {
+                    mach: `${number(releaseLimit, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M`,
+                  })}
+                </span>
               </>
             ) : null}
           </p>

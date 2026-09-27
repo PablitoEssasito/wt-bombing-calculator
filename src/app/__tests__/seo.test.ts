@@ -4,7 +4,7 @@ import bombData from "../../data/bombs.json";
 import { inArmamentChart } from "../../domain/bomb-chart";
 import type { Bomb } from "../../domain/types";
 import { pagedBombs } from "../../lib/dataset";
-import { movedBombIds } from "../../views/moved";
+import { movedBombIds, movedTarget } from "../../views/moved";
 import robots from "../robots";
 import sitemap from "../sitemap";
 
@@ -67,11 +67,19 @@ describe("sitemap", () => {
 });
 
 describe("the bomb chart's old addresses", () => {
-  it("each lead to a weapon page that exists", () => {
-    const paged = new Set(pagedBombs.map((bomb) => bomb.id));
+  it("each lead to a weapon page that exists, or to the chart", () => {
+    const paged = new Set(pagedBombs.map((bomb) => `/armament/${bomb.id}/`));
     const moved = movedBombIds();
     expect(moved.length).toBeGreaterThan(300);
-    for (const id of moved) expect(paged.has(id)).toBe(true);
+    for (const id of moved) {
+      const target = movedTarget(id);
+      expect(target === "/armament/" || paged.has(target)).toBe(true);
+    }
+  });
+
+  it("send a sheet row the game has under another name to that weapon's page", () => {
+    expect(movedTarget("g-p-1000-l")).toBe("/armament/g-p-1000-e/");
+    expect(movedTarget("mk-82")).toBe("/armament/mk-82/");
   });
 
   it("cover only what the bomb chart had: the sheet's rows, not the game's", () => {

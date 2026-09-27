@@ -46,20 +46,41 @@ describe("reconcile", () => {
     expect(changes).toContain("X: damageValue 2372 → 2072");
   });
 
-  it("keeps the sheet's price where the game prices nothing, the estimate only reported", () => {
-    // The Pe-8's FAB-5000: priced by the game only inside a fixed setup, which the sheet copied.
+  it("takes the explosion model's estimate over the sheet's figure where the game prices nothing", () => {
     const { rows, estimates } = reconcile(
-      [row({ damageValue: 30521 })],
-      [round({ damage: 31110, damageSource: "estimate" })],
+      [row({ damageValue: 4700 })],
+      [round({ damage: 4720, damageSource: "estimate" })],
       countryOf,
     );
-    expect(rows[0]).toMatchObject({ damageValue: 30521, damageSource: "sheet" });
-    expect(estimates).toEqual(["X: sheet 30521, estimate 31110"]);
+    expect(rows[0]).toMatchObject({ damageValue: 4720, damageSource: "estimate" });
+    expect(rows[0].sheet?.damageValue).toBe(4700);
+    expect(estimates).toEqual(["X: sheet 4700, estimate 4720"]);
   });
 
-  it("estimates only where neither the game nor the sheet gives a price", () => {
-    const { rows } = reconcile([row({ damageValue: null })], [round({ damage: 2064, damageSource: "estimate" })], countryOf);
-    expect(rows[0]).toMatchObject({ damageValue: 2064, damageSource: "estimate" });
+  it("gives no damage where the game's files give nothing to go on, whatever the sheet says", () => {
+    const { rows } = reconcile([row({ damageValue: 900 })], [round({ damage: null, damageSource: null })], countryOf);
+    expect(rows[0].damageValue).toBeNull();
+    expect(rows[0].damageSource).toBeUndefined();
+  });
+
+  it("gives a sheet row with no file of its own the figures of the game's weapon by the same name", () => {
+    // The sheet's "G.P.1000(l)": the one 1000 lb G.P. Mk.I the Hampden hangs is its "G.P.1000(e)".
+    const early = row({ id: "g-p-1000-e", chartName: "G.P.1000(e)", fullName: "1000 lb G.P. Mk.I", damageValue: 2906 });
+    const late = row({ id: "g-p-1000-l", chartName: "G.P.1000(l)", fullName: "1000 lb G.P. Mk.I", damageValue: 5279, tntKg: 296 });
+    const mk1 = round({ file: "uk_1000lbs_gp_mk1", bombId: "g-p-1000-e", damage: 2906, tntKg: 151.05, stats: { massKg: 495.7 } });
+    const { rows, aliased } = reconcile([early, late], [mk1], countryOf);
+    expect(rows[1]).toMatchObject({ damageValue: 2906, damageSource: "game", tntKg: 151.05, aliasOf: "g-p-1000-e" });
+    expect(rows[1].sheet).toMatchObject({ damageValue: 5279, tntKg: 296 });
+    expect(aliased).toEqual(["G.P.1000(l) → G.P.1000(e)"]);
+    // A rerun starts from the sheet's own row again.
+    expect(sheetView(rows[1])).toEqual(late);
+  });
+
+  it("leaves a sheet row the game has nothing for without figures", () => {
+    const { rows, unmatched } = reconcile([row({ id: "mk-18", chartName: "Mk.18", fullName: "Mk.18", damageValue: 5230 })], [], countryOf);
+    expect(rows[0]).toMatchObject({ damageValue: null, efficiency: null });
+    expect(rows[0].sheet?.damageValue).toBe(5230);
+    expect(unmatched).toEqual(["Mk.18"]);
   });
 
   it("follows a guided bomb's seeker, and leaves an unguided kind alone", () => {

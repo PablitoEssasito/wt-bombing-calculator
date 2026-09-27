@@ -16,12 +16,12 @@ export const plServer: ServerMessages = {
       "Wyszukiwarka {aircraft} samolotów z filtrami nacji i BR, a dla każdego samolotu plan zrzutu przeliczany na bieżąco przy zmianie BR, trybu gry czy liczby baz.",
       "Każda notatka do zestawu przypisana do tego, co naprawdę znaczy — polecane, warto wiedzieć, uwaga albo odradzane — zamiast gołego znacznika, nad który trzeba najechać.",
       "Kreator uzbrojenia wzorowany na menu uzbrojenia z gry: pylon po pylonie, z pilnowanymi limitami masy i wzajemnymi wykluczeniami oraz oznaczonymi brakującymi zależnościami — zbudowany z plików danych gry, a nie zgadywany z samych zestawów.",
-      "Tabela wszystkiego, co przenoszą samoloty w grze, ze statystykami odczytanymi z plików gry i obrażeniami dla baz: wartością samej gry albo szacunkiem z jej modelu wybuchu tam, gdzie gra jej nie podaje.",
+      "Tabela wszystkiego, co przenoszą samoloty w grze: specyfikacja każdej broni, jej obrażenia dla baz i liczba sztuk potrzebna na bazę.",
       "Samoloty premium i dywizjonowe wyróżnione tak jak w samej grze — złotem i zielenią — żeby w wynikach wyszukiwania nie trzeba było klikać, by je odróżnić.",
       "Każde ustawienie siedzi w adresie URL, więc konkretna konfiguracja to jeden link do udostępnienia.",
     ],
     creditBuilt:
-      "Tabela uzbrojenia z obrażeniami, kreator uzbrojenia, każdy przeliczony plan i ikony są budowane tutaj z plików samego War Thunder. Ręcznie dopracowane plany zrzutu i obrażenia tych nielicznych broni, których gra nie wycenia, pochodzą z",
+      "Tabela uzbrojenia z obrażeniami, kreator uzbrojenia, każdy przeliczony plan i ikony są budowane tutaj z plików samego War Thunder. Ręcznie dopracowane plany zrzutu pochodzą z",
     creditPulled: ", ostatnio pobrane {date}.",
     howNumbers: "Jak działają liczby",
     bleed:
@@ -39,7 +39,7 @@ export const plServer: ServerMessages = {
       "Obrazki to rendery z encyklopedii gry, te same, których używa wiki War Thunder. To grafiki Gaijin, pokazane tu, żeby łatwiej było rozpoznać samolot.",
     translations: "Tłumaczenia",
     translationsText:
-      "Polskie i rosyjskie nazwy samolotów i uzbrojenia pochodzą prosto z plików lokalizacji gry. Resztę przetłumaczono dla tej strony; notatki z arkusza zostają po angielsku, tak jak napisał je autor.",
+      "Polskie i rosyjskie nazwy samolotów i uzbrojenia pochodzą prosto z plików lokalizacji gry. Resztę przetłumaczono dla tej strony; notatki do loadoutów zostają po angielsku, tak jak zostały napisane.",
     legal: "Informacje prawne",
     legalText:
       "Strona niezwiązana z Gaijin Entertainment, przez nią niepopierana ani z nią niepowiązana. War Thunder i wszystkie powiązane znaki należą do ich właścicieli.",
@@ -72,7 +72,6 @@ export const plServer: ServerMessages = {
 
   stats: {
     nations: { one: "{n} nacja", few: "{n} nacje", many: "{n} nacji", other: "{n} nacji" },
-    sheet: "Arkusz v{version}",
     patch: "Patch {version}",
     latest: "Najnowszy: {what}",
     latestPatch: "patch {version} · {date}",
@@ -114,31 +113,23 @@ export const plServer: ServerMessages = {
 
   bombPage: {
     back: "← Uzbrojenie",
-    metaTitle: "{name} — statystyki, obrażenia dla baz i jakie samoloty",
+    metaTitle: "{name} — specyfikacja, obrażenia dla baz i samoloty",
     metaDescription:
-      "{name} w War Thunder: statystyki z plików gry, ile sztuk niszczy bazę przy każdym BR i które samoloty mogą to uzbrojenie przenosić.",
+      "{name} w War Thunder: specyfikacja, ile sztuk niszczy bazę przy każdym BR i które samoloty mogą to uzbrojenie przenosić.",
     perBase: "Sztuk na bazę",
     perBaseHint: "Ile sztuk niszczy jedną bazę, zależnie od BR bitwy.",
     fourBases: "4 bazy",
     threeBases: "3 bazy",
     aircraft: "Samoloty z tym uzbrojeniem",
     inSheet: "w loadoucie",
-    inSheetTitle: "Używa go jeden z loadoutów arkusza dla tego samolotu",
-    noAircraft:
-      "Tego uzbrojenia nie przenosi żaden samolot opisany na tej stronie — tylko maszyny, dla których arkusz nie ma loadoutów.",
+    inSheetTitle: "Używa go jeden z planów zrzutu tego samolotu",
+    noAircraft: "Nie przenosi go żaden samolot.",
     groups: { guidance: "Naprowadzanie", flight: "Lot", warhead: "Głowica", blast: "Wybuch" },
-    figures: "W grze",
-    figuresHint: "Tak, jak podaje je opis uzbrojenia w grze, odczytane z jej plików.",
+    figures: "Specyfikacja",
     fireRate: "Szybkostrzelność (strz./min)",
     nuclearYield: "Moc",
-    source: {
-      game: "Wartość samej gry — przewidywane uszkodzenie, które pokazuje hangar.",
-      estimate:
-        "Szacunek z modelu wybuchu gry: gra nie pokazuje tej wartości dla tej broni, ale ten sam model odtwarza każdą, którą pokazuje. Gra nie płaci za nią w nagrodzie.",
-      sheet: "Z arkusza LEGION'a: gra nie podaje tej wartości dla tej broni.",
-    },
-    sheetGives: "Arkusz podaje {damage}.",
-    noDamage: "Gra nie przypisuje tej broni obrażeń dla baz.",
+    estimated: "Szacunek z modelu wybuchu — nie liczy się do nagrody.",
+    noDamage: "Nie zadaje obrażeń bazom.",
     otherAircraft: "Przenoszą ją też samoloty bez strony tutaj",
     similar: "Podobne uzbrojenie",
     stats: {

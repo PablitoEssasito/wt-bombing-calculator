@@ -112,6 +112,8 @@ async function main() {
 
   const map: Record<string, string> = {};
   for (const [bombId, match] of matches) map[bombId] = match.iconType;
+  // A sheet row standing in for the game's weapon by the same name is drawn as that weapon.
+  for (const bomb of bombs) if (bomb.aliasOf && map[bomb.aliasOf]) map[bomb.id] = map[bomb.aliasOf];
   await writeFile(OUT_DATA, JSON.stringify(map));
   console.log(`\nWrote ${Object.keys(map).length} bomb -> icon references to src/data/bomb-icons.json`);
 

@@ -47,6 +47,7 @@ import {
   massOfOption,
   optionAt,
   unmetIn,
+  releaseLimitOf,
   unpricedIn,
   violationsOf,
   weaponDamageOf,
@@ -256,6 +257,9 @@ export function LoadoutCreator({
   };
 
   const massKg = massOf(build, armament);
+  const releaseLimit = releaseLimitOf(build, armament);
+  // As the game's tooltip writes it: one decimal, "M".
+  const mach = (value: number) => `${number(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M`;
   const overweight = armament.maxLoadKg !== null && massKg > armament.maxLoadKg;
   const violations = violationsOf(build, armament);
   const unmet = unmetIn(build, armament);
@@ -317,7 +321,10 @@ export function LoadoutCreator({
                         buttonRef={ref}
                         draggable={!blocker}
                         label={labelForOption(option, w)}
-                        detail={fill(m.creator.massDetail, { mass: formatMass(massOfOption(option), unit, w) })}
+                        detail={
+                          fill(m.creator.massDetail, { mass: formatMass(massOfOption(option), unit, w) }) +
+                          (option.machLimit !== null ? ` · ${fill(m.creator.releaseUpTo, { mach: mach(option.machLimit) })}` : "")
+                        }
                         glyph={<StoreGlyph option={option} size={18} />}
                         selected={build.get(editing) === option.name}
                         blocked={blocker ? describeBlocker(blocker, armament, unit, w) : null}
@@ -623,6 +630,15 @@ export function LoadoutCreator({
               <>
                 {" "}
                 · <ItemList items={items} />
+              </>
+            ) : null}
+            {releaseLimit !== null ? (
+              <>
+                {" "}
+                ·{" "}
+                <span title={m.creator.releaseLimitTitle} className="cursor-help">
+                  {fill(m.creator.releaseLimit, { mach: mach(releaseLimit) })}
+                </span>
               </>
             ) : null}
             {damage > 0 ? (

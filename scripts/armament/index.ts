@@ -190,12 +190,12 @@ async function main() {
 
   const rounds = JSON.parse(await readFile(ROUNDS_FILE, "utf8")) as Round[];
   const wpcost = await loadWpcost(true);
-  const { rows: bombs, stats, changes, unmatched: noFile, estimates } = reconcile(
+  const { rows: bombs, stats, changes, unmatched: noFile, estimates, aliased } = reconcile(
     sheetRows,
     rounds,
     (unit) => wpcost.units[unit]?.country,
   );
-  reportReconciled(bombs, changes, noFile, estimates);
+  reportReconciled(bombs, changes, noFile, estimates, aliased);
   await writeFile(OUT_STATS, JSON.stringify(stats), "utf8");
 
   const carriers = sharedAcrossDuplicates(gameCarriersOf(aircraft, unitIds, byUnit, catalogue), bombs);
@@ -376,14 +376,14 @@ function reportShortfalls(aircraft: Aircraft[], bombs: Map<string, Bomb>) {
   for (const line of lines) console.log(`        ${line}`);
 }
 
-function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], estimates: string[]) {
+function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], estimates: string[], aliased: string[]) {
   const game = rows.filter((row) => row.source === "game");
   const bySource = (source: string) => rows.filter((row) => row.damageSource === source).length;
   console.log(`\n--- armament table ---`);
   console.log(`ok    ${rows.length} rows: ${rows.length - game.length} from the sheet, ${game.length} from the game alone`);
   console.log(
     `      damage to bases: ${bySource("game")} the game's own, ${bySource("estimate")} estimated from its ` +
-      `explosion model, ${bySource("sheet")} the sheet's alone`,
+      `explosion model, ${rows.filter((row) => row.damageValue === null).length} with none`,
   );
   const damage = changes.filter((line) => line.includes(": damageValue "));
   console.log(`      ${changes.length} figure(s) the game overrules, ${damage.length} of them damage to bases:`);
@@ -395,8 +395,12 @@ function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], est
   if (noFile.length > 0) {
     console.log(`note  ${noFile.length} sheet row(s) tie to no file in the game: ${noFile.join(", ")}`);
   }
+  if (aliased.length > 0) {
+    console.log(`note  ${aliased.length} of them take the figures of the game's weapon by the same name:`);
+    for (const line of aliased) console.log(`        ${line}`);
+  }
   if (estimates.length > 0) {
-    console.log(`note  ${estimates.length} sheet figure(s) the game prices nowhere and the explosion model puts otherwise:`);
+    console.log(`note  ${estimates.length} sheet figure(s) the explosion model puts otherwise, the estimate taken:`);
     for (const line of estimates) console.log(`        ${line}`);
   }
 }
@@ -584,6 +588,7 @@ async function writePayload(byUnit: Record<string, Armament>) {
               // The preset's own icon, when it states one — see SlotOption.iconType
               // in scripts/armament/parse.ts for why this outranks a store's own.
               ...(option.iconType ? { i: option.iconType } : {}),
+              ...(option.machLimit !== null ? { m: option.machLimit } : {}),
             };
           }),
       })),

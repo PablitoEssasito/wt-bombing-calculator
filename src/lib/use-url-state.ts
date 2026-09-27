@@ -55,22 +55,27 @@ const readServerSearch = () => "";
  */
 export function useUrlState<T>(key: string, codec: UrlCodec<T>): [T, (value: T) => void] {
   const search = useSyncExternalStore(subscribe, readSearch, readServerSearch);
+  return [valueIn(search, key, codec), (next: T) => writeUrlState(key, codec, next)];
+}
 
+function valueIn<T>(search: string, key: string, codec: UrlCodec<T>): T {
   const raw = new URLSearchParams(search).get(key);
-  const value = raw === null ? codec.fallback : (codec.parse(raw) ?? codec.fallback);
+  return raw === null ? codec.fallback : (codec.parse(raw) ?? codec.fallback);
+}
 
-  const update = (next: T) => {
-    const params = new URLSearchParams(window.location.search);
-    const serialized = codec.serialize(next);
-    if (serialized === null) params.delete(key);
-    else params.set(key, serialized);
+/** A parameter's value right now — for a handler that must not change with every render. */
+export const readUrlState = <T,>(key: string, codec: UrlCodec<T>): T => valueIn(window.location.search, key, codec);
 
-    const query = params.toString();
-    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
-    notify();
-  };
+/** Sets a parameter as `useUrlState`'s setter does, from anywhere. */
+export function writeUrlState<T>(key: string, codec: UrlCodec<T>, next: T) {
+  const params = new URLSearchParams(window.location.search);
+  const serialized = codec.serialize(next);
+  if (serialized === null) params.delete(key);
+  else params.set(key, serialized);
 
-  return [value, update];
+  const query = params.toString();
+  window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+  notify();
 }
 
 export function urlInteger(fallback: number): UrlCodec<number> {
@@ -103,6 +108,15 @@ export function urlOptionalInteger(): UrlCodec<number | null> {
     fallback: null,
     parse: (raw) => (raw.trim() !== "" && Number.isFinite(Number(raw)) ? Number(raw) : null),
     serialize: (value) => (value === null ? null : String(value)),
+  };
+}
+
+/** An ordered list of ids, comma-joined in the URL — order kept, as a comparison's columns need. */
+export function urlList(): UrlCodec<string[]> {
+  return {
+    fallback: [],
+    parse: (raw) => raw.split(",").filter(Boolean),
+    serialize: (value) => (value.length === 0 ? null : value.join(",")),
   };
 }
 

@@ -1,9 +1,19 @@
-import type { Aircraft, Bomb, ChangelogEntry } from "../../src/domain/types";
+import type { Aircraft, Bomb, ChangedField, ChangelogEntry, WeaponStats } from "../../src/domain/types";
 
-export type DataSnapshot = { aircraft: Aircraft[]; bombs: Bomb[] };
+/** An import's data: `stats` absent for one made before armament-stats.json existed. */
+export type DataSnapshot = { aircraft: Aircraft[]; bombs: Bomb[]; stats?: Record<string, WeaponStats> };
 
 /** The values a bomb row is priced by — a change to any is worth telling a player about. */
-const BOMB_FIELDS = ["damageValue", "tntKg", "massKg"] as const;
+const BOMB_FIELDS = ["damageValue", "tntKg", "massKg"] as const satisfies readonly ChangedField[];
+
+/** A weapon's own figures a player notices in battle: how far it reaches, how fast it flies, what it carries. */
+const STAT_FIELDS = [
+  "launchRangeM",
+  "seekerRangeM",
+  "machMax",
+  "maxSpeedMs",
+  "explosiveMassKg",
+] as const satisfies readonly ChangedField[];
 
 /** Masses carry the sheet's unit conversions to eight places; a change nobody could read is none. */
 const rounded = (value: number | null) => (value === null ? null : Math.round(value * 10));
@@ -52,11 +62,19 @@ export function diffData(
       changed: after.bombs.flatMap((b) => {
         const old = oldBombs.get(b.id);
         if (!old) return [];
-        const fields = BOMB_FIELDS.filter((f) => rounded(old[f]) !== rounded(b[f])).map((field) => ({
-          field,
-          from: old[field],
-          to: b[field],
-        }));
+        const fields: ChangelogEntry["bombs"]["changed"][number]["fields"] = BOMB_FIELDS.filter(
+          (f) => rounded(old[f]) !== rounded(b[f]),
+        ).map((field) => ({ field, from: old[field], to: b[field] }));
+        // Only where both imports read the weapon's file: a figure first read is not one that changed.
+        const was = before.stats?.[b.id];
+        const is = after.stats?.[b.id];
+        if (was && is) {
+          for (const field of STAT_FIELDS) {
+            const from = was[field] ?? null;
+            const to = is[field] ?? null;
+            if (rounded(from) !== rounded(to)) fields.push({ field, from, to });
+          }
+        }
         return fields.length > 0 ? [{ ...bombRef(b), fields }] : [];
       }),
     },

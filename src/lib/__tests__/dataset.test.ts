@@ -87,11 +87,27 @@ describe("armamentFor", () => {
   });
 });
 
+describe("release limits", () => {
+  it("reads each preset's own, as the game's tooltip shows them", () => {
+    const options = new Map(
+      armamentFor("usa-a-10c")!.hardpoints.flatMap((h) => h.options.map((o) => [o.name, o.machLimit] as const)),
+    );
+    expect(options.get("gbu12_slot3")).toBe(1.01);
+    expect(options.get("agm_65d_x3_slot3")).toBe(1.4);
+    // The A-10C's rocket pods state none.
+    expect(options.get("hydra_70_x1_slot3")).toBeNull();
+  });
+});
+
 describe("the armament chart's rows", () => {
   it("page every weapon the game catalogues, and no sheet placeholder", () => {
     expect(pagedBombs.some((bomb) => bomb.kind === "AAM")).toBe(true);
     expect(pagedBombs.some((bomb) => bomb.kind === "TORPEDO")).toBe(true);
     expect(pagedBombs.find((bomb) => bomb.id === "fc1000")).toBeUndefined();
+  });
+
+  it("leave /armament/compare/ to the comparison", () => {
+    expect(pagedBombs.some((bomb) => bomb.id === "compare")).toBe(false);
   });
 
   it("hand the browser the chart's figures only, the game's labels in the page's language", () => {
@@ -170,9 +186,21 @@ describe("the armament table, the game's files over the sheet", () => {
     expect(bombsById.get("brab-500-l")).toMatchObject({ damageValue: 3047, damageSource: "game" });
   });
 
-  it("keeps the sheet's price where the game gives none of its own", () => {
-    // The Pe-8's FAB-5000 is priced only inside a fixed setup, which the sheet copied.
-    expect(bombsById.get("fab-5000")).toMatchObject({ damageValue: 30521, damageSource: "sheet" });
+  it("prices a bomb only a fixed setup hangs by that setup's price", () => {
+    // The Pe-8's FAB-5000 is priced only as the setup `pe-8_fab5000`: 30 521 for its one bomb.
+    expect(bombsById.get("fab-5000")).toMatchObject({ damageValue: 30521, damageSource: "game" });
+  });
+
+  it("never takes a damage figure from the sheet", () => {
+    expect(pagedBombs.filter((bomb) => bomb.damageValue !== null && !bomb.damageSource).map((bomb) => bomb.id)).toEqual([]);
+    // The AGM-123 the game prices nowhere: its explosion model's estimate, which is the sheet's figure too.
+    expect(bombsById.get("agm-123")).toMatchObject({ damageValue: 4720, damageSource: "estimate" });
+  });
+
+  it("reads a sheet row the game has under another name as that weapon, without a page of its own", () => {
+    // The Hampden's 1000-pounder: the one 1000 lb G.P. Mk.I the game has, not the sheet's 5279.
+    expect(bombsById.get("g-p-1000-l")).toMatchObject({ damageValue: 2906, damageSource: "game", aliasOf: "g-p-1000-e" });
+    expect(pagedBombs.some((bomb) => bomb.id === "g-p-1000-l")).toBe(false);
   });
 
   it("lists what the sheet never had, from the game alone", () => {

@@ -23,12 +23,12 @@ export const enServer = {
       "Search across {aircraft} aircraft, filterable by nation and battle rating, with a per-aircraft drop schedule that recalculates as you change BR, game mode, or base count.",
       "Every loadout note sorted into what it actually means — recommended, worth knowing, heads up, or advised against — instead of a bare marker you have to hover to read.",
       "A loadout creator modelled on the game's own weapon menu: pylon by pylon, with mass limits and mutual exclusions enforced and unmet dependencies flagged, built from the game's own data files rather than guessed from the loadouts alone.",
-      "An armament chart of everything the game's aircraft carry, its figures read from the game's own files, with the damage each does to a base: the game's own figure, or an estimate from its explosion model where it gives none.",
+      "An armament chart of everything the game's aircraft carry: the specification of each, the damage it does to a base, and how many a base takes.",
       "Premium and squadron aircraft picked out the way the game itself does — gold and green — so a search result does not need a click to tell which is which.",
       "Every control lives in the URL, so a specific setup is one link to share.",
     ],
     creditBuilt:
-      "The armament chart and its damage figures, the loadout creator, every recalculated schedule and the icons are built here from War Thunder's own game files. The hand-tuned drop schedules, and damage for the few weapons the game gives no figure for, come from",
+      "The armament chart and its damage figures, the loadout creator, every recalculated schedule and the icons are built here from War Thunder's own game files. The hand-tuned drop schedules come from",
     creditPulled: ", last pulled {date}.",
     howNumbers: "How the numbers work",
     bleed:
@@ -46,7 +46,7 @@ export const enServer = {
       "The pictures are the game's own encyclopedia renders, the same ones the War Thunder wiki uses. They are Gaijin's artwork, shown here to make the aircraft easier to recognise.",
     translations: "Translations",
     translationsText:
-      "Aircraft and weapon names in Polish and Russian come straight from the game's own localisation files. The rest was translated for this site; the sheet's loadout notes stay in English, as their author wrote them.",
+      "Aircraft and weapon names in Polish and Russian come straight from the game's own localisation files. The rest was translated for this site; the loadout notes stay in English, as they were written.",
     legal: "Legal",
     legalText:
       "Not affiliated with, endorsed by, or connected to Gaijin Entertainment. War Thunder and all related marks are property of their respective owners.",
@@ -79,7 +79,6 @@ export const enServer = {
 
   stats: {
     nations: forms({ one: "{n} nation", other: "{n} nations" }),
-    sheet: "Sheet v{version}",
     patch: "Patch {version}",
     latest: "Latest: {what}",
     latestPatch: "patch {version} · {date}",
@@ -111,31 +110,23 @@ export const enServer = {
 
   bombPage: {
     back: "← Armament",
-    metaTitle: "{name} — figures, damage to bases, and which aircraft",
+    metaTitle: "{name} — specification, damage to bases and aircraft",
     metaDescription:
-      "{name} in War Thunder: its figures from the game's files, how many it takes to destroy a base at every BR, and every aircraft that can carry it.",
+      "{name} in War Thunder: specification, how many it takes to destroy a base at every BR, and every aircraft that can carry it.",
     perBase: "How many per base",
     perBaseHint: "How many it takes to destroy one base, by the match's BR.",
     fourBases: "4 bases",
     threeBases: "3 bases",
     aircraft: "Aircraft that carry it",
     inSheet: "in a loadout",
-    inSheetTitle: "One of the sheet's loadouts for this aircraft drops it",
-    noAircraft:
-      "None of the aircraft this site covers carries it — only ones the sheet has no loadouts for.",
+    inSheetTitle: "One of this aircraft's drop schedules uses it",
+    noAircraft: "No aircraft carries it.",
     groups: { guidance: "Guidance", flight: "Flight", warhead: "Warhead", blast: "Blast" },
-    figures: "In the game",
-    figuresHint: "As the game's own weapon tooltip gives them, read from its files.",
+    figures: "Specification",
     fireRate: "Rate of fire (rounds/min)",
     nuclearYield: "Yield",
-    source: {
-      game: "The game's own figure — the estimated damage its hangar shows.",
-      estimate:
-        "Estimated from the game's explosion model: the game shows no figure for this weapon, but the same model gives back every one it does show. The game pays nothing for it in the reward.",
-      sheet: "From LEGION's sheet: the game gives no figure for this weapon.",
-    },
-    sheetGives: "The sheet gives {damage}.",
-    noDamage: "The game gives this weapon no damage to bases.",
+    estimated: "Estimated from the explosion model — not counted towards the reward.",
+    noDamage: "Does no damage to bases.",
     otherAircraft: "Also carried by aircraft with no page here",
     similar: "Similar weapons",
     stats: {

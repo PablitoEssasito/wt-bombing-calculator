@@ -47,6 +47,13 @@ export type SlotOption = {
    * hangar draws. 97.7% of presets state one; null falls back to the store's.
    */
   iconType: string | null;
+  /**
+   * The fastest this choice's bombs, rockets or missiles may be released at, in
+   * Mach — stated per aircraft, on the preset's own weapons, and shown by the
+   * game's weapon tooltip as "Maximum allowed bomb release speed" (the lowest,
+   * where a preset hangs several). Null where the game states none.
+   */
+  machLimit: number | null;
 };
 
 /** What one hardpoint will take. */
@@ -98,6 +105,17 @@ type Blk = Record<string, unknown>;
 function many<T>(value: unknown): T[] {
   if (value === undefined || value === null) return [];
   return (Array.isArray(value) ? value : [value]) as T[];
+}
+
+/** The triggers the game's tooltip reads a release limit off (weaponryinfo.nut): bombs, rockets and missiles. */
+const RELEASED = new Set(["bombs", "guided bombs", "rockets", "atgm"]);
+
+/** The lowest release limit a preset's own weapons state, as the tooltip reads it. */
+function machLimitOf(weapons: Blk[]): number | null {
+  const limits = weapons.flatMap((weapon) =>
+    typeof weapon.machLimit === "number" && RELEASED.has(String(weapon.trigger)) ? [weapon.machLimit] : [],
+  );
+  return limits.length > 0 ? Math.min(...limits) : null;
 }
 
 const basename = (blkPath: string) =>
@@ -177,6 +195,7 @@ export function parseArmament(fm: Blk, presetFiles: Map<string, Blk>): Armament 
       name: String(preset.name),
       hidden: preset.showInWeaponMenu === false,
       iconType: typeof preset.iconType === "string" ? preset.iconType : null,
+      machLimit: machLimitOf(many<Blk>(preset.Weapon)),
       // Four of a kind written as four entries is one store carried four times.
       stores: collapseStores(
         many<Blk>(preset.Weapon)
