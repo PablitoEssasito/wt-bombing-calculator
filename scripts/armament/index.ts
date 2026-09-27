@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NATIONS, type Nation } from "../../src/domain/constants";
-import type { Aircraft, Bomb } from "../../src/domain/types";
+import type { Aircraft, Bomb, BombNavigation } from "../../src/domain/types";
 import { downloadIcons } from "../bomb-icons/fetch";
 import { parseArmament, presetPath, type Armament } from "./parse";
 import { isPhysicalCount } from "./stores";
@@ -38,6 +38,7 @@ type StoreRecord = {
   bomb: { id: string; count: number } | null;
   holds: number;
   iconType: string | null;
+  guidance: { kind: "LAS" | "IR" | "TV" | "GNSS"; navigation: BombNavigation | null } | null;
   container: boolean;
 };
 
@@ -150,7 +151,17 @@ async function main() {
     "utf8",
   );
   const usedBy = usedByNationsOf(aircraft, carriers, bombs);
-  const enrichedBombs = bombs.map((bomb) => ({ ...bomb, usedByNations: usedBy.get(bomb.id) ?? [] }));
+  // An absent navigation is written as nothing, so a rerun drops a stale one.
+  const enrichedBombs = bombs.map((bomb) => ({
+    ...bomb,
+    ...guidanceOf(bomb, catalogue),
+    usedByNations: usedBy.get(bomb.id) ?? [],
+  }));
+  const reclassified = enrichedBombs.filter((b) => b.navigation || b.kind !== bombs.find((o) => o.id === b.id)?.kind);
+  console.log(
+    `\nGuidance from the game's files: ${reclassified.length} guided bombs — ` +
+      reclassified.map((b) => `${b.chartName || b.fullName} ${b.kind}${b.navigation ? `+${b.navigation}` : ""}`).join(", "),
+  );
   await writeFile(path.join(DATA_DIR, "bombs.json"), JSON.stringify(enrichedBombs), "utf8");
   const unmatched = enrichedBombs.filter((b) => b.usedByNations.length === 0);
   console.log(
@@ -258,6 +269,28 @@ function sharedAcrossDuplicates(carriers: Map<string, Set<string>>, bombs: Bomb[
     if (union.size > 0) shared.set(id, union);
   }
   return shared;
+}
+
+/**
+ * A guided bomb's seeker and navigation as the game's own files state them.
+ *
+ * The sheet's kind column files by the headline feature: all three AASM
+ * versions under GNSS, though the game's SBU 54 homes on a laser spot and its
+ * SBU 64 on infrared, both on satellite-aided INS; the GBU-54 LJDAM and the
+ * Paveway IV likewise. Taken only for a bomb the sheet already calls guided,
+ * and only where every file tying to it agrees — the chart's FAB-500M-62 is
+ * also the game's UMPK glide kit and stays a plain bomb, and its PGM 2000
+ * comes both TV- and laser-guided and stays as the sheet has it.
+ */
+function guidanceOf(bomb: Bomb, catalogue: StoreRecord[]): { kind: Bomb["kind"]; navigation: BombNavigation | undefined } {
+  const files = catalogue.filter((store) => store.bomb?.id === bomb.id);
+  const guided = files.flatMap((store) => (store.guidance ? [store.guidance] : []));
+  if (!["GNSS", "LAS", "IR", "TV"].includes(bomb.kind) || guided.length === 0 || guided.length < files.length) {
+    return { kind: bomb.kind, navigation: undefined };
+  }
+  const agreed = <T,>(values: T[]) => (new Set(values).size === 1 ? values[0] : null);
+  const navigation = agreed(guided.map((g) => g.navigation));
+  return { kind: agreed(guided.map((g) => g.kind)) ?? bomb.kind, navigation: navigation ?? undefined };
 }
 
 /**

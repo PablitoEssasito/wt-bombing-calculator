@@ -3,10 +3,12 @@ import {
   applyDrop,
   blockedIn,
   bombsIn,
+  buildFor,
   equivalentOption,
   massOf,
   unmetIn,
   unpricedIn,
+  variantOf,
   violationsOf,
   weaponDamageOf,
   type Armament,
@@ -314,5 +316,72 @@ describe("dragging a choice between pylons", () => {
     const result = applyDrop(build([[3, "mk84"]]), wing, fromMenu(2, "mk82"), { to: "all" });
     // 2 is barred by the Mk 84 on 3, which itself is left alone.
     expect(new Map(result!.build)).toEqual(new Map([[1, "mk82_inner"], [3, "mk84"], [4, "mk82"]]));
+  });
+});
+
+describe("buildFor", () => {
+  const none = () => false;
+
+  it("hangs exactly what was asked, on as few pylons as it takes", () => {
+    expect(buildFor(armament, [{ bombId: "mk82", count: 6 }], none)).toEqual(build([[1, "500lb_x6"]]));
+    expect(buildFor(armament, [{ bombId: "mk81", count: 1 }], none)).toEqual(build([[2, "250lb"]]));
+  });
+
+  it("carries the fewest spare rounds a rack forces", () => {
+    // Five asked for, and the one choice that fits five holds six.
+    const wanted = [{ bombId: "mk82", count: 3 }, { bombId: "mk82", count: 2 }];
+    expect(buildFor(armament, wanted, none)).toEqual(build([[1, "500lb_x6"]]));
+  });
+
+  it("never breaks an exclusion to get there", () => {
+    // One of each only fits as 500lb beside 250lb, which the rule forbids.
+    const wanted = [{ bombId: "mk82", count: 1 }, { bombId: "mk81", count: 1 }];
+    expect(buildFor(armament, wanted, none)).toBeNull();
+  });
+
+  it("goes over the load limit rather than give up", () => {
+    const cramped = { ...armament, maxLoadKg: 1000 };
+    expect(buildFor(cramped, [{ bombId: "mk82", count: 6 }], none)).toEqual(build([[1, "500lb_x6"]]));
+  });
+
+  it("lets a variant stand in for a bomb no pylon hangs", () => {
+    const standsIn = (bombId: string, forBombId: string) => bombId === "mk82" && forBombId === "mk82_mod4";
+    expect(buildFor(armament, [{ bombId: "mk82_mod4", count: 1 }], standsIn)).toEqual(build([[1, "500lb"]]));
+  });
+
+  it("never swaps a bomb the pylons do hang for another", () => {
+    // Anything may stand in for anything, and still the Mk 81 asked for is the one hung.
+    const anything = () => true;
+    expect(buildFor(armament, [{ bombId: "mk81", count: 1 }], anything)).toEqual(build([[2, "250lb"]]));
+  });
+
+  it("returns null for a bomb no pylon hangs", () => {
+    expect(buildFor(armament, [{ bombId: "fab5000", count: 1 }], none)).toBeNull();
+    expect(buildFor(armament, [], none)).toBeNull();
+  });
+});
+
+describe("variantOf", () => {
+  const bomb = (kind: "GP" | "INC" | "GNSS", damageValue: number, fullName: string, chartName = "") => ({
+    kind,
+    damageValue,
+    fullName,
+    chartName,
+  });
+
+  it("takes a mod of the bomb the sheet names", () => {
+    expect(variantOf(bomb("INC", 10860, "Mk 77 mod 4"), bomb("INC", 10860, "Mk 77 mod 2", "Mk 77"))).toBe(true);
+    expect(variantOf(bomb("GP", 1394, "100 kg FAB-100sv (forged)"), bomb("GP", 1394, "100 kg FAB-100sv", "100sv"))).toBe(
+      true,
+    );
+  });
+
+  it("refuses a different bomb that merely prices the same", () => {
+    expect(variantOf(bomb("GNSS", 2464, "GBU-38 JDAM"), bomb("GNSS", 2464, "GBU-62 LJDAM-ER", "GBU-62"))).toBe(false);
+  });
+
+  it("refuses the same name at another damage or kind", () => {
+    expect(variantOf(bomb("INC", 12943, "Mk 77 mod 0"), bomb("INC", 10860, "Mk 77 mod 2", "Mk 77"))).toBe(false);
+    expect(variantOf(bomb("GP", 10860, "Mk 77 mod 4"), bomb("INC", 10860, "Mk 77 mod 2", "Mk 77"))).toBe(false);
   });
 });

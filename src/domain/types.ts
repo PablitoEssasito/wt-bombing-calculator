@@ -14,12 +14,26 @@ export type BombKind =
   | "ROCKET"
   | "OTHER";
 
+export type BombNavigation = "INS" | "INS/GNSS";
+
 export type Bomb = {
   id: string;
   /** Short name used by the loadout tabs — the join key between the two datasets. */
   chartName: string;
   fullName: string;
+  /**
+   * The sheet's kind column — except for a guided bomb, whose seeker is read
+   * off the game's own files where every file tying to it agrees (see
+   * `guidanceOf` in scripts/armament/index.ts): the sheet files the AASM's
+   * laser and IR versions under GNSS alongside the GPS one.
+   */
   kind: BombKind;
+  /**
+   * The inertial navigation a guided bomb flies on alongside its seeker, as the
+   * game's files state it: satellite-aided, or on its own. Absent for anything
+   * without — including the plain GNSS bombs, whose guidance that already is.
+   */
+  navigation?: BombNavigation;
   /**
    * The nation block of the Bomb Chart tab this row was printed under. Null for
    * anything with no chart row at all — every rocket (see scripts/etl/rockets.ts)

@@ -1,3 +1,5 @@
+import type { Bomb } from "./types";
+
 /** The group the game's own loadout menu files a store under. */
 export type StoreKind =
   | "bomb"
@@ -391,4 +393,142 @@ export function applyDrop(
   const displaced =
     occupant !== undefined && occupant !== option.name ? [{ slot: target.slot, option: occupant }] : [];
   return { build: next, displaced };
+}
+
+const designation = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+/**
+ * Whether one bomb is a variant of another the sheet names: the same kind and
+ * damage, and the sheet's own name for it inside the other's — "Mk 77" in
+ * "Mk 77 mod 4", "FAB-100sv" in "FAB-100sv (forged)". Kind and damage alone
+ * are not enough: the GBU-38 prices exactly as the GBU-62 does, and is not one.
+ */
+export function variantOf(
+  bomb: Pick<Bomb, "kind" | "damageValue" | "fullName">,
+  of: Pick<Bomb, "kind" | "damageValue" | "chartName" | "fullName">,
+): boolean {
+  if (bomb.kind !== of.kind || of.damageValue === null || bomb.damageValue !== of.damageValue) return false;
+  const name = designation(of.chartName || of.fullName);
+  return name.length > 0 && designation(bomb.fullName).includes(name);
+}
+
+/** Steps one search may take before giving up — the whole sheet needs at most ~15 000. */
+const SEARCH_LIMIT = 300_000;
+
+/** Spare rounds a build may carry past what was asked, tried one at a time from none. */
+const MAX_OVERSHOOT = 4;
+
+/**
+ * Hardpoint choices that carry a list of bombs — the sheet's loadout, hung
+ * pylon by pylon — or null when nothing the aircraft can mount adds up to it.
+ *
+ * A bomb some pylon hangs is taken as named. Only one that no pylon hangs
+ * may have another stand in for it (`standsIn`, see `variantOf`): the sheet's
+ * "Mk 77" is the mod 2 where the A-4B's racks hang the mod 4. Only choices
+ * made up of wanted bombs are considered — no tanks, missiles or pods
+ * alongside.
+ *
+ * Exact first. Failing that, the fewest spare rounds, since a rack hangs its
+ * bombs in pairs or threes: the Halifax's fourteen are fifteen on the
+ * aircraft. Failing that too, over the load limit, which a handful of the
+ * sheet's own loadouts exceed as the game's files state it — the creator then
+ * says so. The exclusion rules hold throughout.
+ */
+export function buildFor(
+  armament: Armament,
+  wanted: { bombId: string; count: number }[],
+  standsIn: (bombId: string, forBombId: string) => boolean,
+): Build | null {
+  const hung = new Set(
+    armament.hardpoints.flatMap((hardpoint) =>
+      hardpoint.options.flatMap((option) => option.stores.flatMap(({ store }) => (store.bomb ? [store.bomb.id] : []))),
+    ),
+  );
+  const unhung = [...new Set(wanted.map((w) => w.bombId))].filter((bombId) => !hung.has(bombId));
+  // What a store's bomb counts towards: itself where it is wanted by name,
+  // else the one unhung bomb it may stand in for, else nothing.
+  const keyOf = (bombId: string) =>
+    hung.has(bombId) && wanted.some((w) => w.bombId === bombId)
+      ? bombId
+      : (unhung.find((forBombId) => standsIn(bombId, forBombId)) ?? null);
+
+  const target = new Map<string, number>();
+  for (const { bombId, count } of wanted) target.set(bombId, (target.get(bombId) ?? 0) + count);
+  const keys = [...target.keys()];
+  if (keys.length === 0) return null;
+
+  type Candidate = { name: string; rounds: number[]; total: number; kg: number };
+  const candidates = armament.hardpoints.map((hardpoint) => ({
+    slot: hardpoint.index,
+    options: hardpoint.options
+      .flatMap((option): Candidate[] => {
+        const rounds = keys.map(() => 0);
+        for (const { store, count } of option.stores) {
+          const key = store.bomb ? keyOf(store.bomb.id) : null;
+          const at = key === null ? -1 : keys.indexOf(key);
+          if (at < 0) return [];
+          rounds[at] += store.bomb!.count * count;
+        }
+        const total = rounds.reduce((a, b) => a + b, 0);
+        return total > 0 ? [{ name: option.name, rounds, total, kg: massOfOption(option) }] : [];
+      })
+      .sort((a, b) => b.total - a.total),
+  }));
+
+  // The most of each bomb the hardpoints from here on could still take.
+  const room = candidates.map(() => keys.map(() => 0));
+  room.push(keys.map(() => 0));
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    room[i] = keys.map((_, k) => room[i + 1][k] + Math.max(0, ...candidates[i].options.map((o) => o.rounds[k])));
+  }
+
+  // A failure is remembered with everything that decided it: the bombs still
+  // wanted, the choices some exclusion names and, under a load limit, the load.
+  const ruled = new Set(armament.exclusions.flatMap((r) => [`${r.slot}:${r.option}`, `${r.otherSlot}:${r.otherOption}`]));
+
+  const search = (overshoot: number, limitKg: number | null): Build | null => {
+    const chosen = new Map<number, string>();
+    const failed = new Set<string>();
+    let steps = 0;
+
+    const visit = (i: number, left: number[], spare: number, kg: number): boolean => {
+      if (++steps > SEARCH_LIMIT) return false;
+      if (left.every((n) => n <= 0)) return true;
+      if (i === candidates.length || left.some((n, k) => n > room[i][k])) return false;
+      const binding = [...chosen].map(([slot, name]) => `${slot}:${name}`).filter((pick) => ruled.has(pick));
+      const state = `${i}|${left.join(",")}|${spare}|${binding.join(",")}|${limitKg === null ? "" : Math.round(kg)}`;
+      if (failed.has(state)) return false;
+
+      const { slot, options } = candidates[i];
+      for (const option of options) {
+        const extra = option.rounds.reduce((sum, n, k) => sum + Math.max(0, n - Math.max(left[k], 0)), 0);
+        if (spare + extra > overshoot) continue;
+        if (limitKg !== null && kg + option.kg > limitKg) continue;
+        const here = { slot, option: option.name };
+        if (
+          [...chosen].some(([otherSlot, otherName]) =>
+            armament.exclusions.some((rule) => clashes(rule, here, { slot: otherSlot, option: otherName })),
+          )
+        ) {
+          continue;
+        }
+        chosen.set(slot, option.name);
+        if (visit(i + 1, left.map((n, k) => n - option.rounds[k]), spare + extra, kg + option.kg)) return true;
+        chosen.delete(slot);
+      }
+      if (visit(i + 1, left, spare, kg)) return true;
+      failed.add(state);
+      return false;
+    };
+
+    return visit(0, keys.map((key) => target.get(key)!), 0, 0) ? new Map(chosen) : null;
+  };
+
+  for (const limitKg of armament.maxLoadKg === null ? [null] : [armament.maxLoadKg, null]) {
+    for (let overshoot = 0; overshoot <= MAX_OVERSHOOT; overshoot++) {
+      const build = search(overshoot, limitKg);
+      if (build) return build;
+    }
+  }
+  return null;
 }

@@ -95,6 +95,7 @@ export function BombPageView({ locale, id }: { locale: Locale; id: string }) {
               </>
             ) : null}{" "}
             {m.bombKinds[bomb.kind]}
+            {bomb.navigation ? ` + ${m.bombNavigation[bomb.navigation]}` : null}
           </p>
         </header>
 

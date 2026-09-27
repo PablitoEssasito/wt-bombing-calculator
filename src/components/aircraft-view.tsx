@@ -4,10 +4,11 @@ import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { AircraftPlanner } from "@/components/aircraft-planner";
 import { AircraftBombIcons } from "@/components/bomb-glyph";
-import type { Armament } from "@/domain/loadout";
+import type { Armament, Build } from "@/domain/loadout";
 import type { AircraftEconomy } from "@/domain/reward";
 import type { Aircraft, Bomb } from "@/domain/types";
 import { useI18n } from "@/i18n/client";
+import { urlBuild } from "@/lib/build-url";
 import { urlLiteral, useUrlState } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +65,7 @@ export function AircraftView({
 }) {
   const { m } = useI18n();
   const [view, setView] = useUrlState("view", urlLiteral(VIEWS, "schedule"));
+  const [, setBuild] = useUrlState("build", urlBuild());
   const icons = useMemo(() => new Map(Object.entries(bombIcons)), [bombIcons]);
 
   if (!armament) {
@@ -106,6 +108,14 @@ export function AircraftView({
             sourceUrl={sourceUrl}
             splittable={splittable}
             economy={economy}
+            creator={{
+              armament,
+              open: (build: Build) => {
+                setBuild(build);
+                setView("build");
+              },
+              preload: () => void loadCreator(),
+            }}
           />
         ) : (
           <LoadoutCreator

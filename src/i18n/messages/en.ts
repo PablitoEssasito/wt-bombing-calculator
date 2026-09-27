@@ -61,6 +61,9 @@ export const en = {
     OTHER: "Other",
   },
 
+  /** Suffixed to a guided bomb's kind: "Laser guided + INS/GNSS". */
+  bombNavigation: { INS: "INS", "INS/GNSS": "INS/GNSS" },
+
   common: {
     rank: "Rank {rank}",
     bases: forms({ one: "{n} base", other: "{n} bases" }),
@@ -192,6 +195,7 @@ export const en = {
   },
 
   planner: {
+    openInCreator: "Open in the creator",
     basesToHit: "Bases you want to hit",
     recommendedHeading: "Recommended loadout",
     thisLoadout: "This loadout",

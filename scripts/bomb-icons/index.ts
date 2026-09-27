@@ -3,8 +3,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Bomb as FullBomb } from "../../src/domain/types";
 import { AIRCRAFT_ICON_OVERRIDES, aircraftIcons, type RawUnit } from "./aircraft";
-import { downloadIcons, fetchWeaponDefs } from "./fetch";
-import { presetIcons, type PresetIcon } from "../../src/domain/preset-icons";
+import { downloadIcons, fetchWeaponDefs, iconExists } from "./fetch";
+import { presetIcons, singleRoundOf, type PresetIcon } from "../../src/domain/preset-icons";
 import { matchBombIcons } from "./match";
 
 const OUT_DATA = path.join(process.cwd(), "src", "data", "bomb-icons.json");
@@ -54,6 +54,11 @@ async function main() {
     ...defs.flatMap((d) => (d.iconType ? [d.iconType] : [])),
     ...presets.map((p) => p.iconType),
   ]);
+  // A rack's icon cut back to one round can be named in no file at all and
+  // still be in the atlas: every preset hangs the GBU-39 four to a BRU-61.
+  for (const single of new Set(presets.map((p) => singleRoundOf(p.iconType)))) {
+    if (!known.has(single) && (await iconExists(single))) known.add(single);
+  }
   const kinds = new Map(bombs.map((b) => [b.id, b.kind]));
   let fromPresets = 0;
   for (const [bombId, iconType] of presetIcons(presets, known, kinds)) {

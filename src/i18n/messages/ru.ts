@@ -52,6 +52,9 @@ export const ru: ClientMessages = {
     OTHER: "Другое",
   },
 
+  /** Suffixed to a guided bomb's kind: "Laser guided + INS/GNSS". */
+  bombNavigation: { INS: "ИНС", "INS/GNSS": "ИНС/ГНСС" },
+
   common: {
     rank: "Ранг {rank}",
     bases: { one: "{n} база", few: "{n} базы", many: "{n} баз", other: "{n} базы" },
@@ -183,6 +186,7 @@ export const ru: ClientMessages = {
   },
 
   planner: {
+    openInCreator: "Открыть в конструкторе",
     basesToHit: "Сколько баз хотите поразить",
     recommendedHeading: "Рекомендуемое вооружение",
     thisLoadout: "Это вооружение",

@@ -16,15 +16,12 @@ export const AIRCRAFT_ICON_OVERRIDES: Record<string, Record<string, string>> = {
   "britain-tornado-gr-4": { "pgm-2000": "guided_bomb_grey" }, // the PGM 2000/3 the sheet schedules
   "china-su-30mkk": { "fab-1500": "bombs_heavy_middle" },
   "ussr-tu-95m": { "fab-1500": "bombs_heavy_middle" },
-  "israel-m-d-450b": { "mk-2": "napalm_small" },
-  "israel-m-d-450b-29": { "mk-2": "napalm_small" },
   "israel-mystere-iva": { "mk-2": "napalm_small" },
   "japan-h8k3": { "navy-250-25": "bombs_large" },
   "usa-a-4b": { "mk-77": "napalm_middle" },
   "usa-av-8c": { "mk-77": "napalm_middle" },
   "usa-f-4j": { "mk-77": "napalm_small" },
   "usa-f-4s": { "mk-77": "napalm_small" },
-  "usa-f-15a": { "gbu-8": "guided_bomb_green" },
 };
 
 /** The one part of a raw flight model this reads: the fixed presets of an aircraft with no pylons. */

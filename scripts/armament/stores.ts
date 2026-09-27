@@ -58,6 +58,13 @@ export type Store = {
    */
   iconType: string | null;
   /**
+   * How the ordnance inside homes, resolved like `iconType`: its seeker, and
+   * the inertial navigation it flies on — satellite-aided where the file
+   * gives it no drift, which is how the game tells the Paveway IV or SPICE
+   * apart from the INS-only PGM 2000 or AIM-120. Null for anything unguided.
+   */
+  guidance: { kind: "LAS" | "IR" | "TV" | "GNSS"; navigation: "INS" | "INS/GNSS" | null } | null;
+  /**
    * Whether this file itself holds something else — a rack, a rail, a launcher
    * pod — as opposed to being ordnance in its own right.
    *
@@ -162,6 +169,26 @@ function iconTypeOf(body: Record<string, unknown>, kind: StoreKind): string | nu
   const payload = (body.rocket ?? body.bomb ?? body.torpedo ?? {}) as Record<string, unknown>;
   const candidate = body.iconType ?? payload.iconType;
   return typeof candidate === "string" ? candidate : null;
+}
+
+function guidanceOf(body: Record<string, unknown>): Store["guidance"] {
+  const payload = (body.rocket ?? body.bomb ?? {}) as Record<string, unknown>;
+  const guidance = (payload.guidance ?? {}) as Record<string, unknown>;
+  const signature = ((guidance.opticalSeeker ?? {}) as Record<string, unknown>).targetSignatureType;
+  const kind =
+    payload.guidanceType === "laser"
+      ? "LAS"
+      : payload.guidanceType === "sns"
+        ? "GNSS"
+        : payload.guidanceType === "optical" && signature === "infraRed"
+          ? "IR"
+          : payload.guidanceType === "optical" && signature === "optic"
+            ? "TV"
+            : null;
+  if (!kind) return null;
+  const navigation =
+    guidance.inertialNavigation !== true ? null : guidance.inertialNavigationDriftSpeed === 0 ? "INS/GNSS" : "INS";
+  return { kind, navigation };
 }
 
 /** What a store weighs on its own, before anything it might be holding. */
@@ -338,7 +365,7 @@ const bracketed = (value: string) =>
 /** Normalised characters beyond which a leading match is too specific to be chance. */
 const TRUSTED_PREFIX = 10;
 function matchBomb(
-  store: { file: string; massKg: number | null; missile: boolean },
+  store: { file: string; massKg: number | null; missile: boolean; kind: string },
   names: { full: string | null; short: string | null },
   chart: { id: string; chartName: string; fullName: string; massKg: number | null; kind: string }[],
 ): string | null {
@@ -351,7 +378,7 @@ function matchBomb(
     .flatMap((bomb) =>
       [bomb.fullName, bomb.chartName]
         .filter(Boolean)
-        .map((name) => ({ bomb, key: normalizeName(name) })),
+        .map((name) => ({ bomb, key: normalizeName(name), words: wordsOf(name) })),
     )
     .filter((entry) => entry.key.length >= 4)
     .sort((a, b) => b.key.length - a.key.length);
@@ -397,6 +424,37 @@ function matchBomb(
     const key = normalizeName(candidate);
     const hit = keyed.find((entry) => key.startsWith(entry.key) && agrees(entry.bomb.massKg));
     if (hit) return hit.bomb.id;
+  }
+
+  // Last, a long name whose every word the game's repeats, in any order and
+  // among others, the weight agreeing: the chart's "M.C.1000 lb Mk.I" is the
+  // game's "1000 lb M.C. Mk.I", its Type A magnetic mine the game's "aircraft
+  // laid" one.
+  for (const candidate of store.missile ? [] : [names.full, names.short]) {
+    if (!candidate) continue;
+    const words = new Set(wordsOf(candidate));
+    const hit = keyed.find(
+      (entry) =>
+        entry.key.length >= TRUSTED_PREFIX && entry.words.every((word) => words.has(word)) && agrees(entry.bomb.massKg),
+    );
+    if (hit) return hit.bomb.id;
+  }
+
+  // Last of all, a bomb the game calls by exactly one chart row's name,
+  // whatever it weighs: the chart gives the GBU-8 as its 2 000 lb class and the
+  // game weighs the kit too, 1 027 kg, and the GB3, "Mk.2" and "500 kg No.2"
+  // miss the same way — the first two too short a name to trust as a prefix.
+  // Their fillings agree. Not a missile or torpedo: the game's torpedo "Mk.13"
+  // is still not the chart's guided bomb.
+  if (store.kind === "bomb" || store.kind === "mine") {
+    for (const candidate of [names.short, names.full]) {
+      if (!candidate) continue;
+      const key = normalizeName(candidate);
+      const named = chart.filter((bomb) =>
+        [bomb.chartName, bomb.fullName].some((name) => name && normalizeName(name) === key),
+      );
+      if (key && named.length === 1) return named[0].id;
+    }
   }
 
   return null;
@@ -504,7 +562,7 @@ async function main() {
     // Missiles too: the chart prices the few that bomb bases, rocket-boosted
     // guided bombs like the AGM-123 Skipper the game files as missiles.
     const bombId = ["bomb", "mine", "torpedo", "rocket", "missile"].includes(kind)
-      ? matchBomb({ file: core.file, massKg: coreMass, missile: kind === "missile" }, coreNames, chart)
+      ? matchBomb({ file: core.file, massKg: coreMass, missile: kind === "missile", kind }, coreNames, chart)
       : null;
 
     stores.push({
@@ -519,6 +577,7 @@ async function main() {
       holds: core.count,
       // ...and its icon lives there too, same as the name and kind above.
       iconType: iconTypeOf(coreBody, kind),
+      guidance: guidanceOf(coreBody),
       container: contained(body) !== null,
     });
   }

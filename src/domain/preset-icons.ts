@@ -2,7 +2,7 @@
 export type PresetIcon = { iconType: string; bombIds: string[] };
 
 /** The icon for one round of whatever a rack, group or pod preset draws several of. */
-const singleRoundOf = (iconType: string) =>
+export const singleRoundOf = (iconType: string) =>
   iconType
     .replace(/_(maws_)?ltc_pod/, "")
     .replace(/_group.*$/, "")

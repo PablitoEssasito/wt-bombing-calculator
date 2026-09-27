@@ -1,8 +1,10 @@
 "use client";
 
+import { Wrench } from "lucide-react";
 import { useMemo } from "react";
 import { effectiveBaseHp, reachableBaseHps } from "@/domain/base-hp";
 import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
+import { buildFor, variantOf, type Armament, type Build } from "@/domain/loadout";
 import { defaultTarget, pickLoadout, stanceOf, type Stance } from "@/domain/recommend";
 import {
   buildPlan,
@@ -48,6 +50,7 @@ export function AircraftPlanner({
   sourceUrl,
   splittable,
   economy,
+  creator,
 }: {
   plane: Aircraft;
   /** The aircraft's name in the page's language. */
@@ -58,6 +61,11 @@ export function AircraftPlanner({
   splittable: boolean;
   /** The game's own earning figures; null where none matched. */
   economy: AircraftEconomy | null;
+  /**
+   * The loadout creator next door, for aircraft that have one: its hardpoints,
+   * and how to open it on a build.
+   */
+  creator?: { armament: Armament; open: (build: Build) => void; preload: () => void };
 }) {
   const { m, number, count, fill } = useI18n();
   const bombsById = useMemo(() => new Map(bombs.map((b) => [b.id, b])), [bombs]);
@@ -110,6 +118,21 @@ export function AircraftPlanner({
     [active.plan, canTrim, wanted],
   );
   const wantedFewer = target !== AUTO_TARGET && wanted < active.plan.basesDestroyed;
+
+  // What is shown, hung pylon by pylon, for the creator to open on — a bomb
+  // the pylons don't hang taking a variant they do (see `buildFor`). Not
+  // where the sheet leaves bases unwritten ("+ 2"), whose bombs nobody knows.
+  const armament = creator?.armament ?? null;
+  const creatorBuild = useMemo(() => {
+    if (!armament || shown.unlistedBases > 0) return null;
+    const standsIn = (bombId: string, forBombId: string) => {
+      const bomb = bombsById.get(bombId);
+      const of = bombsById.get(forBombId);
+      return bomb !== undefined && of !== undefined && variantOf(bomb, of);
+    };
+    const wanted = mountedIn(shown).map((item) => ({ bombId: item.bomb.id, count: item.count }));
+    return buildFor(armament, wanted, standsIn);
+  }, [armament, shown, bombsById]);
 
   return (
     <div className="space-y-8">
@@ -216,7 +239,22 @@ export function AircraftPlanner({
               {m.planner.backToDefault}
             </button>
           ) : null}
-          <ShareButton surface="planner" className="ml-auto" />
+          {creator && creatorBuild ? (
+            <button
+              type="button"
+              onClick={() => {
+                track("planner_to_creator", { plane: plane.name });
+                creator.open(creatorBuild);
+              }}
+              onPointerEnter={creator.preload}
+              onFocus={creator.preload}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border border-accent/60 text-accent hover:bg-accent-dim transition-colors"
+            >
+              <Wrench size={14} aria-hidden />
+              {m.planner.openInCreator}
+            </button>
+          ) : null}
+          <ShareButton surface="planner" className={creator && creatorBuild ? undefined : "ml-auto"} />
         </header>
 
         {active.option.note || active.option.noteMarker ? (

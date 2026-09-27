@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NATIONS } from "../../domain/constants";
-import { aircraftCarrying, armamentFor } from "../dataset";
+import { bombsIn, buildFor, variantOf, violationsOf } from "../../domain/loadout";
+import { aircraft, aircraftCarrying, armamentFor, bombsById } from "../dataset";
 
 /**
  * `armamentFor` decodes `src/data/armament.json`'s compact shape — stores
@@ -116,5 +117,107 @@ describe("aircraftCarrying", () => {
 
   it("returns nothing for an unknown bomb", () => {
     expect(aircraftCarrying("nonsense-id")).toEqual([]);
+  });
+});
+
+describe("guided bombs' seekers and navigation", () => {
+  const guidance = (id: string) => {
+    const { kind, navigation } = bombsById.get(id)!;
+    return { kind, navigation };
+  };
+
+  it("tells the AASM's three versions apart, as the game's files do", () => {
+    // The sheet files all three under GNSS. The game names its laser version
+    // SBU 54 and its infrared one SBU 64.
+    expect(guidance("aasm-250")).toEqual({ kind: "GNSS", navigation: undefined });
+    expect(guidance("aasm-250-hammer-sbu-54")).toEqual({ kind: "LAS", navigation: "INS/GNSS" });
+    expect(guidance("aasm-250-hammer-sbu-64")).toEqual({ kind: "IR", navigation: "INS/GNSS" });
+  });
+
+  it("marks satellite-aided INS apart from INS alone", () => {
+    expect(guidance("paveway-iv")).toEqual({ kind: "LAS", navigation: "INS/GNSS" });
+    expect(guidance("gbu-50")).toEqual({ kind: "LAS", navigation: "INS/GNSS" });
+    expect(guidance("pgm-2000-3")).toEqual({ kind: "IR", navigation: "INS" });
+    expect(guidance("gbu-12")).toEqual({ kind: "LAS", navigation: undefined });
+  });
+
+  it("keeps the sheet's kind where the game's files disagree", () => {
+    // Also the game's UMPK glide kit, but a plain bomb in its own file.
+    expect(guidance("500m-62")).toEqual({ kind: "GP", navigation: undefined });
+    // Comes TV- and laser-guided, both on INS.
+    expect(guidance("pgm-2000")).toEqual({ kind: "TV", navigation: "INS" });
+  });
+
+  it("no longer lets the laser AASM stand in for the GPS one", () => {
+    expect(variantOf(bombsById.get("aasm-250-hammer-sbu-54")!, bombsById.get("aasm-250")!)).toBe(false);
+  });
+});
+
+/**
+ * The sheet's loadouts hung on the game's pylons, as the planner's "open in the
+ * creator" does it — a variant standing in only where the pylons lack the bomb.
+ */
+describe("buildFor against the sheet", () => {
+  const standsIn = (id: string, of: string) => variantOf(bombsById.get(id)!, bombsById.get(of)!);
+  const wantedOf = (planeId: string, option: number) =>
+    aircraft
+      .find((p) => p.id === planeId)!
+      .options[option].schedules[0].bases.flatMap((base) => base.items);
+
+  it("hangs the F-4J's twelve Mk 82s and six M117s exactly, within the rules", () => {
+    const armament = armamentFor("usa-f-4j")!;
+    const build = buildFor(armament, wantedOf("usa-f-4j", 2), standsIn)!;
+    expect(bombsIn(build, armament).sort((a, b) => a.bombId.localeCompare(b.bombId))).toEqual([
+      { bombId: "m117", count: 6 },
+      { bombId: "mk-82", count: 12 },
+    ]);
+    expect(violationsOf(build, armament)).toEqual([]);
+  });
+
+  it("takes the mod of Mk 77 the pylons carry for the one the sheet names", () => {
+    // The sheet's "Mk 77" is the mod 2; the A-4B's racks hang the mod 4.
+    const armament = armamentFor("usa-a-4b")!;
+    const build = buildFor(armament, wantedOf("usa-a-4b", 0), standsIn)!;
+    expect(bombsIn(build, armament)).toEqual([{ bombId: "mk-77-mod-4", count: 7 }]);
+  });
+
+  it("hangs the F-15E's GBU-64s as GBU-64s, not the GBU-31s that price the same", () => {
+    const armament = armamentFor("usa-f-15e")!;
+    const build = buildFor(armament, wantedOf("usa-f-15e", 0), standsIn)!;
+    expect(bombsIn(build, armament).sort((a, b) => a.bombId.localeCompare(b.bombId))).toEqual([
+      { bombId: "agm-130", count: 2 },
+      { bombId: "gbu-64", count: 4 },
+    ]);
+  });
+
+  it("offers nothing rather than another bomb where the pylons lack the one named", () => {
+    // The Gripen hangs the GBU-62 JDAM-ER, which the chart does not price;
+    // the GBU-38 prices the same and is still not it.
+    expect(buildFor(armamentFor("sweden-jas39c")!, wantedOf("sweden-jas39c", 0), standsIn)).toBeNull();
+  });
+
+  it("carries the one spare round the Halifax's bomb bay forces", () => {
+    const armament = armamentFor("britain-halifax-b-iiia")!;
+    const build = buildFor(armament, wantedOf("britain-halifax-b-iiia", 0), standsIn)!;
+    const carried = bombsIn(build, armament).reduce((n, b) => n + b.count, 0);
+    expect(carried).toBe(15);
+  });
+
+  it("hangs nine in ten of the sheet's loadouts on aircraft with pylons", () => {
+    let tried = 0;
+    let hung = 0;
+    for (const plane of aircraft) {
+      const armament = armamentFor(plane.id);
+      if (!armament) continue;
+      for (const option of plane.options) {
+        const schedule = option.schedules[0];
+        if (!schedule || (schedule.basesDestroyed ?? 0) > schedule.bases.length) continue;
+        const wanted = schedule.bases.flatMap((base) => base.items);
+        if (wanted.length === 0) continue;
+        tried++;
+        if (buildFor(armament, wanted, standsIn)) hung++;
+      }
+    }
+    expect(hung / tried).toBeGreaterThan(0.9);
   });
 });

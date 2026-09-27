@@ -8,7 +8,7 @@ import { BombIcon } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
 import { Filled } from "@/components/filled";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
-import { inBombChart } from "@/domain/bomb-chart";
+import { inBombChart, kindsOf } from "@/domain/bomb-chart";
 import {
   BASE_HP_TIERS,
   GAME_MODES,
@@ -152,7 +152,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
         return false;
       }
       if (nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
-      if (kinds.size > 0 && !kinds.has(bomb.kind)) return false;
+      if (kinds.size > 0 && !kindsOf(bomb).some((k) => kinds.has(k))) return false;
       if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
       if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
       if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
@@ -198,7 +198,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
-      if (kinds.size > 0 && !kinds.has(bomb.kind)) return false;
+      if (kinds.size > 0 && !kindsOf(bomb).some((k) => kinds.has(k))) return false;
       if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
       if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
       if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
@@ -236,7 +236,7 @@ export function BombChart({ bombs }: { bombs: Bomb[] }) {
 
   const nationCount = (n: Nation | "all") =>
     n === "all" ? withoutNation.length : withoutNation.filter((b) => b.usedByNations.includes(n)).length;
-  const kindCount = (k: BombKind) => withoutKind.filter((b) => b.kind === k).length;
+  const kindCount = (k: BombKind) => withoutKind.filter((b) => kindsOf(b).includes(k)).length;
 
   const selectNation = (n: Nation | "all") => {
     setNation(n);
@@ -528,6 +528,7 @@ const BombRows = memo(function BombRows({ rows, massUnit }: { rows: SortableRow[
           </td>
           <td className="px-3 py-2 text-ink-faint hidden lg:table-cell">
             {m.bombKinds[bomb.kind]}
+            {bomb.navigation ? ` + ${m.bombNavigation[bomb.navigation]}` : null}
           </td>
         </tr>
       ))}

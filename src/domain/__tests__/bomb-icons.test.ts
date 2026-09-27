@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import bombData from "../../data/bombs.json";
 import bombIconData from "../../data/bomb-icons.json";
+import aircraftBombIcons from "../../data/aircraft-bomb-icons.json";
 import { matchBombIcons, type WeaponDef } from "../../../scripts/bomb-icons/match";
 import { bombIconsFor } from "../../lib/dataset";
 import { presetIcons, type PresetIcon } from "../preset-icons";
@@ -224,6 +225,25 @@ describe("each aircraft's own menu icons", () => {
 describe("the imported bomb icon map", () => {
   it("covers every bomb in the dataset", () => {
     for (const b of bombs) expect(bombIcons[b.id]).toBeDefined();
+  });
+
+  it("draws the guided bombs the way the game's menu does", () => {
+    // Read off in-game loadout menu screenshots (2026-09-26).
+    expect(bombIcons["agm-123"]).toBe("guided_bomb_large_jdam");
+    expect(bombIcons["gbu-15"]).toBe("guided_bomb_yellow");
+    expect(bombIcons["gbu-15-v-2-b"]).toBe("guided_bomb_green");
+    expect(bombIcons["gbu-38"]).toBe("guided_bomb_middle_jdam");
+  });
+
+  it("never draws a guided bomb as a plain one, on any aircraft", () => {
+    const guided = bombs.filter((b) => ["GNSS", "LAS", "TV", "IR", "RC"].includes(b.kind));
+    const maps = [bombIcons, ...Object.values(aircraftBombIcons as Record<string, Record<string, string>>)];
+    for (const b of guided) {
+      for (const icons of maps) {
+        // bombs_guided is the Fritz X's own, fins and all.
+        if (icons[b.id]) expect(`${b.id} ${icons[b.id]}`).toMatch(/ (guided_|glide_|missile_|bombs_guided$)/);
+      }
+    }
   });
 
   it("only ever points at a plausible icon key", () => {

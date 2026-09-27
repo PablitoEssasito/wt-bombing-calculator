@@ -89,6 +89,13 @@ export async function fetchIconPng(iconType: string): Promise<Buffer | null> {
   return Buffer.from(await response.arrayBuffer());
 }
 
+/** Whether the game's UI atlas has an icon by this name — already pulled, or there to pull. */
+export async function iconExists(iconType: string): Promise<boolean> {
+  if (existsSync(path.join(OUT_ICONS_DIR, `${iconType}.webp`))) return true;
+  const response = await fetch(`${RAW_BASE}/${ICON_DIR}/${iconType}.png`, { method: "HEAD" });
+  return response.ok;
+}
+
 /**
  * Pulls whichever of these icon keys are not already sitting in `OUT_ICONS_DIR`
  * and writes them there as webp. Shared by every script that discovers icon

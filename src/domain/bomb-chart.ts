@@ -1,4 +1,4 @@
-import type { Bomb } from "./types";
+import type { Bomb, BombKind } from "./types";
 
 /**
  * Whether a bomb gets a row in the bomb chart at all.
@@ -9,3 +9,11 @@ import type { Bomb } from "./types";
  */
 export const inBombChart = (bomb: Pick<Bomb, "damageValue" | "kind">) =>
   bomb.damageValue !== null || bomb.kind === "ROCKET";
+
+/**
+ * Every kind a bomb is filtered under: its seeker's, and satellite guidance's
+ * too where it flies on satellite-aided INS — a Paveway IV is laser-guided and
+ * a GNSS bomb both.
+ */
+export const kindsOf = (bomb: Pick<Bomb, "kind" | "navigation">): BombKind[] =>
+  bomb.navigation === "INS/GNSS" && bomb.kind !== "GNSS" ? [bomb.kind, "GNSS"] : [bomb.kind];
