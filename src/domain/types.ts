@@ -147,7 +147,16 @@ export type WeaponStats = {
   dropHeightRange?: [number, number];
 };
 
-export type LoadoutItem = { bombId: string; count: number };
+export type LoadoutItem = {
+  bombId: string;
+  count: number;
+  /**
+   * The bomb the sheet named, where the aircraft cannot hang it in the game
+   * and `bombId` is the one it does (scripts/armament/rebind.ts) — what the
+   * sheet's own figures for the plan were.
+   */
+  sheetBombId?: string;
+};
 
 export type BaseLoadout = { items: LoadoutItem[] };
 

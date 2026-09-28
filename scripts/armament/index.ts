@@ -7,6 +7,7 @@ import { shortfallOf } from "../../src/domain/schedule";
 import { downloadIcons } from "../bomb-icons/fetch";
 import { loadWpcost } from "../shared/wpcost";
 import { parseArmament, presetPath, type Armament } from "./parse";
+import { rebindPlans } from "./rebind";
 import { nationOfCountry, reconcile, sheetView } from "./reconcile";
 import type { Category } from "./stats";
 import { isPhysicalCount, type Round } from "./stores";
@@ -230,16 +231,30 @@ async function main() {
     "utf8",
   );
 
+  // The sheet's plans with the bombs the game lets each aircraft hang.
+  const planesCarrying = new Map<string, Set<string>>();
+  for (const [bombId, planes] of carriers) {
+    for (const plane of planes) planesCarrying.set(plane, (planesCarrying.get(plane) ?? new Set()).add(bombId));
+  }
+  const { aircraft: plans, changes: rebound } = rebindPlans(aircraft, bombs, (plane) => planesCarrying.get(plane));
+  await writeFile(path.join(DATA_DIR, "aircraft.json"), JSON.stringify(plans), "utf8");
+  console.log(
+    rebound.length === 0
+      ? "ok    every bomb in the sheet's plans is one its aircraft hangs in the game"
+      : `note  ${rebound.length} bomb(s) in the sheet's plans swapped for what the aircraft hangs in the game:`,
+  );
+  for (const line of rebound) console.log(`        ${line}`);
+
   const countriesOf = new Map<string, Nation[]>();
   for (const round of rounds) {
     if (!round.bombId) continue;
     const nations = round.units.flatMap((unit) => nationOfCountry(wpcost.units[unit]?.country) ?? []);
     countriesOf.set(round.bombId, [...(countriesOf.get(round.bombId) ?? []), ...nations]);
   }
-  const usedBy = usedByNationsOf(aircraft, carriers, bombs, countriesOf);
+  const usedBy = usedByNationsOf(plans, carriers, bombs, countriesOf);
   const enrichedBombs = bombs.map((bomb) => ({ ...bomb, usedByNations: usedBy.get(bomb.id) ?? [] }));
   await writeFile(path.join(DATA_DIR, "bombs.json"), JSON.stringify(enrichedBombs), "utf8");
-  reportShortfalls(aircraft, new Map(enrichedBombs.map((bomb) => [bomb.id, bomb])));
+  reportShortfalls(plans, new Map(enrichedBombs.map((bomb) => [bomb.id, bomb])));
   const unmatched = enrichedBombs.filter((b) => b.usedByNations.length === 0);
   console.log(
     `\nNation usage: ${enrichedBombs.length - unmatched.length}/${enrichedBombs.length} bombs matched ` +

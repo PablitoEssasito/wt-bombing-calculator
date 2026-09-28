@@ -85,8 +85,12 @@ async function main() {
   await mkdir(OUT_RENDERS, { recursive: true });
   await mkdir(OUT_ICONS, { recursive: true });
 
+  // In the sheet's order, so the files keep one order whichever pass matched each.
   const wanted = new Map<string, string>();
-  for (const [aircraftId, match] of matches) wanted.set(aircraftId, match.unit.id);
+  for (const plane of aircraft) {
+    const match = matches.get(plane.id);
+    if (match) wanted.set(plane.id, match.unit.id);
+  }
 
   // Several of the sheet's aircraft can share one wiki unit, so fetch each once.
   const unitIds = [...new Set(wanted.values())];
@@ -135,7 +139,8 @@ async function main() {
   console.log(`Wrote ${squadron.length} squadron-vehicle ids to src/data/squadron.json`);
 
   const types: Record<string, string> = {};
-  for (const [aircraftId, match] of matches) {
+  for (const aircraftId of wanted.keys()) {
+    const match = matches.get(aircraftId)!;
     if (aircraftId in map && match.unit.vehicleType) types[aircraftId] = match.unit.vehicleType;
   }
   await writeFile(OUT_TYPES, JSON.stringify(types));

@@ -15,13 +15,14 @@ const find = (id: string) => {
 };
 
 /** The Pe-8 carries a single preset of 40 FAB-100sv, which makes it easy to reason about. */
+const FAB_100 = "100-kg-fab-100sv-forged";
 const pe8 = () => find("ussr-pe-8");
 
 describe("payloadOf", () => {
   it("collapses a schedule back into the bombs actually carried", () => {
     const schedule = pe8().options[0].schedules[0];
     expect(payloadOf(schedule, bombs)).toEqual([
-      { bomb: bombs.get("100sv"), count: 40 },
+      { bomb: bombs.get(FAB_100), count: 40 },
     ]);
   });
 });
@@ -61,7 +62,7 @@ describe("buildPlan when conditions differ", () => {
     // Forty bombs, thirteen to a base at 20 000 HP, so three bases and one spare.
     expect(plan.bases).toHaveLength(3);
     expect(plan.bases.every((b) => b.items[0].count === 13)).toBe(true);
-    expect(plan.leftover).toEqual([{ bomb: bombs.get("100sv"), count: 1 }]);
+    expect(plan.leftover).toEqual([{ bomb: bombs.get(FAB_100), count: 1 }]);
   });
 
   it("stops at the map's base count where bases do not respawn", () => {
@@ -295,8 +296,8 @@ describe("shortfallOf", () => {
     expect(shortfallOf(schedule(12, 1), bombs)).toEqual([]);
   });
 
-  it("leaves the sheet's own calls alone: a base short by its own numbers, or a schedule with no count", () => {
-    expect(shortfallOf(schedule(9, 1), bombs)).toEqual([]);
+  it("flags a base short even by the sheet's own numbers — the game decides — but not a schedule with no count", () => {
+    expect(shortfallOf(schedule(9, 1), bombs)).toHaveLength(1);
     expect(shortfallOf(schedule(10, null), bombs)).toEqual([]);
   });
 
@@ -306,8 +307,10 @@ describe("shortfallOf", () => {
         option.schedules.flatMap((s) => (shortfallOf(s, bombs).length > 0 ? [`${plane.id}@${s.baseHp}`] : [])),
       ),
     );
-    expect(flagged).toEqual(expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900"]));
+    expect(flagged).toEqual(
+      expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900", "ussr-su-6@10000", "germany-fw-190-f-8@16000"]),
+    );
     // A handful at most: more means a damage change the sheet's plans lean on — see the import report.
-    expect(flagged.length).toBeLessThan(10);
+    expect(flagged.length).toBeLessThan(20);
   });
 });

@@ -260,9 +260,8 @@ export function buildPlan(
 
 /**
  * A base a sheet schedule counts as flattened that the game's own damage
- * figures leave standing: the sheet priced one of its bombs higher than the
- * game does — the AV-8B's ten GBU-38s come to 23 720 by the sheet and 20 720
- * by the game, against 23 357 to bring a top-tier base down.
+ * figures leave standing — the AV-8B's ten GBU-38s come to 23 720 by the sheet
+ * and 20 720 by the game, against 23 357 to bring a top-tier base down.
  */
 export type Shortfall = {
   /** Which base of the schedule, from 0. */
@@ -279,9 +278,9 @@ export type Shortfall = {
  * The bases a schedule's own count takes down (see buildPlan) that fall short
  * once the game's figures replace the sheet's.
  *
- * Only what the game's figures changed: a base the sheet counts short even by
- * its own numbers is the author's call — a rocket pass to finish it, say — not
- * a mistake, and a schedule that states no count is decided by damage anyway.
+ * The game decides, so a base the sheet counts down short even by its own
+ * numbers is flagged too. A schedule that states no count is decided by damage
+ * anyway.
  */
 export function shortfallOf(schedule: Schedule, bombs: Map<string, Bomb>): Shortfall[] {
   if (schedule.basesDestroyed === null) return [];
@@ -290,11 +289,13 @@ export function shortfallOf(schedule: Schedule, bombs: Map<string, Bomb>): Short
   schedule.bases.slice(0, schedule.basesDestroyed).forEach((base, index) => {
     const items = base.items.flatMap((item) => {
       const bomb = bombs.get(item.bombId);
-      return bomb ? [{ bomb, count: item.count }] : [];
+      // The sheet's figure is for the bomb it named, which the game may have swapped.
+      const named = bombs.get(item.sheetBombId ?? item.bombId) ?? bomb;
+      return bomb && named ? [{ bomb, named, count: item.count }] : [];
     });
     const damage = items.reduce((sum, { bomb, count }) => sum + (bomb.damageValue ?? 0) * count, 0);
-    const sheetDamage = items.reduce((sum, { bomb, count }) => sum + (sheetView(bomb).damageValue ?? 0) * count, 0);
-    if (damage >= threshold || sheetDamage < threshold) return;
+    const sheetDamage = items.reduce((sum, { named, count }) => sum + (sheetView(named).damageValue ?? 0) * count, 0);
+    if (damage >= threshold) return;
     const only = items.length === 1 ? items[0] : null;
     shortfalls.push({
       base: index,

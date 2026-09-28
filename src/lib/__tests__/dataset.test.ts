@@ -149,7 +149,7 @@ describe("aircraftCarrying", () => {
 
   it("finds aircraft with fixed setups, through the sheet and through the game's own setups", () => {
     // The Pe-8 has no pylons in the game data (see armamentFor above).
-    expect(aircraftCarrying("100sv").find((c) => c.plane.id === "ussr-pe-8")?.inSheet).toBe(true);
+    expect(aircraftCarrying("100-kg-fab-100sv-forged").find((c) => c.plane.id === "ussr-pe-8")?.inSheet).toBe(true);
     // Its FAB-5000 is in one of its setups and in none of the sheet's loadouts.
     expect(aircraftCarrying("fab-5000").find((c) => c.plane.id === "ussr-pe-8")?.inSheet).toBe(false);
   });
@@ -326,10 +326,12 @@ describe("buildFor against the sheet", () => {
     ]);
   });
 
-  it("offers nothing rather than another bomb where the pylons lack the one named", () => {
-    // The Gripen hangs the GBU-62 JDAM-ER, which the chart does not price;
-    // the GBU-38 prices the same and is still not it.
-    expect(buildFor(armamentFor("sweden-jas39c")!, wantedOf("sweden-jas39c", 0), standsIn)).toBeNull();
+  it("hangs the Gripen's GBU-62 JDAM-ER, the bomb its plan names now the game decides it", () => {
+    // The sheet named a laser GBU-62 the Gripen cannot hang; the import puts
+    // the JDAM-ER its pylons do carry in its place, not the GBU-38 that prices the same.
+    const armament = armamentFor("sweden-jas39c")!;
+    const build = buildFor(armament, wantedOf("sweden-jas39c", 0), standsIn)!;
+    expect(bombsIn(build, armament).map((b) => b.bombId)).toContain("gbu-62-jdam-er");
   });
 
   it("carries the one spare round the Halifax's bomb bay forces", () => {
