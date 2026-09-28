@@ -348,7 +348,6 @@ function sharedAcrossDuplicates(carriers: Map<string, Set<string>>, bombs: Bomb[
   return shared;
 }
 
-/** What the game's files changed about the sheet's rows, and what they added. */
 /**
  * The sheet's own plans that count a base down which the game's damage figures
  * leave standing — the planner marks each on its tile; listed here so an import
@@ -376,6 +375,7 @@ function reportShortfalls(aircraft: Aircraft[], bombs: Map<string, Bomb>) {
   for (const line of lines) console.log(`        ${line}`);
 }
 
+/** What the game's files changed about the sheet's rows, and what they added. */
 function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], estimates: string[], aliased: string[]) {
   const game = rows.filter((row) => row.source === "game");
   const bySource = (source: string) => rows.filter((row) => row.damageSource === source).length;

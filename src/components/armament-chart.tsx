@@ -118,6 +118,9 @@ const SOURCES = ["all", "game"] as const;
 
 /** The weapons ticked for the comparison, in the order they were ticked. */
 const COMPARED = urlList();
+// Made once, so the parsed sets keep their identity from render to render.
+const KIND_FILTER = urlStringSet<BombKind>(KINDS);
+const COLUMNS = urlStringSet<ExtraColumn>(EXTRA_COLUMNS);
 
 export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; guidanceLabels: Record<string, string> }) {
   const { m, number, fill, path } = useI18n();
@@ -130,9 +133,9 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const [massUnit, setMassUnit] = useUrlState("massUnit", urlLiteral(MASS_UNITS, "original"));
   const [dir, setDir] = useUrlState("dir", urlLiteral<SortDir>(["asc", "desc"], DEFAULT_DIR.needed));
   const [nation, setNation] = useUrlState("nation", urlLiteral(["all", ...NATIONS] as const, "all"));
-  const [kinds, setKinds] = useUrlState("kinds", urlStringSet<BombKind>(KINDS));
+  const [kinds, setKinds] = useUrlState("kinds", KIND_FILTER);
   const [source, setSource] = useUrlState("src", urlLiteral(SOURCES, "all"));
-  const [columns, setColumns] = useUrlState("cols", urlStringSet<ExtraColumn>(EXTRA_COLUMNS));
+  const [columns, setColumns] = useUrlState("cols", COLUMNS);
   const [compared, setCompared] = useUrlState("cmp", COMPARED);
   const [massMin, setMassMin] = useUrlState("massMin", urlOptionalInteger());
   const [massMax, setMassMax] = useUrlState("massMax", urlOptionalInteger());
@@ -185,7 +188,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
     const needle = deferred.trim().toLowerCase();
     const passes = (bomb: ChartRow, except?: "nation" | "kind") => {
       if (!inView(bomb, view)) return false;
-      if (source === "game" && bomb.damageSource !== "game") return false;
+      if (source === "game" && bomb.damageSource === "estimate") return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
@@ -239,6 +242,9 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const listed = useDeferredValue(rows);
   const shownUnit = useDeferredValue(massUnit);
   const shownColumns = useDeferredValue(columns);
+  const wide = shownColumns.size > 0;
+  // A header cell stays at the top of the table's own scroll window — see the table below.
+  const headCell = wide ? "sm:sticky sm:top-0 sm:z-10 bg-surface sm:shadow-[inset_0_-1px_0_var(--color-line)]" : undefined;
 
   const nationCount = (n: Nation | "all") =>
     n === "all" ? withoutNation.length : withoutNation.filter((b) => b.usedByNations.includes(n)).length;
@@ -480,15 +486,28 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
         </p>
       ) : (
         <div className="space-y-2">
-          <div className="card overflow-x-auto">
+          {/* With extra columns the table outgrows the page: it scrolls in a window
+              of its own then, so the sideways scrollbar is in sight rather than
+              under the last of a few hundred rows, with the header and the
+              weapon's name held in place. Not on a phone, where a swipe scrolls
+              it sideways and a pinned name would leave no room. */}
+          <div className={cn("card overflow-x-auto", wide && "sm:max-h-[calc(100dvh-5rem)] sm:overflow-y-auto")}>
             <table className="w-full text-sm">
               <thead className="text-ink-faint">
                 <tr className="hairline">
-                  <SortTh column="name" label={m.bombChart.columns.name} sort={sort} dir={dir} onSort={handleSort} />
+                  <SortTh
+                    column="name"
+                    label={m.bombChart.columns.name}
+                    className={cn(headCell, wide && "sm:left-0 sm:z-20")}
+                    sort={sort}
+                    dir={dir}
+                    onSort={handleSort}
+                  />
                   <SortTh
                     column="needed"
                     label={m.bombChart.columns.needed}
                     align="right"
+                    className={headCell}
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
@@ -497,6 +516,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     column="damage"
                     label={m.bombChart.columns.damage}
                     align="right"
+                    className={headCell}
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
@@ -505,7 +525,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     column="mass"
                     label={m.bombChart.columns.mass}
                     align="right"
-                    className="hidden sm:table-cell"
+                    className={cn("hidden sm:table-cell", headCell)}
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
@@ -514,7 +534,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     column="tnt"
                     label={m.bombChart.columns.tnt}
                     align="right"
-                    className="hidden md:table-cell"
+                    className={cn("hidden md:table-cell", headCell)}
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
@@ -523,7 +543,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     column="efficiency"
                     label={m.bombChart.columns.efficiency}
                     align="right"
-                    className="hidden md:table-cell"
+                    className={cn("hidden md:table-cell", headCell)}
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
@@ -531,7 +551,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                   <SortTh
                     column="kind"
                     label={m.bombChart.columns.kind}
-                    className="hidden lg:table-cell"
+                    className={cn("hidden lg:table-cell", headCell)}
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
@@ -542,6 +562,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                       column={column}
                       label={extraHeaders[column]}
                       align={column === "warhead" || column === "explosive" ? "left" : "right"}
+                      className={headCell}
                       sort={sort}
                       dir={dir}
                       onSort={handleSort}
@@ -553,6 +574,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                 rows={listed}
                 massUnit={shownUnit}
                 columns={shownColumns}
+                pinName={wide}
                 guidanceLabels={guidanceLabels}
                 compared={comparedSet}
                 onCompare={toggleCompared}
@@ -598,6 +620,7 @@ const BombRows = memo(function BombRows({
   rows,
   massUnit,
   columns,
+  pinName,
   guidanceLabels,
   compared,
   onCompare,
@@ -605,6 +628,8 @@ const BombRows = memo(function BombRows({
   rows: SortableRow[];
   massUnit: MassUnit;
   columns: ReadonlySet<ExtraColumn>;
+  /** Holds the name column in place while the table scrolls sideways — see ArmamentChart. */
+  pinName: boolean;
   guidanceLabels: Record<string, string>;
   compared: ReadonlySet<string>;
   onCompare: (id: string) => void;
@@ -635,8 +660,8 @@ const BombRows = memo(function BombRows({
   return (
     <tbody>
       {rows.map(({ bomb, needed }) => (
-        <tr key={bomb.id} className="border-t border-line hover:bg-surface-2">
-          <td className="px-3 py-2">
+        <tr key={bomb.id} className="group border-t border-line hover:bg-surface-2">
+          <td className={cn("px-3 py-2", pinName && "sm:sticky sm:left-0 sm:z-[5] bg-surface group-hover:bg-surface-2")}>
             <div className="flex items-center gap-2.5">
               <CompareToggle
                 on={compared.has(bomb.id)}
@@ -834,7 +859,7 @@ function SortTh({
   return (
     <th
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={cn("font-normal px-3 py-2", align === "right" && "text-right", className)}
+      className={cn("font-normal px-3 py-2", align === "right" ? "text-right" : "text-left", className)}
     >
       <button
         type="button"

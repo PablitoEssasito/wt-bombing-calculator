@@ -1,6 +1,20 @@
 import type { Bomb, BombKind } from "./types";
 
 /**
+ * A sheet row as the sheet printed it — undoing what an import overruled with
+ * the game's figures (`sheet`). What the import matches against, so it never
+ * steers by its own last answer, and what the planner compares a plan with.
+ */
+export function sheetView(bomb: Bomb): Bomb {
+  const row: Bomb = { ...bomb, ...bomb.sheet };
+  delete row.sheet;
+  delete row.damageSource;
+  delete row.guidance;
+  delete row.aliasOf;
+  return row;
+}
+
+/**
  * Whether a weapon gets a row in the armament chart, and a page, at all.
  *
  * Everything the game's own files catalogue does — an air-to-air missile or

@@ -230,6 +230,13 @@ describe("the armament table, the game's files over the sheet", () => {
     expect(rewardDamageOf(bombsById.get("mk-82")!)).toBe(2464);
   });
 
+  it("gives a loadout of estimates alone no reward multiplier, not the sheet's", () => {
+    // The Tornado GR.4's three PGM 2000s: an estimate each, the sheet's 6.9 counts them.
+    const tornado = aircraft.find((plane) => plane.id === "britain-tornado-gr-4")!;
+    expect(tornado.options[1].rewardMultiplier).toBeNull();
+    expect(tornado.options[0].rewardMultiplier).not.toBeNull();
+  });
+
   it("reads each weapon's figures as the game's tooltip shows them", () => {
     // Against the in-game tooltip: 710 kg, TV+IOG+GNSS, 230 km, 0.9 M, 825 s,
     // PBXN-3, 70.5 kg, 90.95 kg TNT, SAP-HE.

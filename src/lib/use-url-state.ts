@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 export type UrlCodec<T> = {
   fallback: T;
@@ -55,16 +55,20 @@ const readServerSearch = () => "";
  */
 export function useUrlState<T>(key: string, codec: UrlCodec<T>): [T, (value: T) => void] {
   const search = useSyncExternalStore(subscribe, readSearch, readServerSearch);
-  return [valueIn(search, key, codec), (next: T) => writeUrlState(key, codec, next)];
+  const raw = new URLSearchParams(search).get(key);
+  // Parsed once per value of the parameter, so a set or a list keeps its
+  // identity while other parameters change — for memo dependencies and
+  // useDeferredValue. Needs a codec made once, outside the component.
+  const value = useMemo(() => parsed(raw, codec), [raw, codec]);
+  return [value, (next: T) => writeUrlState(key, codec, next)];
 }
 
-function valueIn<T>(search: string, key: string, codec: UrlCodec<T>): T {
-  const raw = new URLSearchParams(search).get(key);
-  return raw === null ? codec.fallback : (codec.parse(raw) ?? codec.fallback);
-}
+const parsed = <T,>(raw: string | null, codec: UrlCodec<T>): T =>
+  raw === null ? codec.fallback : (codec.parse(raw) ?? codec.fallback);
 
 /** A parameter's value right now — for a handler that must not change with every render. */
-export const readUrlState = <T,>(key: string, codec: UrlCodec<T>): T => valueIn(window.location.search, key, codec);
+export const readUrlState = <T,>(key: string, codec: UrlCodec<T>): T =>
+  parsed(new URLSearchParams(window.location.search).get(key), codec);
 
 /** Sets a parameter as `useUrlState`'s setter does, from anywhere. */
 export function writeUrlState<T>(key: string, codec: UrlCodec<T>, next: T) {

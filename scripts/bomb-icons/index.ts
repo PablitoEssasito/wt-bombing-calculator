@@ -84,7 +84,7 @@ async function main() {
   // A rack's icon cut back to one round can be named in no file at all and
   // still be in the atlas: every preset hangs the GBU-39 four to a BRU-61.
   for (const single of new Set(presets.map((p) => singleRoundOf(p.iconType)))) {
-    if (!known.has(single) && (await iconExists(single))) known.add(single);
+    if (!known.has(single) && (await iconExists(single, useCache))) known.add(single);
   }
   const kinds = new Map(bombs.map((b) => [b.id, b.kind]));
   let fromPresets = 0;

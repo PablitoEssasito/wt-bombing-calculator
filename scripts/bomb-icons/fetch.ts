@@ -89,10 +89,24 @@ export async function fetchIconPng(iconType: string): Promise<Buffer | null> {
   return Buffer.from(await response.arrayBuffer());
 }
 
+/** What the atlas was found to have or lack, by icon name — so a run from the cache asks none of it again. */
+const ATLAS_CACHE = path.join(CACHE_DIR, "atlas.json");
+
+let atlas: Record<string, boolean> | null = null;
+
 /** Whether the game's UI atlas has an icon by this name — already pulled, or there to pull. */
-export async function iconExists(iconType: string): Promise<boolean> {
+export async function iconExists(iconType: string, useCache: boolean): Promise<boolean> {
   if (existsSync(path.join(OUT_ICONS_DIR, `${iconType}.webp`))) return true;
+  atlas ??= existsSync(ATLAS_CACHE) ? (JSON.parse(await readFile(ATLAS_CACHE, "utf8")) as Record<string, boolean>) : {};
+  if (useCache && iconType in atlas) return atlas[iconType];
   const response = await fetch(`${RAW_BASE}/${ICON_DIR}/${iconType}.png`, { method: "HEAD" });
+  // Only a plain yes or no is remembered: a rate limit or a server error is
+  // not the atlas lacking the icon.
+  if (response.ok || response.status === 404) {
+    atlas[iconType] = response.ok;
+    await mkdir(CACHE_DIR, { recursive: true });
+    await writeFile(ATLAS_CACHE, JSON.stringify(atlas));
+  }
   return response.ok;
 }
 

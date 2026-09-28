@@ -4,8 +4,9 @@
  * Now the rows' names and ids more than their figures: the armament import
  * (scripts/armament/reconcile.ts) lays the game's own price for each rocket
  * over the `damageValue` below — `weaponDamage` in wpcost.blkx, which these
- * hand-checked figures matched for 57 of the 61 — and the figure here only
- * stands where the game prices none (the kinetic AP Mk I/II and Multi-Dart).
+ * hand-checked figures matched for 57 of the 61 — and where the game prices
+ * none, its explosion model's estimate: nothing for the kinetic AP Mk I/II and
+ * Multi-Dart, which carry no explosive. The figures here no longer reach the site.
  *
  * LEGION's Loadouts never priced rockets — its Bomb Chart only has bombs, and no
  * base-damage figure for rockets is published anywhere: not the current wiki, not

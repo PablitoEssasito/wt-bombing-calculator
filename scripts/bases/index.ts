@@ -72,6 +72,8 @@ async function main() {
       );
     }
   }
+  // Reported, not fatal: base-hp.json is written either way and base-hp.test.ts
+  // fails on the difference, so the daily import still opens its pull request.
   console.log(problems.length === 0 ? "ok    the site's base HP matches the game's templates" : "FAIL  base HP differs:");
   for (const line of problems) console.log(`        ${line}`);
 
@@ -94,7 +96,6 @@ async function main() {
       `${differ.length} of ${compared} bombs-per-base counts would change (not applied)`,
   );
   for (const line of differ.slice(0, 12)) console.log(`        ${line}`);
-  if (problems.length > 0) process.exit(1);
 }
 
 main().catch((error) => {

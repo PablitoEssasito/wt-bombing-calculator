@@ -64,6 +64,10 @@ const PAGE_SIZE = 48;
 const VIEWS = ["tiles", "list"] as const;
 
 
+// Made once, so the parsed sets keep their identity between renders.
+const TYPE_FILTER = urlStringSet(VEHICLE_TYPES);
+const REWARD_FILTER = urlStringSet(REWARD_KINDS);
+
 export function AircraftSearch({
   index,
   brSteps,
@@ -86,8 +90,8 @@ export function AircraftSearch({
   // Type and class are independent toggles, not a single choice — picking
   // Fighter and Bomber together shows both, same as picking Premium and
   // Squadron together. An empty set means no filter on that axis at all.
-  const [types, setTypes] = useUrlState("type", urlStringSet(VEHICLE_TYPES));
-  const [rewards, setRewards] = useUrlState("reward", urlStringSet(REWARD_KINDS));
+  const [types, setTypes] = useUrlState("type", TYPE_FILTER);
+  const [rewards, setRewards] = useUrlState("reward", REWARD_FILTER);
   const [sort, setSort] = useUrlState("sort", urlLiteral(SORTS, "br"));
   const [sortDir, setSortDir] = useUrlState("dir", urlLiteral(SORT_DIRS, "asc"));
   const [view, setView] = useUrlState("view", urlLiteral(VIEWS, "tiles"));

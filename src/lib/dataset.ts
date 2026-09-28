@@ -122,6 +122,10 @@ const rewardDamage = new Map(bombs.map((b) => [b.id, rewardDamageOf(b)]));
  * stays where the game's can't be had.
  */
 function gameMultiplier(plane: Aircraft, option: Aircraft["options"][number]): number | null {
+  // Only weapons the game never priced: nothing to multiply, as in the creator —
+  // not the sheet's figure, which counts their estimated damage.
+  const items = option.schedules[0]?.bases.flatMap((base) => base.items) ?? [];
+  if (items.length > 0 && items.every((item) => rewardDamage.get(item.bombId) === 0)) return null;
   const unit = economy.aircraft[plane.id];
   if (!unit || option.rewardMultiplier === null) return option.rewardMultiplier;
   const mul = loadoutRewardMul(option, (id) => rewardDamage.get(id), unit, (rewardConstantsData as RewardConstants).bombing);
@@ -500,11 +504,11 @@ export const BR_STEPS = Object.fromEntries(
 /** Every rank actually present, so a slider can snap to real values. */
 export const RANK_STEPS: number[] = [...new Set(aircraft.map((a) => a.rank))].sort((a, b) => a - b);
 
-export const bombGlyphData: BombGlyphData[] = bombs.map((b) => ({
-  id: b.id,
-  chartName: b.chartName,
-  fullName: b.fullName,
-}));
+/** Only the bombs a tile previews — not the whole armament chart, which the home page never shows. */
+const previewed = new Set(aircraftIndex.flatMap((a) => (a.preview ? [a.preview.bombId] : [])));
+export const bombGlyphData: BombGlyphData[] = bombs
+  .filter((b) => previewed.has(b.id))
+  .map((b) => ({ id: b.id, chartName: b.chartName, fullName: b.fullName }));
 
 /**
  * Aircraft and weapon names in each translated language, as the game's own

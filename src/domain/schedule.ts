@@ -1,4 +1,5 @@
 import { effectiveBaseHp } from "./base-hp";
+import { sheetView } from "./bomb-chart";
 import { BASE_BLEED, type BaseCount, type BaseHp, type GameMode } from "./constants";
 import type { Bomb, LoadoutOption, Schedule } from "./types";
 
@@ -273,9 +274,6 @@ export type Shortfall = {
   needed: { bomb: Bomb; count: number; sheetCount: number } | null;
 };
 
-/** What the sheet itself priced a bomb at, where the game's figure overrules it. */
-const sheetDamageOf = (bomb: Bomb) =>
-  bomb.sheet && "damageValue" in bomb.sheet ? bomb.sheet.damageValue ?? null : bomb.damageValue;
 
 /**
  * The bases a schedule's own count takes down (see buildPlan) that fall short
@@ -295,7 +293,7 @@ export function shortfallOf(schedule: Schedule, bombs: Map<string, Bomb>): Short
       return bomb ? [{ bomb, count: item.count }] : [];
     });
     const damage = items.reduce((sum, { bomb, count }) => sum + (bomb.damageValue ?? 0) * count, 0);
-    const sheetDamage = items.reduce((sum, { bomb, count }) => sum + (sheetDamageOf(bomb) ?? 0) * count, 0);
+    const sheetDamage = items.reduce((sum, { bomb, count }) => sum + (sheetView(bomb).damageValue ?? 0) * count, 0);
     if (damage >= threshold || sheetDamage < threshold) return;
     const only = items.length === 1 ? items[0] : null;
     shortfalls.push({

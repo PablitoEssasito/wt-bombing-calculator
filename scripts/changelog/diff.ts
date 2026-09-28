@@ -15,8 +15,13 @@ const STAT_FIELDS = [
   "explosiveMassKg",
 ] as const satisfies readonly ChangedField[];
 
-/** Masses carry the sheet's unit conversions to eight places; a change nobody could read is none. */
-const rounded = (value: number | null) => (value === null ? null : Math.round(value * 10));
+/**
+ * Masses carry the sheet's unit conversions to eight places; a change nobody
+ * could read is none. So figures compare to a tenth — a Mach number, shown to
+ * two places, to a hundredth.
+ */
+const rounded = (value: number | null, field: ChangedField) =>
+  value === null ? null : Math.round(value * (field === "machMax" ? 100 : 10));
 
 const aircraftRef =(a: Aircraft) => ({ id: a.id, name: a.name, nation: a.nation });
 const bombRef = (b: Bomb) => ({ id: b.id, name: b.fullName || b.chartName });
@@ -63,7 +68,7 @@ export function diffData(
         const old = oldBombs.get(b.id);
         if (!old) return [];
         const fields: ChangelogEntry["bombs"]["changed"][number]["fields"] = BOMB_FIELDS.filter(
-          (f) => rounded(old[f]) !== rounded(b[f]),
+          (f) => rounded(old[f], f) !== rounded(b[f], f),
         ).map((field) => ({ field, from: old[field], to: b[field] }));
         // Only where both imports read the weapon's file: a figure first read is not one that changed.
         const was = before.stats?.[b.id];
@@ -72,7 +77,7 @@ export function diffData(
           for (const field of STAT_FIELDS) {
             const from = was[field] ?? null;
             const to = is[field] ?? null;
-            if (rounded(from) !== rounded(to)) fields.push({ field, from, to });
+            if (rounded(from, field) !== rounded(to, field)) fields.push({ field, from, to });
           }
         }
         return fields.length > 0 ? [{ ...bombRef(b), fields }] : [];
@@ -123,7 +128,7 @@ export function mergeEntries(older: ChangelogEntry, newer: ChangelogEntry): Chan
         const fields = mergeById(
           o.fields.map((f) => ({ ...f, id: f.field })),
           n.fields.map((f) => ({ ...f, id: f.field })),
-          (of, nf) => (rounded(of.from) === rounded(nf.to) ? null : { ...nf, from: of.from }),
+          (of, nf) => (rounded(of.from, of.field) === rounded(nf.to, nf.field) ? null : { ...nf, from: of.from }),
         ).map(({ field, from, to }) => ({ field, from, to }));
         return fields.length > 0 ? { ...n, fields } : null;
       }),

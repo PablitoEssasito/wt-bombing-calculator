@@ -160,6 +160,9 @@ function readHowToHidden(): boolean {
   }
 }
 
+/** Made once, so the parsed build keeps its identity between renders. */
+const BUILD = urlBuild();
+
 export function LoadoutCreator({
   plane,
   armament,
@@ -186,7 +189,7 @@ export function LoadoutCreator({
   const [hp, setHp] = useUrlState("hp", urlInteger(tiers[0]));
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
   const [mapSize, setMapSize] = useUrlState("map", urlInteger(4));
-  const [rawBuild, setBuild] = useUrlState("build", urlBuild());
+  const [rawBuild, setBuild] = useUrlState("build", BUILD);
   const [unit, setUnit] = useUrlState("unit", urlLiteral(MASS_UNITS, "kg"));
   const [editing, setEditing] = useState(armament.hardpoints[0]?.index ?? 1);
   const narrow = useMediaQuery("(max-width: 639px)");

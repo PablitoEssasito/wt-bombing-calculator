@@ -18,7 +18,7 @@ export const DATAMINE_CONFIG =
 
 const CACHE = path.join(process.cwd(), ".cache", "wpcost-slim.json");
 /** Bumped whenever the cached shape changes, so a stale cache is pulled again. */
-const VERSION = 6;
+const VERSION = 7;
 
 export type WpcostWeapon = {
   /**
@@ -145,7 +145,15 @@ export async function loadWpcost(useCache: boolean): Promise<Wpcost> {
         continue;
       }
       if (!isStore(key)) {
-        if (isAir && typeof raw.weaponDamage === "number" && raw.weaponDamage > 0) unlisted.add(unit);
+        // A custom-slot weapon filed under no directory of ours (the F-4's
+        // `_mer_us_blu_1_x2_left`) keeps its price, as battle-ratings has always
+        // read it, but hangs nothing the catalogue follows. Only a priced fixed
+        // setup means what the aircraft hangs is in its flight model alone.
+        if (raw.isWeaponForCustomSlot) {
+          if (typeof raw.weaponDamage === "number") {
+            weapons[key] = { ...weapons[key], weaponDamage: raw.weaponDamage, isWeaponForCustomSlot: true, units: [] };
+          }
+        } else if (isAir && typeof raw.weaponDamage === "number" && raw.weaponDamage > 0) unlisted.add(unit);
         continue;
       }
       const weapon = isAir ? carriedBy(key, unit) : (weapons[key] ??= { units: [] });

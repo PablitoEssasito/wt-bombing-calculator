@@ -2,9 +2,10 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildModel, readCurve, zoneDamage, type BaseDamageModel } from "../../src/domain/base-damage";
-import type { WeaponStats } from "../../src/domain/types";
-import { slugifyBomb } from "../etl/aliases";
+import type { Bomb, WeaponStats } from "../../src/domain/types";
+import { normalizeBombName, slugifyBomb } from "../etl/aliases";
 import { loadWpcost, WEAPON_PREFIXES, type Wpcost, type WpcostWeapon } from "../shared/wpcost";
+import { mostCommon, sheetView } from "./reconcile";
 import { explosivesOf, guidanceOf, payloadOf, statsOf, tntOf, type Category, type Explosives } from "./stats";
 
 const RAW =
@@ -635,7 +636,6 @@ function zoneOf(armorClasses: Record<string, unknown>, explosives: Explosives) {
  */
 const samePrice = (a: number, b: number) => Math.abs(a - b) <= 1;
 
-/** The most common of a list of values, the lower one on a tie. */
 /**
  * What a round is priced at inside the fixed setups that hang it alone: the
  * setup's price over its rounds. The only price the game gives a bomb only a
@@ -672,12 +672,6 @@ async function fixedSetupShares(
     }
   }
   return shares;
-}
-
-function mostCommon(values: number[]): number {
-  const counts = new Map<number, number>();
-  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
-  return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
 }
 
 async function main() {
@@ -737,28 +731,17 @@ async function main() {
   const zone = zoneOf(await loadDamageModelFile("armor_classes", useCache), explosives);
   const allRows = JSON.parse(
     await readFile(path.join(process.cwd(), "src", "data", "bombs.json"), "utf8"),
-  ) as {
-    id: string;
-    chartName: string;
-    fullName: string;
-    massKg: number | null;
-    kind: string;
-    damageValue: number | null;
-    source?: string;
-    sheet?: { massKg?: number | null; kind?: string; damageValue?: number | null };
-  }[];
+  ) as Bomb[];
   // Only the sheet's own rows, with the sheet's own figures: rows the last
   // import made from the game alone, or figures it overruled, must not steer
   // this one's matching — it would drift from run to run.
   const chart = allRows
     .filter((row) => row.source !== "game")
+    .map(sheetView)
     .map((row) => ({
       ...row,
       chartName: CHART_NAME_CORRECTIONS[row.chartName] ?? row.chartName,
       fullName: CHART_NAME_CORRECTIONS[row.fullName] ?? row.fullName,
-      massKg: row.sheet && "massKg" in row.sheet ? (row.sheet.massKg ?? null) : row.massKg,
-      kind: row.sheet?.kind ?? row.kind,
-      damageValue: row.sheet && "damageValue" in row.sheet ? (row.sheet.damageValue ?? null) : row.damageValue,
     }));
 
   const stores: Store[] = [];
@@ -1007,7 +990,7 @@ function assignRows(
   const byName = new Map<string, Round[]>();
   for (const round of [...rounds.values()].sort((a, b) => a.file.localeCompare(b.file))) {
     if (round.bombId) continue;
-    const name = (round.name ?? round.short ?? round.file).toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const name = normalizeBombName(round.name ?? round.short ?? round.file);
     const key = [round.category, name, Math.round(round.stats.massKg ?? 0)].join("|");
     byName.set(key, [...(byName.get(key) ?? []), round]);
   }
@@ -1025,13 +1008,14 @@ function assignRows(
       else groups.push([round]);
     }
   }
-  // The plain name goes to the weapon most aircraft carry, then the one that
-  // does most to a base — not to whichever file sorts first.
-  const reach = (members: Round[]) => new Set(members.flatMap((r) => r.units)).size;
-  groups.sort(
-    (a, b) =>
-      reach(b) - reach(a) || (b[0].damage ?? -1) - (a[0].damage ?? -1) || a[0].file.localeCompare(b[0].file),
-  );
+  // Where two weapons share a name, the plain id goes to the one that does most
+  // to a base, then to the one whose file sorts first — the B61's 30 kt bomb,
+  // not the killstreak's 10 g stand-in. Not by how many aircraft carry each,
+  // which a patch moves all the time: an id (and the page, bookmarks and
+  // changelog keyed by it) passes to the other weapon only if a patch reprices
+  // one past the other.
+  const firstFile = (members: Round[]) => members.map((round) => round.file).sort()[0];
+  groups.sort((a, b) => (b[0].damage ?? -1) - (a[0].damage ?? -1) || firstFile(a).localeCompare(firstFile(b)));
   for (const members of groups) {
     const [first] = members;
     let id = slugifyBomb(first.short ?? first.name ?? first.file);

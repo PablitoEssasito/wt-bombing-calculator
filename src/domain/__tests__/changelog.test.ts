@@ -98,6 +98,15 @@ describe("diffData on a weapon's own figures", () => {
     ]);
   });
 
+  it("reads a Mach number to the hundredth it is shown to", () => {
+    const entry = diffData(
+      { aircraft: [], bombs: [kd88], stats: { "kd-88": { machMax: 0.85 } } },
+      { aircraft: [], bombs: [kd88], stats: { "kd-88": { machMax: 0.9 } } },
+      label,
+    );
+    expect(entry?.bombs.changed[0].fields).toEqual([{ field: "machMax", from: 0.85, to: 0.9 }]);
+  });
+
   it("says nothing of figures read for the first time, or where an import predates them", () => {
     const now = { aircraft: [], bombs: [kd88], stats: { "kd-88": { launchRangeM: 230000 } } };
     expect(diffData({ aircraft: [], bombs: [kd88], stats: {} }, now, label)).toBeNull();

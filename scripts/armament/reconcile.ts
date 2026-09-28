@@ -16,15 +16,7 @@ import type { Round } from "./stores";
 type SheetFigures = NonNullable<Bomb["sheet"]>;
 const OVERRULED = ["kind", "massKg", "massLabel", "tntKg", "damageValue", "efficiency"] as const satisfies readonly (keyof SheetFigures)[];
 
-/** A sheet row as the sheet printed it — undoing what a previous import overruled. */
-export function sheetView(bomb: Bomb): Bomb {
-  const row: Bomb = { ...bomb, ...bomb.sheet };
-  delete row.sheet;
-  delete row.damageSource;
-  delete row.guidance;
-  delete row.aliasOf;
-  return row;
-}
+export { sheetView } from "../../src/domain/bomb-chart";
 
 /** The seeker a guided bomb's kind follows. */
 const KIND_OF_SEEKER: Record<string, BombKind> = { laser: "LAS", ir: "IR", tv: "TV", sns: "GNSS" };
@@ -40,7 +32,8 @@ function agreed<T>(values: T[], same: (a: T, b: T) => boolean = (a, b) => a === 
   return values.every((value) => same(value, values[0])) ? values[0] : undefined;
 }
 
-function mostCommon(values: number[]): number {
+/** The most common of a list of values, the lower one on a tie. */
+export function mostCommon(values: number[]): number {
   const counts = new Map<number, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];

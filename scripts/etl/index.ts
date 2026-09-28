@@ -76,7 +76,6 @@ async function main() {
     sheetVersion: await readSheetVersion(),
     generatedAt: new Date().toISOString(),
     aircraftCount: aircraft.length,
-    bombCount: bombs.length,
   };
 
   if (key) {

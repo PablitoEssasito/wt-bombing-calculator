@@ -22,6 +22,7 @@ const nameOf = (row: Pick<CompareRow, "chartName" | "fullName">) => row.chartNam
 
 /** How many search matches to offer at once. */
 const MATCHES = 8;
+const IDS = urlList();
 
 type Row = { key: string; label: string; cells: (FigureLine | null)[] };
 
@@ -40,7 +41,7 @@ export function WeaponCompare({
   words: { groups: Record<FigureGroup, string>; fireRate: string; nuclearYield: string };
 }) {
   const { m, number, fill, path } = useI18n();
-  const [ids, setIds] = useUrlState("ids", urlList());
+  const [ids, setIds] = useUrlState("ids", IDS);
   const [data, setData] = useState<CompareData | null>(null);
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState("");

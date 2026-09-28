@@ -27,12 +27,13 @@ const hasWikiCache = existsSync(WIKI_CACHE);
  * actually occur in the data.
  */
 /** Every fixture unit is plain tech-tree unless a test says otherwise. */
-const unit = (id: string, name: string, country: string, rewardKind: 0 | 1 | 2 = 0): WikiUnit => ({
+const unit = (id: string, name: string, country: string, rewardKind: 0 | 1 | 2 = 0, br: number | null = null): WikiUnit => ({
   id,
   name,
   country,
   rewardKind,
   vehicleType: null,
+  br,
 });
 
 const UNITS: WikiUnit[] = [
@@ -51,6 +52,16 @@ const UNITS: WikiUnit[] = [
   unit("f-4ej_adtw", "F-4EJ ADTW", "japan"),
   unit("f-4ej_kai", "F-4EJ Kai Phantom II", "japan"),
   unit("mig_29m", "MiG-29M (9-15)", "ussr", 2),
+  unit("so_4050_vautour_2a", "S.O.4050 Vautour IIA", "france"),
+  unit("so_4050_vautour_2a_iaf", "Vautour IIA IDF/AF", "france", 1),
+  unit("er-2_m105_mv3", "Yer-2 (M-105)", "ussr"),
+  unit("er-2_m105r_lu2b", "Yer-2 (M-105R) LU", "ussr"),
+  unit("er-2_m105r_tat", "Yer-2 (M-105R) TAT", "ussr"),
+  unit("f_16a_block_15_belgium", "▄F-16A", "france", 0, 12.7),
+  unit("f_16a_block_5_netherlands", "◘F-16A", "france", 0, 12.3),
+  unit("f_16a_block_10_norway", "◢F-16A", "sweden"),
+  unit("harrier_frs1", "Sea Harrier FRS.1", "britain", 2, 11),
+  unit("harrier_frs1_early", "Sea Harrier FRS.1 (e)", "britain", 0, 10.7),
 ];
 
 const find = (name: string, nation: string) =>
@@ -123,13 +134,80 @@ describe("matchAircraft", () => {
     // beats a tile with no picture at all.
     const { matches, unmatched } = matchAircraft(
       [
-        { id: "a", name: "Lancaster", nation: "britain" },
-        { id: "b", name: "Lancaster", nation: "britain" },
+        { id: "a", name: "Pe-8", nation: "ussr" },
+        { id: "b", name: "Pe-8", nation: "ussr" },
       ],
       UNITS,
     );
     expect(unmatched).toEqual([]);
     expect(matches.get("a")?.unit.id).toBe(matches.get("b")?.unit.id);
+  });
+
+  it("gives two rows of one name a unit each where the game has two", () => {
+    // France's two "F-16A": the Belgian at 12.7 and the Dutch at 12.3, in either order.
+    const twins = [
+      { id: "a", name: "F-16A", nation: "france", br: 12.3 },
+      { id: "b", name: "F-16A", nation: "france", br: 12.7 },
+    ];
+    for (const rows of [twins, [...twins].reverse()]) {
+      const { matches } = matchAircraft(rows, UNITS);
+      expect(matches.get("a")?.unit.id).toBe("f_16a_block_5_netherlands");
+      expect(matches.get("b")?.unit.id).toBe("f_16a_block_15_belgium");
+    }
+    // A third shares one of France's rather than take Sweden's Norwegian F-16A.
+    const third = matchAircraft([...twins, { id: "c", name: "F-16A", nation: "france" }], UNITS).matches;
+    expect(third.get("c")?.unit.country).toBe("france");
+    // The same for two rows only a guess can place.
+    const lancasters = matchAircraft(
+      [
+        { id: "a", name: "Lancaster", nation: "britain" },
+        { id: "b", name: "Lancaster", nation: "britain" },
+      ],
+      UNITS,
+    ).matches;
+    expect(lancasters.get("a")?.unit.id).not.toBe(lancasters.get("b")?.unit.id);
+  });
+
+  it("tells two rows only a guess can place apart by the sheet's battle rating", () => {
+    const { matches } = matchAircraft(
+      [
+        { id: "early", name: "Sea Harrier FRS", nation: "britain", br: 10.7 },
+        { id: "late", name: "Sea Harrier FRS", nation: "britain", br: 11 },
+      ],
+      UNITS,
+    );
+    expect(matches.get("early")?.unit.id).toBe("harrier_frs1_early");
+    expect(matches.get("late")?.unit.id).toBe("harrier_frs1");
+  });
+
+  it("tells a premium row from a researched one of the same name", () => {
+    // The name alone lands the researched Vautour IIA on the premium IDF/AF by prefix.
+    const { matches } = matchAircraft(
+      [
+        { id: "tree", name: "Vautour IIA", nation: "france", category: "tt-bomber" },
+        { id: "bought", name: "Vautour IIA IDF", nation: "france", category: "premium-bomber" },
+      ],
+      UNITS,
+    );
+    expect(matches.get("tree")?.unit.id).toBe("so_4050_vautour_2a");
+    expect(matches.get("bought")?.unit.id).toBe("so_4050_vautour_2a_iaf");
+  });
+
+  it("takes a shorter wiki name only when nothing longer fits", () => {
+    expect(find("Yer-2 (M-105R)", "ussr")?.unit.id).toBe("er-2_m105r_lu2b");
+    expect(find("Yer-2 (M-105)", "ussr")?.unit.id).toBe("er-2_m105_mv3");
+  });
+
+  it("lets a row's exact name win over a looser rule on an earlier row", () => {
+    // "F-4EJ AD" alone takes the ADTW by prefix; the row naming it exactly keeps it.
+    const { matches } = matchAircraft(
+      [
+        { id: "loose", name: "F-4EJ AD", nation: "japan" },
+        { id: "exact", name: "F-4EJ ADTW", nation: "japan" },
+      ],
+      UNITS,
+    );
+    expect(matches.get("exact")?.unit.id).toBe("f-4ej_adtw");
   });
 
   it("reports an aircraft the wiki simply does not have", () => {
@@ -142,7 +220,7 @@ describe("parseUnitList", () => {
   it("reads the table the wiki embeds in its aviation page", () => {
     const html = `<script>window.WT_UnitList = '[["a-20g","A-20G-25","usa",2,{}]]';</script>`;
     expect(parseUnitList(html)).toEqual([
-      { id: "a-20g", name: "A-20G-25", country: "usa", rewardKind: 0, vehicleType: null },
+      { id: "a-20g", name: "A-20G-25", country: "usa", rewardKind: 0, vehicleType: null, br: null },
     ]);
   });
 
@@ -154,6 +232,11 @@ describe("parseUnitList", () => {
       `]';</script>`;
     const units = parseUnitList(html);
     expect(units.map((u) => u.rewardKind)).toEqual([1, 2]);
+  });
+
+  it("reads the Air RB battle rating off the economic ranks", () => {
+    const html = `<script>window.WT_UnitList = '[["harrier_frs1","Sea Harrier FRS.1","britain",7,{"ab":31,"rb":30},2,[],[]]]';</script>`;
+    expect(parseUnitList(html)[0].br).toBe(11);
   });
 
   it("reads the aircraft's class off the row's eighth field", () => {

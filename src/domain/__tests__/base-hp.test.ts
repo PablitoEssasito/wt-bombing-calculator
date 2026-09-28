@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import baseHpData from "../../data/base-hp.json";
 import bombs from "../../data/bombs.json";
 import { baseHpForBr, bombsNeeded, effectiveBaseHp, reachableBaseHps } from "../base-hp";
+import { sheetView } from "../bomb-chart";
 import { BASE_HP_BRACKETS, BASE_HP_TIERS, THREE_BASE_HP } from "../constants";
 import type { Bomb } from "../types";
 
@@ -49,8 +50,7 @@ describe("bombsNeeded", () => {
    */
   it("reproduces every count printed in the source chart", () => {
     // Against the damage the chart itself printed, where the game's files have since overruled it.
-    const sheetDamage = (bomb: (typeof chart)[number]) =>
-      bomb.sheet && "damageValue" in bomb.sheet ? bomb.sheet.damageValue! : bomb.damageValue;
+    const sheetDamage = (bomb: (typeof chart)[number]) => sheetView(bomb).damageValue;
     const priced = chart.filter((b) => b.sheetCounts && sheetDamage(b) !== null);
     expect(priced.length).toBeGreaterThan(150);
 

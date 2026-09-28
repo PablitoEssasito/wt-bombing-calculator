@@ -24,12 +24,22 @@ export type WikiUnit = {
   rewardKind: 0 | 1 | 2;
   /** Null for the handful of rows whose class the wiki itself leaves unset. */
   vehicleType: VehicleType | null;
+  /** Air RB battle rating, off the wiki's economic rank; null where it gives none. */
+  br: number | null;
 };
 
 export type SheetAircraft = {
   id: string;
   name: string;
   nation: string;
+  /** The sheet's section: "premium-…" for a bought aircraft, "tt-…" for one researched — squadron vehicles among them. */
+  category?: string;
+  /**
+   * The battle rating aircraft.json holds when this runs: the sheet's, as
+   * `npm run data` runs etl just before; after battle-ratings, the last matched
+   * unit's — so rerun etl first when rematching on its own.
+   */
+  br?: number;
 };
 
 export type MatchMethod =
@@ -57,6 +67,7 @@ export const NAME_ALIASES: Record<string, string> = {
   "Mirage 2K-RMV": "Mirage 2000D-RMV",
   "Tu-2S-44": "Tu-2S (1)",
   "Tu-2S-59": "Tu-2S (8)",
+  "Tornado IDS'95": "Tornado IDS (1995)",
 };
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -109,21 +120,53 @@ function candidatesFor(
   const needed = tokenize(name);
   const pool = byNation.get(plane.nation) ?? [];
 
-  return {
+  const candidates: Candidates = {
     exact: pool.filter((u) => u.key === key),
     prefix: pool.filter((u) => key.length >= 3 && u.key.startsWith(key)),
     tokens: pool.filter((u) => covers(needed, u.tokens)),
     reverse: pool.filter((u) => u.key.length >= 4 && key.startsWith(u.key)),
     foreign: prepared.filter((u) => u.key === key),
   };
+  // Where a name fits a premium and a researched unit alike, the sheet's section
+  // decides: its premium "Vautour IIA IDF" is the Vautour IIA IDF/AF, and its
+  // researched "Vautour IIA" the S.O.4050, not the premium the prefix rule
+  // lands on first. The sheet files squadron vehicles with the researched.
+  // Within the row's own nation only: another nation's premium of the same
+  // name says nothing about which of this one's units the row means.
+  if (plane.category === undefined) return candidates;
+  const premium = plane.category.startsWith("premium");
+  const fits = (u: Prepared) => (u.rewardKind === 1) === premium;
+  const own = [candidates.exact, candidates.prefix, candidates.tokens, candidates.reverse];
+  if (!own.some((list) => list.some(fits))) return candidates;
+  return {
+    exact: candidates.exact.filter(fits),
+    prefix: candidates.prefix.filter(fits),
+    tokens: candidates.tokens.filter(fits),
+    reverse: candidates.reverse.filter(fits),
+    foreign: candidates.foreign,
+  };
 }
 
-/** A rule that landed on exactly one candidate, which is as sure as this gets. */
+/**
+ * The row's name exactly, among units no other row has claimed — two of them
+ * told apart by the sheet's battle rating, whichever row comes first: France's
+ * "F-16A" at 12.7 is the Belgian one, at 12.3 the Dutch.
+ */
+function exactMatch(c: Candidates, taken: ReadonlySet<string>, br: number | undefined): Match | null {
+  const free = c.exact.filter((u) => !taken.has(u.id));
+  const unit = free.find((u) => br !== undefined && u.br === br) ?? free[0];
+  return unit ? { unit, method: "exact" } : null;
+}
+
+/** A looser rule that landed on exactly one candidate, which is as sure as this gets. */
 function confidentMatch(c: Candidates): Match | null {
-  if (c.exact.length > 0) return { unit: c.exact[0], method: "exact" };
   if (c.prefix.length === 1) return { unit: c.prefix[0], method: "prefix" };
   if (c.tokens.length === 1) return { unit: c.tokens[0], method: "tokens" };
-  if (c.reverse.length === 1) return { unit: c.reverse[0], method: "reverse" };
+  // A shorter wiki name only when nothing longer fits: "Yer-2 (M-105R)" is one
+  // of the two M-105R units, not the M-105 its name happens to start with.
+  if (c.reverse.length === 1 && c.prefix.length === 0 && c.tokens.length === 0) {
+    return { unit: c.reverse[0], method: "reverse" };
+  }
   return null;
 }
 
@@ -138,19 +181,26 @@ function confidentMatch(c: Candidates): Match | null {
  * unused and two rows sharing one aircraft's hardpoints. Same story for
  * Germany's Tornado IDS, which reached across to Italy's.
  */
-function fallbackMatch(c: Candidates, taken: ReadonlySet<string>): Match | null {
+function fallbackMatch(c: Candidates, taken: ReadonlySet<string>, br: number | undefined): Match | null {
   const free = (list: Prepared[]) => list.filter((u) => !taken.has(u.id));
 
-  const foreign = free(c.foreign);
-  if (foreign.length > 0) return { unit: foreign[0], method: "cross-nation" };
+  // Not for a row its own nation has the name for, every such unit taken: it
+  // shares one of those rather than take another nation's aircraft's pylons.
+  if (c.exact.length === 0) {
+    const foreign = free(c.foreign);
+    if (foreign.length > 0) return { unit: foreign[0], method: "cross-nation" };
+  }
 
   // Several fit. The shortest name is the plain variant the sheet means when
   // it does not say otherwise.
   const spare = free([...c.tokens, ...c.prefix]);
   // Nothing left unclaimed: better a picture shared with another row than none,
-  // which is the case for the two Sea Harrier FRS rows on one unit.
-  const pool = spare.length > 0 ? spare : [...c.tokens, ...c.prefix];
-  const fallback = [...pool].sort((a, b) => a.key.length - b.key.length)[0];
+  // which is the case for France's two F-16AM rows and the game's one F-16AM.
+  const pool = spare.length > 0 ? spare : c.exact.length > 0 ? c.exact : [...c.tokens, ...c.prefix];
+  // The sheet's battle rating tells two such units apart: its "Sea Harrier FRS"
+  // at 10.7 is the FRS.1 (e), the one at 11.0 the squadron's FRS.1.
+  const atBr = pool.filter((u) => br !== undefined && u.br === br);
+  const fallback = [...(atBr.length > 0 ? atBr : pool)].sort((a, b) => a.key.length - b.key.length)[0];
   return fallback ? { unit: fallback, method: "ambiguous" } : null;
 }
 
@@ -180,23 +230,34 @@ export function matchAircraft(
 
   const matches = new Map<string, Match>();
   const claimed = new Set<string>();
-  const pending: SheetAircraft[] = [];
-
-  for (const plane of aircraft) {
-    const match = confidentMatch(candidates.get(plane.id)!);
-    if (!match) {
-      pending.push(plane);
-      continue;
-    }
+  const claim = (plane: SheetAircraft, match: Match) => {
     matches.set(plane.id, match);
     claimed.add(match.unit.id);
+  };
+
+  // Exact names first, so a looser rule on an earlier row cannot take a unit a
+  // later row names outright; a second row of one name gets the other unit of
+  // that name, not the first row's again.
+  for (const plane of aircraft) {
+    const match = exactMatch(candidates.get(plane.id)!, claimed, plane.br);
+    if (match) claim(plane, match);
+  }
+  for (const plane of aircraft) {
+    const c = candidates.get(plane.id)!;
+    if (matches.has(plane.id) || c.exact.length > 0) continue;
+    const match = confidentMatch(c);
+    if (match && !claimed.has(match.unit.id)) claim(plane, match);
   }
 
   const unmatched: SheetAircraft[] = [];
-  for (const plane of pending) {
-    const match = fallbackMatch(candidates.get(plane.id)!, claimed);
-    if (match) matches.set(plane.id, match);
-    else unmatched.push(plane);
+  for (const plane of aircraft.filter((p) => !matches.has(p.id))) {
+    const match = fallbackMatch(candidates.get(plane.id)!, claimed, plane.br);
+    if (!match) {
+      unmatched.push(plane);
+      continue;
+    }
+    // Claimed too, so the two "Sea Harrier FRS" rows take a unit each.
+    claim(plane, match);
   }
 
   return { matches, unmatched };
@@ -219,6 +280,8 @@ export function parseUnitList(html: string): WikiUnit[] {
   return rows.map((row) => {
     const [id, name, country] = row as [string, string, string];
     const rewardKind = row[5];
+    // Index 4 is the economic rank per mode; a battle rating is rank / 3 + 1.
+    const rb = (row[4] as { rb?: unknown } | undefined)?.rb;
     const classSlug = (row[7] as [[string, string, string]] | undefined)?.[0]?.[0];
     return {
       id,
@@ -226,6 +289,7 @@ export function parseUnitList(html: string): WikiUnit[] {
       country,
       rewardKind: (typeof rewardKind === "number" ? rewardKind : 0) as 0 | 1 | 2,
       vehicleType: isVehicleType(classSlug) ? classSlug : null,
+      br: typeof rb === "number" ? Math.round((rb / 3 + 1) * 10) / 10 : null,
     };
   });
 }

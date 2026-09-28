@@ -70,9 +70,10 @@ export type Bomb = {
   tntKg: number | null;
   /**
    * Damage one of these does to a base, in base hitpoints: the game's own price
-   * wherever it states one, else the sheet's figure, else an estimate from the
-   * game's explosion model. `damageSource` says which. Null for what cannot hurt a base
-   * at all as far as anything says — air-to-air missiles, guns.
+   * wherever it states one — the weapon's, or a fixed setup's over its rounds —
+   * else an estimate from the game's explosion model; never the sheet's figure.
+   * `damageSource` says which. Null for what cannot hurt a base at all as far as
+   * anything says — air-to-air missiles, guns.
    */
   damageValue: number | null;
   damageSource?: DamageSource;
@@ -216,10 +217,6 @@ export type BattleMode = (typeof BATTLE_MODES)[number];
 type AircraftRef = { id: string; name: string; nation: Nation };
 type BombRef = { id: string; name: string };
 
-/**
- * What one import changed, worked out by `npm run changelog` from the data it
- * replaced — see scripts/changelog/diff.ts.
- */
 /** A weapon's figure a changelog entry reports: its row's, or one off its own file (armament-stats.json). */
 export type ChangedField =
   | "damageValue"
@@ -231,6 +228,10 @@ export type ChangedField =
   | "maxSpeedMs"
   | "explosiveMassKg";
 
+/**
+ * What one import changed, worked out by `npm run changelog` from the data it
+ * replaced — see scripts/changelog/diff.ts.
+ */
 export type ChangelogEntry = {
   /** The day that patch went live, YYYY-MM-DD — the import's own date where it cannot be found. */
   date: string;
@@ -261,5 +262,4 @@ export type Meta = {
   sheetVersion: string | null;
   generatedAt: string;
   aircraftCount: number;
-  bombCount: number;
 };
