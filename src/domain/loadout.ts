@@ -463,6 +463,43 @@ export function buildFor(
   wanted: { bombId: string; count: number }[],
   standsIn: (bombId: string, forBombId: string) => boolean,
 ): Build | null {
+  const limits = armament.maxLoadKg === null ? [null] : [armament.maxLoadKg, null];
+  const attempts = limits.flatMap((limitKg) =>
+    Array.from({ length: MAX_OVERSHOOT + 1 }, (_, overshoot) => ({ limitKg, overshoot })),
+  );
+  return hangIn(armament, wanted, standsIn, attempts, false);
+}
+
+/**
+ * A build within the load limit that carries `wanted` — exactly where `exact`,
+ * else with the fewest spare rounds the racks force — or null where none does.
+ * Unlike `buildFor` it never falls back to going over the limit, and it throws
+ * rather than answer when a search gives up (`SEARCH_LIMIT`): what the import
+ * decides an aircraft can carry must never be a "no" that only meant "too hard
+ * to tell".
+ */
+export function carriedWithin(
+  armament: Armament,
+  wanted: { bombId: string; count: number }[],
+  standsIn: (bombId: string, forBombId: string) => boolean,
+  exact: boolean,
+): Build | null {
+  const overshoots = exact ? [0] : Array.from({ length: MAX_OVERSHOOT + 1 }, (_, overshoot) => overshoot);
+  const attempts = overshoots.map((overshoot) => ({ limitKg: armament.maxLoadKg, overshoot }));
+  return hangIn(armament, wanted, standsIn, attempts, true);
+}
+
+/** One try of the search: under which load limit, with how many spare rounds allowed. */
+type Attempt = { limitKg: number | null; overshoot: number };
+
+/** The two passes of `buildFor` — see there — over the given tries, in order. */
+function hangIn(
+  armament: Armament,
+  wanted: { bombId: string; count: number }[],
+  standsIn: (bombId: string, forBombId: string) => boolean,
+  attempts: Attempt[],
+  strict: boolean,
+): Build | null {
   const hung = new Set(
     armament.hardpoints.flatMap((hardpoint) =>
       hardpoint.options.flatMap((option) => option.stores.flatMap(({ store }) => (store.bomb ? [store.bomb.id] : []))),
@@ -471,21 +508,24 @@ export function buildFor(
   const named = [...new Set(wanted.map((w) => w.bombId))];
   const unhung = named.filter((bombId) => !hung.has(bombId));
   return (
-    hangAs(armament, wanted, standsIn, unhung) ??
-    (unhung.length < named.length ? hangAs(armament, wanted, standsIn, named) : null)
+    hangAs(armament, wanted, standsIn, unhung, attempts, strict) ??
+    (unhung.length < named.length ? hangAs(armament, wanted, standsIn, named, attempts, strict) : null)
   );
 }
 
 /**
  * `buildFor` with a variant let stand in for any of `standInFor`: what a
  * store's bomb counts towards is itself where it is wanted by name, else the
- * one of those it may stand in for, else nothing.
+ * one of those it may stand in for, else nothing. `strict` throws where a
+ * search gives up instead of taking that for "no".
  */
 function hangAs(
   armament: Armament,
   wanted: { bombId: string; count: number }[],
   standsIn: (bombId: string, forBombId: string) => boolean,
   standInFor: string[],
+  attempts: Attempt[],
+  strict: boolean,
 ): Build | null {
   const keyOf = (bombId: string) =>
     wanted.some((w) => w.bombId === bombId)
@@ -532,7 +572,10 @@ function hangAs(
     let steps = 0;
 
     const visit = (i: number, left: number[], spare: number, kg: number): boolean => {
-      if (++steps > SEARCH_LIMIT) return false;
+      if (++steps > SEARCH_LIMIT) {
+        if (strict) throw new Error(`A hardpoint search gave up after ${SEARCH_LIMIT} steps`);
+        return false;
+      }
       if (left.every((n) => n <= 0)) return true;
       if (i === candidates.length || left.some((n, k) => n > room[i][k])) return false;
       const binding = [...chosen].map(([slot, name]) => `${slot}:${name}`).filter((pick) => ruled.has(pick));
@@ -564,11 +607,9 @@ function hangAs(
     return visit(0, keys.map((key) => target.get(key)!), 0, 0) ? new Map(chosen) : null;
   };
 
-  for (const limitKg of armament.maxLoadKg === null ? [null] : [armament.maxLoadKg, null]) {
-    for (let overshoot = 0; overshoot <= MAX_OVERSHOOT; overshoot++) {
-      const build = search(overshoot, limitKg);
-      if (build) return build;
-    }
+  for (const { limitKg, overshoot } of attempts) {
+    const build = search(overshoot, limitKg);
+    if (build) return build;
   }
   return null;
 }

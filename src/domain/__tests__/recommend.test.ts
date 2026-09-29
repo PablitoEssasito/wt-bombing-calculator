@@ -178,6 +178,19 @@ describe("what the planner offers first, against the real sheet", () => {
     expect(pick.option.noteMarker).toBe("star");
   });
 
+  it("offers the Japanese B-17E both its setups for two bases, and takes the one that pays more", () => {
+    // The sheet's plan hangs no setup of the game's; twelve 500-pounders and six
+    // 1000-pounders are both setups of it that bring two bases down at 16 000 HP.
+    const plane = aircraft.find((a) => a.id === "japan-b-17e")!;
+    const candidates = evaluate(plane, 16000);
+    expect(candidates.map((c) => c.basesDestroyed)).toEqual([2, 2]);
+    const pick = defaultPick(plane, 16000);
+    expect(pick.rewardMultiplier).toBe(Math.max(...candidates.map((c) => c.rewardMultiplier ?? 0)));
+    expect(pick.option.gameSetup).toBe(true);
+    // Where the sheet's own plan brings down more, that one leads.
+    expect(defaultPick(plane, 10000).option.gameSetup).toBeUndefined();
+  });
+
   it("gives the F-5E its one-base loadout, the only one not argued against", () => {
     const pick = defaultPick(find("F-5E"), 25900);
     expect(pick.option.discouraged).toBe(false);

@@ -1,9 +1,12 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { NATIONS, type Nation } from "../../src/domain/constants";
-import type { Aircraft, Bomb, Schedule } from "../../src/domain/types";
-import { variantOf } from "../../src/domain/loadout";
+import { decodeArmament, type CompactArmament } from "../../src/domain/armament-data";
+import { effectiveBaseHp } from "../../src/domain/base-hp";
+import { BASE_BLEED, NATIONS, type BaseHp, type Nation } from "../../src/domain/constants";
+import { fitsSetup, nearestCarried, nearestSetup, splitIntoBases, type Rounds, type Split } from "../../src/domain/fit";
+import type { Aircraft, Bomb, LoadoutItem, LoadoutOption, Schedule } from "../../src/domain/types";
+import { carriedWithin, variantOf } from "../../src/domain/loadout";
 import { shortfallOf } from "../../src/domain/schedule";
 import { downloadIcons } from "../bomb-icons/fetch";
 import { loadWpcost } from "../shared/wpcost";
@@ -110,9 +113,9 @@ async function loadUnit(unitId: string): Promise<UnitFiles | null> {
 }
 
 async function main() {
-  const aircraft = JSON.parse(
-    await readFile(path.join(DATA_DIR, "aircraft.json"), "utf8"),
-  ) as Aircraft[];
+  const aircraft = (JSON.parse(await readFile(path.join(DATA_DIR, "aircraft.json"), "utf8")) as Aircraft[]).map(
+    withSheetPlans,
+  );
   const unitIds = JSON.parse(
     await readFile(path.join(DATA_DIR, "images.json"), "utf8"),
   ) as Record<string, string>;
@@ -244,12 +247,14 @@ async function main() {
       : `note  ${rebound.length} bomb(s) in the sheet's plans swapped for what the aircraft hangs in the game:`,
   );
   for (const line of rebound) console.log(`        ${line}`);
-  const plans = markSetupMisfits(
+  const plans = fitPlans(
     reboundPlans,
     unitIds,
     byUnit,
     catalogue,
     new Map(bombs.map((bomb) => [bomb.id, bomb])),
+    JSON.parse(await readFile(OUT_ARMAMENT, "utf8")) as CompactArmament,
+    wpcost.presets,
   );
   await writeFile(path.join(DATA_DIR, "aircraft.json"), JSON.stringify(plans), "utf8");
 
@@ -766,95 +771,202 @@ function weighLoadouts(
 }
 
 /**
- * Holds each of the sheet's schedules for an aircraft that takes whole setups
- * against those setups, and marks the ones none of them carries
- * (`Schedule.noSetup`): one setup has to hang every bomb the schedule drops,
- * as many or more. A variant counts for the bomb it is one of (`variantOf`) —
- * the forged FAB-100sv for the plain. Aircraft with pylons are held to their
- * hardpoints where the planner's solver runs, on the load the planner shows.
+ * A plane with the sheet's own plans back where the last import put others in
+ * their place (`fitPlans`), and none of its marks or the setups it added:
+ * every import starts again from the sheet's.
  */
-function markSetupMisfits(
+function withSheetPlans(plane: Aircraft): Aircraft {
+  return {
+    ...plane,
+    options: plane.options.filter((option) => !option.gameSetup).map((option) => ({
+      ...option,
+      schedules: option.schedules.map((schedule) => {
+        const sheet: Schedule = schedule.sheetPlan ? { ...schedule, ...schedule.sheetPlan } : { ...schedule };
+        delete sheet.sheetPlan;
+        delete sheet.noSetup;
+        return sheet;
+      }),
+    })),
+  };
+}
+
+/**
+ * Holds each of the sheet's schedules to what its aircraft can carry, and puts
+ * the nearest one it can in place of one it cannot (see src/domain/fit.ts) —
+ * the sheet's own kept in `sheetPlan`, which the next import starts from again.
+ *
+ * With pylons, the plan has to hang within the load limit, the game's
+ * exclusions kept, spare rounds allowed as the racks force them — the planner's
+ * own test of it. In its place goes the part of it the hardpoints take exactly
+ * that brings down the most bases, then gives up the least damage. With fixed
+ * setups, one of them has to hang every bomb of it (`fitsSetup`); in its place
+ * goes the setup that brings down the most bases, then comes nearest it in
+ * damage — only a setup whose rounds the game's own price for it bears out to
+ * the unit (`presetPrices`, from wpcost.blkx), so a misread count never makes
+ * a plan. Bases are counted by the game's figures, never more than the sheet
+ * counts. Where nothing can be put in its place, the plan stays and the planner
+ * says it can't be hung (`Schedule.noSetup` for setups).
+ */
+function fitPlans(
   aircraft: Aircraft[],
   unitIds: Record<string, string>,
   byUnit: Record<string, Armament>,
   catalogue: StoreRecord[],
   bombs: Map<string, Bomb>,
+  hardpoints: CompactArmament,
+  presetPrices: Record<string, Record<string, number>>,
 ): Aircraft[] {
   const byFile = new Map(catalogue.map((store) => [store.file, store]));
   const nameOf = (bombId: string) => {
     const bomb = bombs.get(bombId);
     return bomb ? bomb.chartName || bomb.fullName : bombId;
   };
+  const text = (load: readonly Rounds[]) => {
+    const totals = new Map<string, number>();
+    for (const { bombId, count } of load) totals.set(bombId, (totals.get(bombId) ?? 0) + count);
+    return [...totals].map(([bombId, count]) => `${count} × ${nameOf(bombId)}`).join(", ");
+  };
+  const damageOf = (bombId: string) => bombs.get(bombId)?.damageValue ?? 0;
+  const damageOfLoad = (load: readonly Rounds[]) => load.reduce((sum, r) => sum + damageOf(r.bombId) * r.count, 0);
+  const unverified = new Set<string>();
+  const standsIn = (bombId: string, forBombId: string) => {
+    const bomb = bombs.get(bombId);
+    const of = bombs.get(forBombId);
+    return bomb !== undefined && of !== undefined && variantOf(bomb, of);
+  };
+  const thresholdOf = (baseHp: BaseHp) => effectiveBaseHp(baseHp, "rb", 4) * BASE_BLEED;
+  // A split as a schedule writes it: the bases counted, then what is left over on one more.
+  const placed = (split: Split, item: (rounds: Rounds) => LoadoutItem = (rounds) => ({ ...rounds })) => ({
+    bases: [...split.bases, ...(split.leftover.length > 0 ? [split.leftover] : [])].map((rounds) => ({
+      items: rounds.map(item),
+    })),
+    basesDestroyed: split.bases.length,
+  });
   let checked = 0;
-  const misfits: string[] = [];
+  const fitted: string[] = [];
+  const unfit: string[] = [];
+  const offered: string[] = [];
 
-  const marked = aircraft.map((plane) => {
-    const armament = byUnit[unitIds[plane.id]];
+  const out = aircraft.map((plane) => {
+    // Setups as good as the one put in a plan's place, to offer beside it: by loadout.
+    const beside: { index: number; load: Rounds[] }[] = [];
+    const unitId = unitIds[plane.id] ?? "";
+    const style = byUnit[unitId]?.style;
+    const armament = style === "pylons" ? decodeArmament(hardpoints, unitId, () => null) : null;
     const setups =
-      armament?.style === "setups"
-        ? armament.presets.map((preset) => {
-            const hung = new Map<string, number>();
-            for (const { weapon, count } of preset.weapons) {
+      style === "setups"
+        ? byUnit[unitId].presets.map((preset) => ({
+            name: preset.name,
+            rounds: preset.weapons.flatMap(({ weapon, count }): Rounds[] => {
               const bomb = byFile.get(weapon)?.bomb;
-              if (bomb) hung.set(bomb.id, (hung.get(bomb.id) ?? 0) + bomb.count * count);
-            }
-            return hung;
-          })
+              return bomb ? [{ bombId: bomb.id, count: bomb.count * count }] : [];
+            }),
+          }))
         : null;
+    // What may go in a plan's place: a setup the game prices at exactly what its rounds come to.
+    const priced = (setups ?? []).filter(({ name, rounds }) => {
+      if (rounds.length === 0) return false;
+      const price = presetPrices[unitId]?.[name];
+      const bears = price !== undefined && Math.abs(damageOfLoad(rounds) - price) < 0.5;
+      if (!bears) unverified.add(`${plane.name}: ${name}`);
+      return bears;
+    });
 
     const options = plane.options.map((option, index) => ({
       ...option,
-      schedules: option.schedules.map((schedule) => {
-        // Decided afresh on every import: the last one's mark comes in with the plan.
-        const next: Schedule = { ...schedule };
-        delete next.noSetup;
+      schedules: option.schedules.map((sheet): Schedule => {
+        if (!armament && !setups) return sheet;
         // Bases the sheet counts without writing their bombs: nothing to hold up.
-        if (!setups || (schedule.basesDestroyed ?? 0) > schedule.bases.length) return next;
+        if ((sheet.basesDestroyed ?? 0) > sheet.bases.length) return sheet;
+
+        const items = sheet.bases.flatMap((base) => base.items);
+        const load = items.map(({ bombId, count }) => ({ bombId, count }));
         checked++;
-        const wanted = new Map<string, number>();
-        for (const item of schedule.bases.flatMap((base) => base.items)) {
-          wanted.set(item.bombId, (wanted.get(item.bombId) ?? 0) + item.count);
+        const carried = armament
+          ? carriedWithin(armament, load, standsIn, false) !== null
+          : setups!.some((setup) => fitsSetup(setup.rounds, load, standsIn));
+        if (carried) return sheet;
+
+        const threshold = thresholdOf(sheet.baseHp);
+        const cap = sheet.basesDestroyed ?? Infinity;
+        const bySetup = armament
+          ? null
+          : nearestSetup(
+              priced.map((setup) => setup.rounds),
+              load,
+              damageOf,
+              threshold,
+              cap,
+            );
+        const fit = armament ? nearestCarried(armament, load, standsIn, damageOf, threshold, cap) : bySetup;
+        const where = `${plane.nation}/${plane.name} loadout ${index + 1} at ${sheet.baseHp} HP`;
+        if (!fit) {
+          unfit.push(`${where}: ${text(load)}`);
+          return setups ? { ...sheet, noSetup: true } : sheet;
         }
-        // Each bomb from its own first, then from what is left of its variants:
-        // a setup's bombs go towards one of the schedule's, not to each alike.
-        const fits = (hung: Map<string, number>) => {
-          const spare = new Map(hung);
-          const short = new Map(wanted);
-          const take = (bombId: string, counts: (id: string) => boolean) => {
-            for (const [id, n] of spare) {
-              if (!counts(id)) continue;
-              const used = Math.min(n, short.get(bombId)!);
-              spare.set(id, n - used);
-              short.set(bombId, short.get(bombId)! - used);
-            }
-          };
-          for (const bombId of wanted.keys()) take(bombId, (id) => id === bombId);
-          for (const bombId of wanted.keys()) {
-            const bomb = bombs.get(bombId);
-            take(bombId, (id) => {
-              const other = bombs.get(id);
-              return Boolean(bomb && other && variantOf(other, bomb));
-            });
-          }
-          return [...short.values()].every((n) => n === 0);
-        };
-        if (setups.some(fits)) return next;
-        misfits.push(
-          `${plane.nation}/${plane.name} loadout ${index + 1} at ${schedule.baseHp} HP: ` +
-            [...wanted].map(([bombId, count]) => `${count} × ${nameOf(bombId)}`).join(", "),
+
+        const counted = fit.split.bases.length;
+        fitted.push(`${where}: ${text(load)} (${sheet.basesDestroyed ?? "?"}) → ${text(fit.load)} (${counted})`);
+        for (const other of bySetup?.alternatives ?? []) {
+          const key = text(other.load);
+          if (!beside.some((b) => b.index === index && text(b.load) === key)) beside.push({ index, load: other.load });
+        }
+        // A bomb the import swapped in keeps the one the sheet named.
+        const sheetBombIds = new Map(
+          items.flatMap((item): [string, string][] => (item.sheetBombId ? [[item.bombId, item.sheetBombId]] : [])),
         );
-        return { ...next, noSetup: true as const };
+        const item = ({ bombId, count }: Rounds): LoadoutItem => {
+          const sheetBombId = sheetBombIds.get(bombId);
+          return sheetBombId ? { bombId, count, sheetBombId } : { bombId, count };
+        };
+        return {
+          ...sheet,
+          ...placed(fit.split, item),
+          sheetPlan: { bases: sheet.bases, basesDestroyed: sheet.basesDestroyed },
+        };
       }),
     }));
-    return { ...plane, options };
+
+    // Each as a loadout of its own, after the sheet's so theirs keep their numbers,
+    // written out for every bracket the loadout it stands beside is.
+    const added = beside.map(({ index, load }): LoadoutOption => {
+      offered.push(`${plane.nation}/${plane.name}: ${text(load)}, beside loadout ${index + 1}`);
+      return {
+        rewardMultiplier: null,
+        noteMarker: null,
+        note: null,
+        discouraged: false,
+        schedules: plane.options[index].schedules.map((sheet) => ({
+          bracket: sheet.bracket,
+          baseHp: sheet.baseHp,
+          bracketNote: sheet.bracketNote,
+          ...placed(splitIntoBases(load, damageOf, thresholdOf(sheet.baseHp), sheet.basesDestroyed ?? Infinity)),
+        })),
+        gameSetup: true,
+      };
+    });
+    return { ...plane, options: [...options, ...added] };
   });
 
   console.log(
-    `${misfits.length === 0 ? "ok   " : "warn "} ${misfits.length}/${checked} schedule(s) on aircraft with fixed ` +
-      "setups drop what none of its setups hangs, marked for the planner:",
+    `${fitted.length === 0 ? "ok   " : "note "} ${fitted.length}/${checked} plan(s) the aircraft cannot carry as ` +
+      "written, the nearest it can put in their place (bases counted by the game's figures):",
   );
-  for (const line of misfits) console.log(`        ${line}`);
-  return marked;
+  for (const line of fitted) console.log(`        ${line}`);
+  if (offered.length > 0) {
+    console.log(`note  ${offered.length} more of the game's setup(s) as good, offered as loadouts of their own:`);
+    for (const line of offered) console.log(`        ${line}`);
+  }
+  if (unfit.length > 0) {
+    console.log(`warn  ${unfit.length} plan(s) nothing can be put in place of, kept for the planner to flag:`);
+    for (const line of unfit) console.log(`        ${line}`);
+  }
+  if (unverified.size > 0) {
+    console.log(
+      `note  ${unverified.size} fixed setup(s) whose rounds no price of the game's bears out, never put in a plan's place`,
+    );
+  }
+  return out;
 }
 
 /**

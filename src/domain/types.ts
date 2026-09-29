@@ -180,9 +180,18 @@ export type Schedule = {
    */
   rewardMultiplier?: number | null;
   /**
+   * The sheet's own plan, where the aircraft cannot carry it as written and
+   * the import put the nearest one it can in its place (scripts/armament, see
+   * src/domain/fit.ts): for pylons, the part of it the hardpoints take exactly
+   * that brings down the most bases; for fixed setups, the game's setup that
+   * does. Kept so every import starts again from the sheet's.
+   */
+  sheetPlan?: { bases: BaseLoadout[]; basesDestroyed: number | null };
+  /**
    * For an aircraft that takes whole setups only: none of them carries this
-   * payload (scripts/armament). One with pylons is held to them where the
-   * planner shows a load, since a load cut down to fewer bases may fit.
+   * payload and none hangs a bomb to put in its place (scripts/armament). One
+   * with pylons is held to them where the planner shows a load, since a load
+   * cut down to fewer bases may fit.
    */
   noSetup?: true;
 };
@@ -219,6 +228,13 @@ export type LoadoutOption = {
   discouraged: boolean;
   /** One entry per BR bracket this loadout is described for, lowest first. */
   schedules: Schedule[];
+  /**
+   * Not one of the sheet's: another of the game's fixed setups that brings
+   * down as many bases as the one put in place of a plan the aircraft cannot
+   * carry (scripts/armament `fitPlans`), so the planner can offer both and
+   * take whichever pays more. Dropped and worked out again on every import.
+   */
+  gameSetup?: true;
 };
 
 export type Aircraft = {

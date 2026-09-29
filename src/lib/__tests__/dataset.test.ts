@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import statsData from "../../data/armament-stats.json";
 import { rewardDamageOf } from "../../domain/bomb-chart";
 import { NATIONS } from "../../domain/constants";
-import type { WeaponStats } from "../../domain/types";
-import { bombsIn, buildFor, variantOf, violationsOf } from "../../domain/loadout";
+import type { BaseLoadout, WeaponStats } from "../../domain/types";
+import { bombsIn, buildFor, carriedWithin, variantOf, violationsOf } from "../../domain/loadout";
+import { splitIntoBases } from "../../domain/fit";
+import { buildPlan } from "../../domain/schedule";
 import {
   aircraft,
   aircraftCarrying,
@@ -400,45 +402,141 @@ describe("buildFor against the sheet", () => {
         }
       });
     }
-    // The sheet's own mistakes against the game's files: eight HVARs beside two
-    // 1000-pounders where the P-51D's shared stations leave room for six, the
-    // Me 210's "SB200" (a Swiss bomb), five Flam C 250s on the Ju 88 A-4's four
-    // stations, loads past what the airframe lifts. The planner says so over
-    // each (see `hangNote`); listed so a new one is noticed — see TODOBYDEV.
-    expect(cannot).toEqual([
-      "usa-p-47n-15 1@10000 over the limit",
-      "usa-p-47n-15 1@16000 over the limit",
-      "usa-p-51d-20-na 1@10000",
-      "usa-p-51d-20-na 1@16000",
-      "usa-a-1h 1@16000",
-      "usa-a-1h 3@16000 over the limit",
-      "usa-a-1h 3@22000 over the limit",
-      "germany-me-210a-1 1@10000",
-      "germany-ju-88-a-4 1@10000",
-      "germany-ju-188-a-2 2@16000 over the limit",
-      "ussr-su-6 1@10000 over the limit",
-      "britain-wirraway 1@4000 over the limit",
-      "britain-wirraway 1@6000 over the limit",
-      "japan-me-210-v22 1@10000",
-      "china-p-51k 1@16000",
-      "china-f-47n-25-re 1@10000 over the limit",
-      "china-f-47n-25-re 1@16000 over the limit",
-      "china-f-100f 1@25900 over the limit",
-      "china-f-100f 2@25900 over the limit",
-      "china-a-5c 2@25900 over the limit",
-      "italy-me-210-ca-1 1@10000",
-      "israel-kfir-c-2 1@25900 over the limit",
-    ]);
+    // The sheet's own mistakes against the game's files — eight HVARs beside two
+    // 1000-pounders where the P-51D's shared stations leave room for six, five
+    // Flam C 250s on the Ju 88 A-4's four stations, loads past what the
+    // airframe lifts — are put right by the import: see the plans below.
+    expect(cannot).toEqual([]);
   });
 
-  it("marks the schedules no setup carries on an aircraft that takes whole setups only", () => {
+  it("leaves no plan a fixed-setup aircraft cannot carry", () => {
     const marked = aircraft.flatMap((plane) =>
       plane.options.flatMap((option, index) =>
         option.schedules.flatMap((schedule) => (schedule.noSetup ? [`${plane.id} ${index + 1}@${schedule.baseHp}`] : [])),
       ),
     );
-    // Two SC500s where the Me 410 A-1's setup hangs one; ten 1000-pounders
-    // where the Japanese B-17E's "8x1000lbs" hangs six.
-    expect(marked).toEqual(["germany-me-410-a-1 1@6000", "germany-me-410-a-1 1@10000", "japan-b-17e 1@16000"]);
+    expect(marked).toEqual([]);
+  });
+});
+
+/**
+ * The sheet's plans an aircraft cannot carry as written, and what the import
+ * put in their place (scripts/armament, src/domain/fit.ts). Nothing here may
+ * be too big — more than the aircraft carries, or than the sheet names — nor
+ * too small, giving up a round that could have stayed.
+ */
+describe("plans put right to what the aircraft carries", () => {
+  const standsIn = (id: string, of: string) => variantOf(bombsById.get(id)!, bombsById.get(of)!);
+  const damageOf = (bombId: string) => bombsById.get(bombId)?.damageValue ?? 0;
+  const loadOf = (bases: BaseLoadout[]) => {
+    const totals = new Map<string, number>();
+    for (const item of bases.flatMap((base) => base.items)) {
+      totals.set(item.bombId, (totals.get(item.bombId) ?? 0) + item.count);
+    }
+    return totals;
+  };
+  const fitted = aircraft.flatMap((plane) =>
+    plane.options.flatMap((option, index) =>
+      option.schedules.flatMap((schedule) => (schedule.sheetPlan ? [{ plane, index, schedule }] : [])),
+    ),
+  );
+
+  it("are these, each as the import put it right", () => {
+    const lines = fitted.map(
+      ({ plane, index, schedule }) =>
+        `${plane.id} ${index + 1}@${schedule.baseHp}: ` +
+        [...loadOf(schedule.bases)].map(([bombId, count]) => `${count} ${bombId}`).join(" + ") +
+        ` → ${schedule.basesDestroyed}`,
+    );
+    // Some bring down as many bases as the sheet's plan; the rest lose one, or
+    // the only one, by the game's figures. The fixed setups are the game's own
+    // (Me 410 A-1: 8 × SC50; B-17E: "16x500lbs", which hangs twelve at
+    // 36 720 = 12 × 3060).
+    expect(lines).toEqual([
+      "usa-p-47n-15 1@10000: 3 an-m65a1 + 7 hvar-uk-hvar → 1",
+      "usa-p-47n-15 1@16000: 3 an-m65a1 + 7 hvar-uk-hvar → 1",
+      "usa-p-51d-20-na 1@10000: 2 an-m65a1 + 6 hvar-uk-hvar → 1",
+      "usa-p-51d-20-na 1@16000: 2 an-m65a1 + 6 hvar-uk-hvar → 0",
+      "usa-a-1h 1@16000: 2 blu-1 + 3 mk-81 + 6 mk-82 + 8 mk-77 → 7",
+      "usa-a-1h 3@16000: 4 an-m64a1 + 6 mk-82 + 3 mk-81 + 2 blu-1 + 4 mk-77 → 6",
+      "usa-a-1h 3@22000: 4 an-m64a1 + 6 mk-82 + 3 mk-81 + 2 blu-1 + 4 mk-77 → 4",
+      "germany-me-210a-1 1@10000: 9 sc50 → 1",
+      "germany-ju-88-a-4 1@10000: 4 fc250 + 28 sc50 → 7",
+      "germany-me-410-a-1 1@6000: 8 sc50 → 1",
+      "germany-me-410-a-1 1@10000: 8 sc50 → 0",
+      "germany-ju-188-a-2 2@16000: 1 fc500 + 1 sc250 + 10 sc50 + 1 sc1800 → 2",
+      "ussr-su-6 1@10000: 2 50sv + 16 ao-25 → 0",
+      "britain-wirraway 1@4000: 2 g-p-500 + 1 g-p-250 → 1",
+      "britain-wirraway 1@6000: 2 g-p-500 + 1 g-p-250 → 0",
+      "japan-me-210-v22 1@10000: 9 sc50 → 1",
+      "japan-b-17e 1@16000: 12 an-m64a1 → 2",
+      "china-p-51k 1@16000: 2 an-m65a1 + 6 hvar-uk-hvar → 0",
+      "china-f-47n-25-re 1@10000: 3 an-m65a1 + 7 hvar → 1",
+      "china-f-47n-25-re 1@16000: 3 an-m65a1 + 7 hvar → 1",
+      "china-f-100f 1@25900: 5 blu-27 → 2",
+      "china-f-100f 2@25900: 5 blu-27 → 2",
+      "china-a-5c 2@25900: 1 500-4 + 4 m117 → 0",
+      "italy-me-210-ca-1 1@10000: 9 sc50 → 1",
+      "israel-kfir-c-2 1@25900: 6 mk-83 + 5 mk-82 → 1",
+    ]);
+  });
+
+  it("hang exactly what they list on pylons, and never more of a bomb than the sheet names", () => {
+    for (const { plane, index, schedule } of fitted) {
+      const armament = armamentFor(plane.id);
+      if (!armament) continue;
+      const where = `${plane.id} ${index + 1}@${schedule.baseHp}`;
+      const load = [...loadOf(schedule.bases)].map(([bombId, count]) => ({ bombId, count }));
+      const sheet = loadOf(schedule.sheetPlan!.bases);
+      for (const { bombId, count } of load) expect(count, where).toBeLessThanOrEqual(sheet.get(bombId) ?? 0);
+      const build = carriedWithin(armament, load, standsIn, true);
+      expect(build, where).not.toBeNull();
+      expect(violationsOf(build!, armament), where).toEqual([]);
+    }
+  });
+
+  it("give up nothing that could have stayed: one more round of the sheet's would not hang", () => {
+    for (const { plane, index, schedule } of fitted) {
+      const armament = armamentFor(plane.id);
+      if (!armament) continue;
+      const kept = loadOf(schedule.bases);
+      for (const [bombId, planned] of loadOf(schedule.sheetPlan!.bases)) {
+        if ((kept.get(bombId) ?? 0) >= planned) continue;
+        const more = new Map(kept).set(bombId, (kept.get(bombId) ?? 0) + 1);
+        const load = [...more].map(([id, count]) => ({ bombId: id, count }));
+        expect(carriedWithin(armament, load, standsIn, true), `${plane.id} ${index + 1}@${schedule.baseHp} + 1 ${bombId}`).toBeNull();
+      }
+    }
+  });
+
+  it("offer beside a setup put in a plan's place the game's others that do as well", () => {
+    const added = aircraft.flatMap((plane) =>
+      plane.options.flatMap((option, index) =>
+        option.gameSetup
+          ? option.schedules.map((schedule) => {
+              const plan = buildPlan(schedule, bombsById, { baseHp: schedule.baseHp, mode: "rb", baseCount: 4 });
+              // Every base it counts comes down by the game's figures.
+              expect(plan.basesDestroyed).toBe(schedule.basesDestroyed);
+              const load = [...loadOf(schedule.bases)].map(([bombId, count]) => `${count} ${bombId}`).join(" + ");
+              return `${plane.id} ${index + 1}@${schedule.baseHp}: ${load} → ${schedule.basesDestroyed}`;
+            })
+          : [],
+      ),
+    );
+    // Its six 1000-pounders bring down the two bases the twelve 500-pounders do at 16 000 HP.
+    expect(added).toEqual(["japan-b-17e 2@10000: 6 an-m65a1 → 3", "japan-b-17e 2@16000: 6 an-m65a1 → 2"]);
+  });
+
+  it("count the bases their load brings down, as many as it can, never more than the sheet", () => {
+    for (const { plane, index, schedule } of fitted) {
+      const where = `${plane.id} ${index + 1}@${schedule.baseHp}`;
+      const plan = buildPlan(schedule, bombsById, { baseHp: schedule.baseHp, mode: "rb", baseCount: 4 });
+      // Every base it counts comes down by the game's figures.
+      expect(plan.basesDestroyed, where).toBe(schedule.basesDestroyed);
+      const cap = schedule.sheetPlan!.basesDestroyed ?? Infinity;
+      expect(schedule.basesDestroyed!, where).toBeLessThanOrEqual(cap);
+      const load = [...loadOf(schedule.bases)].map(([bombId, count]) => ({ bombId, count }));
+      expect(splitIntoBases(load, damageOf, plan.threshold, cap).bases.length, where).toBe(schedule.basesDestroyed);
+    }
   });
 });

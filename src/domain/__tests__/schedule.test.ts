@@ -341,7 +341,11 @@ describe("shortfallOf", () => {
         option.schedules.flatMap((s) => (shortfallOf(s, bombs).length > 0 ? [`${plane.id}@${s.baseHp}`] : [])),
       ),
     );
-    expect(flagged).toEqual(expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900", "ussr-su-6@10000"]));
+    expect(flagged).toEqual(
+      expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900", "ussr-su-6-m-71f@10000"]),
+    );
+    // The plain Su-6's plan weighs more than it lifts, so the import put one it carries in its place.
+    expect(flagged).not.toContain("ussr-su-6@10000");
     // Its "FC1000" is the SC1000 the aircraft hangs (scripts/etl/aliases.ts), which clears the base.
     expect(flagged).not.toContain("germany-fw-190-f-8@16000");
     // A handful at most: more means a damage change the sheet's plans lean on — see the import report.
