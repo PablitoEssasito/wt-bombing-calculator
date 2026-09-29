@@ -14,6 +14,12 @@ export const BOMB_ALIASES: Record<string, string> = {
   // Shorthand, from a cell that also omits the × separators.
   M30A1: "AN-M30A1",
   M57: "AN-M57",
+  // The Fw 190 F-8's "FC1000 × 1, SC50 × 3" against a 16 000 HP base. The game
+  // has no 1000 kg Flam C; the same station hangs an SC1000, and with it three
+  // SC50s is the least that brings the base down (14 550 of 14 429), as a
+  // schedule always states — a 1000 kg fire bomb would need fewer. The fourth
+  // SC50 it drops on the next base fills the two twin racks the aircraft has.
+  FC1000: "SC1000",
 };
 
 /**
@@ -43,17 +49,14 @@ export const AIRCRAFT_NAME_CORRECTIONS: Record<string, string> = {
 
 /**
  * Bombs that appear in loadouts but carry no damage value in the source — the
- * chart is simply missing these two rows outright. Carried through so the
- * schedules stay complete, and flagged so nothing tries to price them.
+ * chart is simply missing this row outright. Carried through so the schedules
+ * stay complete, and flagged so nothing tries to price them.
  */
 export const UNPRICED_ORDNANCE: ReadonlyArray<{
   chartName: string;
   fullName: string;
   kind: BombKind;
-}> = [
-  { chartName: "FC1000", fullName: "Flam C 1000 (not in source chart)", kind: "INC" },
-  { chartName: "130-2", fullName: "130 kg 130-2 (not in source chart)", kind: "GP" },
-];
+}> = [{ chartName: "130-2", fullName: "130 kg 130-2 (not in source chart)", kind: "GP" }];
 
 /**
  * Rockets. The Bomb Chart prices none of them — see `scripts/etl/rockets.ts`

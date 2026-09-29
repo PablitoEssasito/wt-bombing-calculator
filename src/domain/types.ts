@@ -58,7 +58,7 @@ export type Bomb = {
   /**
    * The nation block of the Bomb Chart tab this row was printed under. Null for
    * anything with no chart row at all — every rocket (see scripts/etl/rockets.ts)
-   * and the two bombs the chart is missing.
+   * and the bomb the chart is missing.
    *
    * Several nations reuse each other's bombs — the block says where it was
    * first catalogued, not an exhaustive list of who can carry it.
@@ -172,6 +172,19 @@ export type Schedule = {
   basesDestroyed: number | null;
   /** The source's explanation of which matches this schedule is for. */
   bracketNote: string | null;
+  /**
+   * The reward multiplier for bases this schedule's own payload earns — a
+   * loadout's bombs can differ from one bracket to the next — by the game's
+   * formula; the sheet's one figure for the loadout only where that can't be
+   * had. Worked out by src/lib/dataset.ts; the import leaves it out.
+   */
+  rewardMultiplier?: number | null;
+  /**
+   * For an aircraft that takes whole setups only: none of them carries this
+   * payload (scripts/armament). One with pylons is held to them where the
+   * planner shows a load, since a load cut down to fewer bases may fit.
+   */
+  noSetup?: true;
 };
 
 /**
@@ -182,7 +195,11 @@ export type Schedule = {
  * much as the number of bases you actually intend to bomb.
  */
 export type LoadoutOption = {
-  /** 💡 — reward multiplier for bases, capped at 10 for bombers and 8 for fighters. */
+  /**
+   * 💡 — the sheet's reward multiplier for bases, capped at 10 for bombers and
+   * 8 for fighters: one figure for the whole loadout. What the site shows is
+   * each schedule's own, `Schedule.rewardMultiplier`.
+   */
   rewardMultiplier: number | null;
   /** The marker the source puts on this loadout: a caveat, a warning, or a recommendation. */
   noteMarker: "?" | "!" | "star" | null;

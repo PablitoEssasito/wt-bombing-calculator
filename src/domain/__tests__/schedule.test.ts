@@ -50,6 +50,20 @@ describe("buildPlan under the conditions the source assumes", () => {
     expect(plan.bases.map((b) => b.items[0].count)).toEqual([12, 12, 12, 4]);
     expect(plan.basesDestroyed).toBe(3);
   });
+
+  it("counts a base the game's figures leave standing as standing, whatever the sheet counts", () => {
+    // The AV-8B (NA)'s ten GBU-38s: the sheet counts the base down; at the
+    // game's 2072 each they come to 20 720 of the 23 357 it takes.
+    const schedule = find("usa-av-8b-na")
+      .options.flatMap((option) => option.schedules)
+      .find((s) => shortfallOf(s, bombs).length > 0)!;
+    const plan = buildPlan(schedule, bombs, { baseHp: 25900, mode: "rb", baseCount: 4 });
+
+    expect(schedule.basesDestroyed).toBe(1);
+    expect(plan.source).toBe("sheet");
+    expect(plan.bases[0].destroys).toBe(false);
+    expect(plan.basesDestroyed).toBe(0);
+  });
 });
 
 describe("buildPlan when conditions differ", () => {
@@ -98,11 +112,13 @@ describe("buildPlan when conditions differ", () => {
               }
             } else {
               // The source lists spare bases past the ones it counts, to say where
-              // to dump what is left, and its own count is what marks a base as
-              // down here.
+              // to dump what is left: a base is down where its count reaches it
+              // and the game's figures bear it out.
+              const counted = schedule.basesDestroyed ?? plan.bases.length;
               plan.bases.forEach((base, i) => {
-                expect(base.destroys).toBe(i < plan.basesDestroyed);
+                expect(base.destroys).toBe(i < counted && base.damage >= plan.threshold);
               });
+              expect(plan.basesDestroyed).toBe(plan.bases.filter((base) => base.destroys).length + plan.unlistedBases);
             }
 
             // Non-respawning maps cannot offer more bases than they have.
@@ -235,6 +251,24 @@ describe("trimToTarget", () => {
     expect(trimToTarget(full, 9)).toBe(full);
   });
 
+  it("flies past a base the load leaves standing to the one asked for", () => {
+    const gbu38 = "gbu-38-v";
+    const schedule = {
+      bracket: null,
+      baseHp: 25900 as const,
+      bases: [10, 12, 12].map((count) => ({ items: [{ bombId: gbu38, count }] })),
+      basesDestroyed: 3,
+      bracketNote: null,
+    };
+    const plan = buildPlan(schedule, bombs, { baseHp: 25900, mode: "rb", baseCount: 4 });
+    expect(plan.basesDestroyed).toBe(2);
+
+    const trimmed = trimToTarget(plan, 1);
+    expect(trimmed.bases.map((base) => base.destroys)).toEqual([false, true]);
+    expect(trimmed.basesDestroyed).toBe(1);
+    expect(trimmed.leftover).toEqual([{ bomb: bombs.get(gbu38), count: 12 }]);
+  });
+
   it("counts untrimmed leftovers as carried, trimmed ones as left behind", () => {
     const schedule = pe8().options[0].schedules[0];
     const arcade = buildPlan(schedule, bombs, { baseHp: 10000, mode: "ab", baseCount: 4 });
@@ -307,9 +341,9 @@ describe("shortfallOf", () => {
         option.schedules.flatMap((s) => (shortfallOf(s, bombs).length > 0 ? [`${plane.id}@${s.baseHp}`] : [])),
       ),
     );
-    expect(flagged).toEqual(
-      expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900", "ussr-su-6@10000", "germany-fw-190-f-8@16000"]),
-    );
+    expect(flagged).toEqual(expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900", "ussr-su-6@10000"]));
+    // Its "FC1000" is the SC1000 the aircraft hangs (scripts/etl/aliases.ts), which clears the base.
+    expect(flagged).not.toContain("germany-fw-190-f-8@16000");
     // A handful at most: more means a damage change the sheet's plans lean on — see the import report.
     expect(flagged.length).toBeLessThan(20);
   });

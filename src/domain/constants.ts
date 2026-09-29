@@ -65,8 +65,9 @@ export const NATIONS = [
 export type Nation = (typeof NATIONS)[number];
 
 /**
- * Reward-multiplier curve a vehicle sits on, from the trailing letter column of
- * the nation tabs: X / F / P / PF.
+ * Reward-multiplier curve a vehicle sits on — the trailing letter column of the
+ * nation tabs, X / F / P / PF, as the game's own files decide it (see
+ * scripts/battle-ratings).
  */
 export const VEHICLE_CATEGORIES = [
   "tt-bomber",

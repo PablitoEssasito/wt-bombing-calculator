@@ -130,15 +130,19 @@ export function mountedIn(plan: Plan): PlanItem[] {
 export function trimToTarget(plan: Plan, wanted: number): Plan {
   // Asking for more bases than are drawn leaves nothing to leave behind, even
   // where the source counts higher than it describes.
-  if (wanted >= plan.basesDestroyed || wanted >= plan.bases.length) return plan;
+  if (wanted >= plan.basesDestroyed - plan.unlistedBases) return plan;
 
-  const kept = plan.bases.slice(0, wanted);
-  const spare = plan.bases.slice(wanted).flatMap((base) => base.items);
+  // Every base up to the wanted-th that comes down — one the load leaves
+  // standing on the way is still flown at.
+  let down = 0;
+  const cut = plan.bases.findIndex((base) => base.destroys && ++down === wanted) + 1;
+  const kept = plan.bases.slice(0, cut);
+  const spare = plan.bases.slice(cut).flatMap((base) => base.items);
 
   return {
     ...plan,
     bases: kept,
-    basesDestroyed: kept.length,
+    basesDestroyed: wanted,
     unlistedBases: 0,
     leftover: collapse([...spare, ...plan.leftover]),
     trimmed: true,
@@ -198,10 +202,10 @@ function drawOneBase(pool: Pool, threshold: number): PlanItem[] | null {
  * Works out what to drop on each base for the conditions the player selected.
  *
  * Under the conditions the source assumes — realistic battles, four-base map, the
- * schedule's own BR bracket — its hand-tuned numbers are returned untouched: they
- * account for which loadouts the game actually offers, which nothing here can
- * know. Change the mode, the map or the bracket and the same payload is
- * redistributed against the new base health instead.
+ * schedule's own BR bracket — its hand-tuned drops are kept as written: they
+ * account for how the author means the load to be split. Change the mode, the
+ * map or the bracket and the same payload is redistributed against the new base
+ * health instead.
  */
 export function buildPlan(
   schedule: Schedule,
@@ -229,25 +233,27 @@ export function buildPlan(
     );
 
     /**
-     * On this path the source's own count decides which bases come down, rather
-     * than our arithmetic.
+     * On this path the source's own count caps which bases come down, and the
+     * game's damage figures decide whether each of those does.
      *
-     * The two disagree on a handful of schedules — the Lancaster I is told to put
-     * three 1000-pounders on each base when two would do, so its spare base clears
-     * the threshold without being counted. Re-deciding from damage alone would
-     * contradict the figure shown beside it, and the author knows things the
-     * damage column does not, such as what the bomb bay will actually release.
-     * The damage on each base is still reported, so the difference stays visible.
+     * The count is kept where it is the lower of the two: the Lancaster I is told
+     * to put three 1000-pounders on each base when two would do, so its spare
+     * base clears the threshold without being counted — the author knows things
+     * the damage column does not, such as what the bomb bay will actually
+     * release. Where the game's figures leave a counted base standing, the game
+     * decides (see shortfallOf, which says by how much). A schedule that states
+     * no count is decided by damage alone.
      */
-    const destroyed = schedule.basesDestroyed ?? measured.filter((b) => b.destroys).length;
-    const bases = measured.map((base, i) => ({ ...base, destroys: i < destroyed }));
+    const counted = schedule.basesDestroyed ?? measured.length;
+    const bases = measured.map((base, i) => ({ ...base, destroys: i < counted && base.destroys }));
+    const unlistedBases = Math.max(0, counted - bases.length);
 
     return {
       bases,
       leftover: [],
       trimmed: false,
-      basesDestroyed: destroyed,
-      unlistedBases: Math.max(0, destroyed - bases.length),
+      basesDestroyed: bases.filter((base) => base.destroys).length + unlistedBases,
+      unlistedBases,
       source: "sheet",
       effectiveHp,
       threshold,

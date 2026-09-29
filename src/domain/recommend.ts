@@ -16,6 +16,8 @@ export type Candidate = {
   basesDestroyed: number;
   /** Bombs carried, which settles a tie between two equally rewarding loadouts. */
   bombCount: number;
+  /** The reward multiplier the load earns there — see `Schedule.rewardMultiplier`. */
+  rewardMultiplier: number | null;
 };
 
 /** How far a loadout's reach sits from the number of bases asked for. */
@@ -40,7 +42,7 @@ function compare(a: Candidate, b: Candidate, wanted: number): number {
     refused(b) - refused(a) ||
     overshoot(b, wanted) - overshoot(a, wanted) ||
     starred(a) - starred(b) ||
-    (a.option.rewardMultiplier ?? 0) - (b.option.rewardMultiplier ?? 0) ||
+    (a.rewardMultiplier ?? 0) - (b.rewardMultiplier ?? 0) ||
     b.bombCount - a.bombCount
   );
 }

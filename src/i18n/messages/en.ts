@@ -228,6 +228,9 @@ export const en = {
     onThreeBaseMap: " on a three-base map",
     fixedSetup:
       "The {name} offers this as a fixed setup rather than pylon by pylon, so there is no way to carry part of it. The whole load comes along whether you drop it or not.",
+    noSetup: "The {name} can't carry this load as written: none of its setups has these bombs in these numbers.",
+    noRoom: "The {name} can't hang this load as written: its pylons don't take all of it at once.",
+    overweight: "The {name} can't lift this load as written: {kg} kg against its {limit} kg limit.",
     everyLoadout: "Every loadout",
     everyLoadoutHint: "Lighter loadouts earn a higher multiplier per base, so take only what the job needs.",
     columns: { bases: "Bases", reward: "Reward", status: "Status", payload: "Payload" },

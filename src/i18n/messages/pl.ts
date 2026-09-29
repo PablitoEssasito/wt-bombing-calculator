@@ -224,6 +224,9 @@ export const pl: ClientMessages = {
     onThreeBaseMap: " na mapie z trzema bazami",
     fixedSetup:
       "{name} oferuje to jako stały zestaw, a nie pylon po pylonie, więc nie da się zabrać tylko części. Cały ładunek leci z tobą, czy go zrzucisz, czy nie.",
+    noSetup: "{name} nie zabierze tego ładunku w tej postaci: żaden z jego zestawów nie ma tych bomb w takiej liczbie.",
+    noRoom: "{name} nie podwiesi tego ładunku w tej postaci: pylony nie pomieszczą go naraz.",
+    overweight: "{name} nie uniesie tego ładunku w tej postaci: {kg} kg przy limicie {limit} kg.",
     everyLoadout: "Wszystkie zestawy",
     everyLoadoutHint: "Lżejsze zestawy dają wyższy mnożnik na bazę, więc bierz tylko tyle, ile trzeba.",
     columns: { bases: "Bazy", reward: "Nagroda", status: "Status", payload: "Ładunek" },

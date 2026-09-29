@@ -4,7 +4,17 @@ import { rewardDamageOf } from "../../domain/bomb-chart";
 import { NATIONS } from "../../domain/constants";
 import type { WeaponStats } from "../../domain/types";
 import { bombsIn, buildFor, variantOf, violationsOf } from "../../domain/loadout";
-import { aircraft, aircraftCarrying, armamentFor, bombsById, chartRowsFor, gameLabel, otherCarriersOf, pagedBombs } from "../dataset";
+import {
+  aircraft,
+  aircraftCarrying,
+  aircraftIndex,
+  armamentFor,
+  bombsById,
+  chartRowsFor,
+  gameLabel,
+  otherCarriersOf,
+  pagedBombs,
+} from "../dataset";
 
 /**
  * `armamentFor` decodes `src/data/armament.json`'s compact shape — stores
@@ -87,6 +97,16 @@ describe("armamentFor", () => {
   });
 });
 
+describe("aircraftIndex", () => {
+  const summary = (id: string) => aircraftIndex.find((plane) => plane.id === id)!;
+
+  it("marks a gold tile as the game does, where the sheet files it as researched", () => {
+    expect(summary("usa-av-8b-na").premium).toBe(true);
+    expect(summary("china-a-5c").premium).toBe(true);
+    expect(summary("usa-av-8b-plus").premium).toBe(false);
+  });
+});
+
 describe("release limits", () => {
   it("reads each preset's own, as the game's tooltip shows them", () => {
     const options = new Map(
@@ -103,7 +123,7 @@ describe("the armament chart's rows", () => {
   it("page every weapon the game catalogues, and no sheet placeholder", () => {
     expect(pagedBombs.some((bomb) => bomb.kind === "AAM")).toBe(true);
     expect(pagedBombs.some((bomb) => bomb.kind === "TORPEDO")).toBe(true);
-    expect(pagedBombs.find((bomb) => bomb.id === "fc1000")).toBeUndefined();
+    expect(pagedBombs.find((bomb) => bomb.id === "130-2")).toBeUndefined();
   });
 
   it("leave /armament/compare/ to the comparison", () => {
@@ -233,8 +253,18 @@ describe("the armament table, the game's files over the sheet", () => {
   it("gives a loadout of estimates alone no reward multiplier, not the sheet's", () => {
     // The Tornado GR.4's three PGM 2000s: an estimate each, the sheet's 6.9 counts them.
     const tornado = aircraft.find((plane) => plane.id === "britain-tornado-gr-4")!;
-    expect(tornado.options[1].rewardMultiplier).toBeNull();
-    expect(tornado.options[0].rewardMultiplier).not.toBeNull();
+    expect(tornado.options[1].schedules[0].rewardMultiplier).toBeNull();
+    expect(tornado.options[0].schedules[0].rewardMultiplier).not.toBeNull();
+  });
+
+  it("prices each schedule's own load, where the sheet gives a loadout one figure", () => {
+    // The Il-4 takes eight FAB-100s and three FAB-500s a bracket down, ten and three up.
+    const il4 = aircraft.find((plane) => plane.id === "ussr-il-4")!.options[0];
+    expect(il4.schedules.map((schedule) => schedule.rewardMultiplier)).toEqual([7.1, 6.6]);
+    // The Mirage 5F's the sheet leaves without one.
+    const mirage = aircraft.find((plane) => plane.id === "france-mirage-5f")!.options[0];
+    expect(mirage.rewardMultiplier).toBeNull();
+    expect(mirage.schedules[0].rewardMultiplier).not.toBeNull();
   });
 
   it("reads each weapon's figures as the game's tooltip shows them", () => {
@@ -341,21 +371,74 @@ describe("buildFor against the sheet", () => {
     expect(carried).toBe(15);
   });
 
-  it("hangs nine in ten of the sheet's loadouts on aircraft with pylons", () => {
-    let tried = 0;
-    let hung = 0;
+  it("makes up a bomb the pylons hang with its variant where they hang too few", () => {
+    // The Pe-2's ten FAB-100sv: two stations hang the plain one, eight the forged.
+    const armament = armamentFor("ussr-pe-2-1")!;
+    const build = buildFor(armament, wantedOf("ussr-pe-2-1", 0), standsIn)!;
+    expect(bombsIn(build, armament).sort((a, b) => a.bombId.localeCompare(b.bombId))).toEqual([
+      { bombId: "100-kg-fab-100sv-forged", count: 8 },
+      { bombId: "100sv", count: 2 },
+    ]);
+    // The B-52H's bay racks hang the M117 cone 90, its wing beams the cone 45.
+    const b52 = armamentFor("usa-b-52h")!;
+    const bombs = bombsIn(buildFor(b52, wantedOf("usa-b-52h", 0), standsIn)!, b52);
+    expect(bombs.find((b) => b.bombId === "750-lb-m117-cone-90")?.count).toBe(27);
+  });
+
+  it("hangs every schedule the sheet writes for an aircraft with pylons, but those the game rules out", () => {
+    const cannot: string[] = [];
     for (const plane of aircraft) {
       const armament = armamentFor(plane.id);
       if (!armament) continue;
-      for (const option of plane.options) {
-        const schedule = option.schedules[0];
-        if (!schedule || (schedule.basesDestroyed ?? 0) > schedule.bases.length) continue;
-        const wanted = schedule.bases.flatMap((base) => base.items);
-        if (wanted.length === 0) continue;
-        tried++;
-        if (buildFor(armament, wanted, standsIn)) hung++;
-      }
+      plane.options.forEach((option, index) => {
+        for (const schedule of option.schedules) {
+          // Bases the sheet counts without writing their bombs leave nothing to hang.
+          if ((schedule.basesDestroyed ?? 0) > schedule.bases.length) continue;
+          const build = buildFor(armament, schedule.bases.flatMap((base) => base.items), standsIn);
+          const over = build !== null && violationsOf(build, armament).some((v) => v.kind === "overweight");
+          if (!build || over) cannot.push(`${plane.id} ${index + 1}@${schedule.baseHp}${build ? " over the limit" : ""}`);
+        }
+      });
     }
-    expect(hung / tried).toBeGreaterThan(0.9);
+    // The sheet's own mistakes against the game's files: eight HVARs beside two
+    // 1000-pounders where the P-51D's shared stations leave room for six, the
+    // Me 210's "SB200" (a Swiss bomb), five Flam C 250s on the Ju 88 A-4's four
+    // stations, loads past what the airframe lifts. The planner says so over
+    // each (see `hangNote`); listed so a new one is noticed — see TODOBYDEV.
+    expect(cannot).toEqual([
+      "usa-p-47n-15 1@10000 over the limit",
+      "usa-p-47n-15 1@16000 over the limit",
+      "usa-p-51d-20-na 1@10000",
+      "usa-p-51d-20-na 1@16000",
+      "usa-a-1h 1@16000",
+      "usa-a-1h 3@16000 over the limit",
+      "usa-a-1h 3@22000 over the limit",
+      "germany-me-210a-1 1@10000",
+      "germany-ju-88-a-4 1@10000",
+      "germany-ju-188-a-2 2@16000 over the limit",
+      "ussr-su-6 1@10000 over the limit",
+      "britain-wirraway 1@4000 over the limit",
+      "britain-wirraway 1@6000 over the limit",
+      "japan-me-210-v22 1@10000",
+      "china-p-51k 1@16000",
+      "china-f-47n-25-re 1@10000 over the limit",
+      "china-f-47n-25-re 1@16000 over the limit",
+      "china-f-100f 1@25900 over the limit",
+      "china-f-100f 2@25900 over the limit",
+      "china-a-5c 2@25900 over the limit",
+      "italy-me-210-ca-1 1@10000",
+      "israel-kfir-c-2 1@25900 over the limit",
+    ]);
+  });
+
+  it("marks the schedules no setup carries on an aircraft that takes whole setups only", () => {
+    const marked = aircraft.flatMap((plane) =>
+      plane.options.flatMap((option, index) =>
+        option.schedules.flatMap((schedule) => (schedule.noSetup ? [`${plane.id} ${index + 1}@${schedule.baseHp}`] : [])),
+      ),
+    );
+    // Two SC500s where the Me 410 A-1's setup hangs one; ten 1000-pounders
+    // where the Japanese B-17E's "8x1000lbs" hangs six.
+    expect(marked).toEqual(["germany-me-410-a-1 1@6000", "germany-me-410-a-1 1@10000", "japan-b-17e 1@16000"]);
   });
 });

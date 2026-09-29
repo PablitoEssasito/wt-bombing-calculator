@@ -446,9 +446,11 @@ const MAX_OVERSHOOT = 4;
  *
  * A bomb some pylon hangs is taken as named. Only one that no pylon hangs
  * may have another stand in for it (`standsIn`, see `variantOf`): the sheet's
- * "Mk 77" is the mod 2 where the A-4B's racks hang the mod 4. Only choices
- * made up of wanted bombs are considered — no tanks, missiles or pods
- * alongside.
+ * "Mk 77" is the mod 2 where the A-4B's racks hang the mod 4. Only where
+ * that leaves the load short may a variant make up the rest of a bomb some
+ * pylon does hang — the Pe-2 hangs its plain FAB-100sv on two stations and
+ * the forged one, priced the same, on the other eight. Only choices made up
+ * of wanted bombs are considered — no tanks, missiles or pods alongside.
  *
  * Exact first. Failing that, the fewest spare rounds, since a rack hangs its
  * bombs in pairs or threes: the Halifax's fourteen are fifteen on the
@@ -466,13 +468,29 @@ export function buildFor(
       hardpoint.options.flatMap((option) => option.stores.flatMap(({ store }) => (store.bomb ? [store.bomb.id] : []))),
     ),
   );
-  const unhung = [...new Set(wanted.map((w) => w.bombId))].filter((bombId) => !hung.has(bombId));
-  // What a store's bomb counts towards: itself where it is wanted by name,
-  // else the one unhung bomb it may stand in for, else nothing.
+  const named = [...new Set(wanted.map((w) => w.bombId))];
+  const unhung = named.filter((bombId) => !hung.has(bombId));
+  return (
+    hangAs(armament, wanted, standsIn, unhung) ??
+    (unhung.length < named.length ? hangAs(armament, wanted, standsIn, named) : null)
+  );
+}
+
+/**
+ * `buildFor` with a variant let stand in for any of `standInFor`: what a
+ * store's bomb counts towards is itself where it is wanted by name, else the
+ * one of those it may stand in for, else nothing.
+ */
+function hangAs(
+  armament: Armament,
+  wanted: { bombId: string; count: number }[],
+  standsIn: (bombId: string, forBombId: string) => boolean,
+  standInFor: string[],
+): Build | null {
   const keyOf = (bombId: string) =>
-    hung.has(bombId) && wanted.some((w) => w.bombId === bombId)
+    wanted.some((w) => w.bombId === bombId)
       ? bombId
-      : (unhung.find((forBombId) => standsIn(bombId, forBombId)) ?? null);
+      : (standInFor.find((forBombId) => standsIn(bombId, forBombId)) ?? null);
 
   const target = new Map<string, number>();
   for (const { bombId, count } of wanted) target.set(bombId, (target.get(bombId) ?? 0) + count);

@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AircraftEconomy } from "../../src/domain/reward";
+import type { VehicleCategory } from "../../src/domain/constants";
 import type { Aircraft, BattleRatings } from "../../src/domain/types";
 import { fetchConfig, loadWpcost } from "../shared/wpcost";
 import { battleRatingsOf, economyOf, rewardConstantsOf, weaponDamageByFile } from "./parse";
@@ -12,9 +13,11 @@ import { battleRatingsOf, economyOf, rewardConstantsOf, weaponDamageByFile } fro
  *
  * It also overwrites `br` in aircraft.json with the game's Air RB. The sheet
  * lags a patch or two behind on BR changes, and everything else (the planner's
- * base tiers, the tiles, the changelog) reads `br`. Run it after `etl`, which
- * writes aircraft.json afresh from the sheet, and after `images`, whose
- * images.json maps each aircraft to its game unit.
+ * base tiers, the tiles, the changelog) reads `br`. `category` too: the sheet
+ * files five premiums as researched (the AV-8B (NA), the A-5C) and three
+ * aircraft under the wrong class, and the tiles' gold marks read it. Run it
+ * after `etl`, which writes aircraft.json afresh from the sheet, and after
+ * `images`, whose images.json maps each aircraft to its game unit.
  *
  * The same file prices everything, so this also writes what rewards are
  * computed from: each aircraft's multipliers and the damage each custom-slot
@@ -58,6 +61,7 @@ async function main() {
   const economy: Record<string, AircraftEconomy> = {};
   const missing: string[] = [];
   const moved: string[] = [];
+  const refiled: string[] = [];
   for (const plane of aircraft) {
     const cost = units[unitIds[plane.id] ?? ""];
     if (!cost) {
@@ -71,6 +75,13 @@ async function main() {
       moved.push(`${plane.name} ${plane.br.toFixed(1)} → ${rb.toFixed(1)}`);
       plane.br = rb;
     }
+    // Premium or not, fighter or not, as the game files it: its gold tile, and its class.
+    const { special, fighter } = economy[plane.id];
+    const category: VehicleCategory = `${special ? "premium" : "tt"}-${fighter ? "fighter" : "bomber"}`;
+    if (category !== plane.category) {
+      refiled.push(`${plane.name} ${plane.category} → ${category}`);
+      plane.category = category;
+    }
   }
   const weaponDamage = weaponDamageByFile(Object.entries(weapons), armament.files);
 
@@ -82,9 +93,11 @@ async function main() {
   const inGround = Object.values(ratings).filter((r) => r.ground.some((br) => br !== null)).length;
   console.log(`Battle ratings for ${Object.keys(ratings).length}/${aircraft.length} aircraft, ${inGround} flyable in ground battles`);
   console.log(`Damage priced for ${Object.keys(weaponDamage).length} of ${new Set(armament.files).size} store files`);
-  if (missing.length > 0) console.log(`  no game unit (kept the sheet's BR): ${missing.join(", ")}`);
+  if (missing.length > 0) console.log(`  no game unit (kept the sheet's BR and category): ${missing.join(", ")}`);
   console.log(`Air RB differs from the sheet for ${moved.length}:`);
   for (const line of moved) console.log(`  ${line}`);
+  console.log(`Premium or fighter differs from the sheet for ${refiled.length}:`);
+  for (const line of refiled) console.log(`  ${line}`);
 }
 
 main().catch((error) => {

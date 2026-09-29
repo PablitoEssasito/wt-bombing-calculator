@@ -11,9 +11,9 @@ import { normalizeBombName } from "../etl/aliases";
  * the wrong weapon in a plan. So a bomb the aircraft cannot carry is replaced
  * by one it can: the same name, else the same kind of weapon nearest in mass
  * (the British Corsair's only 1000-pounder is the G.P. Mk.I, not the AN-M65A1
- * the sheet names). A bomb with no counterpart at all — the sheet's "FC1000",
- * which the game has no file for — leaves the plan. A replaced item keeps the
- * sheet's bomb in `sheetBombId`, which is what the sheet's own figures are.
+ * the sheet names). A bomb with no counterpart at all, by name or by kind and
+ * mass, leaves the plan. A replaced item keeps the sheet's bomb in
+ * `sheetBombId`, which is what the sheet's own figures are.
  */
 export function rebindPlans(
   aircraft: Aircraft[],

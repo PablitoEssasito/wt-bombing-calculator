@@ -2,7 +2,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NATIONS, type Nation } from "../../src/domain/constants";
-import type { Aircraft, Bomb } from "../../src/domain/types";
+import type { Aircraft, Bomb, Schedule } from "../../src/domain/types";
+import { variantOf } from "../../src/domain/loadout";
 import { shortfallOf } from "../../src/domain/schedule";
 import { downloadIcons } from "../bomb-icons/fetch";
 import { loadWpcost } from "../shared/wpcost";
@@ -187,7 +188,7 @@ async function main() {
     .map(sheetView);
   await writePayload(byUnit);
   const catalogue = JSON.parse(await readFile(STORES_FILE, "utf8")) as StoreRecord[];
-  report(aircraft, unitIds, byUnit, missing, sheetRows, catalogue);
+  report(aircraft, unitIds, byUnit, missing, catalogue);
 
   const rounds = JSON.parse(await readFile(ROUNDS_FILE, "utf8")) as Round[];
   const wpcost = await loadWpcost(true);
@@ -236,14 +237,21 @@ async function main() {
   for (const [bombId, planes] of carriers) {
     for (const plane of planes) planesCarrying.set(plane, (planesCarrying.get(plane) ?? new Set()).add(bombId));
   }
-  const { aircraft: plans, changes: rebound } = rebindPlans(aircraft, bombs, (plane) => planesCarrying.get(plane));
-  await writeFile(path.join(DATA_DIR, "aircraft.json"), JSON.stringify(plans), "utf8");
+  const { aircraft: reboundPlans, changes: rebound } = rebindPlans(aircraft, bombs, (plane) => planesCarrying.get(plane));
   console.log(
     rebound.length === 0
       ? "ok    every bomb in the sheet's plans is one its aircraft hangs in the game"
       : `note  ${rebound.length} bomb(s) in the sheet's plans swapped for what the aircraft hangs in the game:`,
   );
   for (const line of rebound) console.log(`        ${line}`);
+  const plans = markSetupMisfits(
+    reboundPlans,
+    unitIds,
+    byUnit,
+    catalogue,
+    new Map(bombs.map((bomb) => [bomb.id, bomb])),
+  );
+  await writeFile(path.join(DATA_DIR, "aircraft.json"), JSON.stringify(plans), "utf8");
 
   const countriesOf = new Map<string, Nation[]>();
   for (const round of rounds) {
@@ -254,7 +262,9 @@ async function main() {
   const usedBy = usedByNationsOf(plans, carriers, bombs, countriesOf);
   const enrichedBombs = bombs.map((bomb) => ({ ...bomb, usedByNations: usedBy.get(bomb.id) ?? [] }));
   await writeFile(path.join(DATA_DIR, "bombs.json"), JSON.stringify(enrichedBombs), "utf8");
-  reportShortfalls(plans, new Map(enrichedBombs.map((bomb) => [bomb.id, bomb])));
+  const bombsById = new Map(enrichedBombs.map((bomb) => [bomb.id, bomb]));
+  reportShortfalls(plans, bombsById);
+  weighLoadouts(plans, unitIds, byUnit, enrichedBombs);
   const unmatched = enrichedBombs.filter((b) => b.usedByNations.length === 0);
   console.log(
     `\nNation usage: ${enrichedBombs.length - unmatched.length}/${enrichedBombs.length} bombs matched ` +
@@ -654,7 +664,6 @@ function report(
   unitIds: Record<string, string>,
   byUnit: Record<string, Armament>,
   missing: string[],
-  bombs: Bomb[],
   catalogue: StoreRecord[],
 ) {
   const units = Object.values(byUnit);
@@ -681,7 +690,6 @@ function report(
 
   audit(byUnit);
   auditPresets(byUnit, catalogue);
-  weighLoadouts(aircraft, unitIds, byUnit, bombs);
 
   if (missing.length > 0) {
     console.log(`warn  ${missing.length} unit(s) had no flight model: ${missing.slice(0, 6).join(", ")}`);
@@ -703,9 +711,10 @@ function report(
  * their airframe's figure too, so the ceiling is not quite the hard wall it
  * looks like.
  *
- * Bomb masses agree with the game's to the gram, which is why the tolerance here
- * is small: it exists for rounding in the sheet's own figures, where twelve
- * FAB-100s come to 1,248 kg against a 1,245 kg limit.
+ * Read off the plans as they stand once the game's bombs are in them, at the
+ * game's own masses — the bombs alone, so a rack's own weight and the spare
+ * rounds it forces are not in it. dataset.test.ts holds every plan to the
+ * hardpoints themselves; this is the first look an import gives.
  */
 function weighLoadouts(
   aircraft: Aircraft[],
@@ -713,7 +722,6 @@ function weighLoadouts(
   byUnit: Record<string, Armament>,
   bombs: Bomb[],
 ) {
-  const TOLERANCE = 1.01;
   const massOf = new Map(bombs.map((b) => [b.id, b.massKg]));
 
   let checked = 0;
@@ -730,7 +738,7 @@ function weighLoadouts(
         for (const base of schedule.bases) {
           for (const item of base.items) {
             const kg = massOf.get(item.bombId);
-            // Rockets carry no mass in the sheet, so the total would understate.
+            // Something with no mass — a row the game has no file for — would understate it.
             if (kg === null || kg === undefined) return;
             mass += kg * item.count;
           }
@@ -739,7 +747,7 @@ function weighLoadouts(
       }
       if (heaviest === 0) return;
       checked++;
-      if (heaviest > limit * TOLERANCE) {
+      if (heaviest > limit) {
         over.push({ plane, option: index + 1, mass: heaviest, limit });
       }
     });
@@ -755,6 +763,98 @@ function weighLoadouts(
         `against a ${o.limit} kg limit (${Math.round((100 * o.mass) / o.limit)}%)`,
     );
   }
+}
+
+/**
+ * Holds each of the sheet's schedules for an aircraft that takes whole setups
+ * against those setups, and marks the ones none of them carries
+ * (`Schedule.noSetup`): one setup has to hang every bomb the schedule drops,
+ * as many or more. A variant counts for the bomb it is one of (`variantOf`) —
+ * the forged FAB-100sv for the plain. Aircraft with pylons are held to their
+ * hardpoints where the planner's solver runs, on the load the planner shows.
+ */
+function markSetupMisfits(
+  aircraft: Aircraft[],
+  unitIds: Record<string, string>,
+  byUnit: Record<string, Armament>,
+  catalogue: StoreRecord[],
+  bombs: Map<string, Bomb>,
+): Aircraft[] {
+  const byFile = new Map(catalogue.map((store) => [store.file, store]));
+  const nameOf = (bombId: string) => {
+    const bomb = bombs.get(bombId);
+    return bomb ? bomb.chartName || bomb.fullName : bombId;
+  };
+  let checked = 0;
+  const misfits: string[] = [];
+
+  const marked = aircraft.map((plane) => {
+    const armament = byUnit[unitIds[plane.id]];
+    const setups =
+      armament?.style === "setups"
+        ? armament.presets.map((preset) => {
+            const hung = new Map<string, number>();
+            for (const { weapon, count } of preset.weapons) {
+              const bomb = byFile.get(weapon)?.bomb;
+              if (bomb) hung.set(bomb.id, (hung.get(bomb.id) ?? 0) + bomb.count * count);
+            }
+            return hung;
+          })
+        : null;
+
+    const options = plane.options.map((option, index) => ({
+      ...option,
+      schedules: option.schedules.map((schedule) => {
+        // Decided afresh on every import: the last one's mark comes in with the plan.
+        const next: Schedule = { ...schedule };
+        delete next.noSetup;
+        // Bases the sheet counts without writing their bombs: nothing to hold up.
+        if (!setups || (schedule.basesDestroyed ?? 0) > schedule.bases.length) return next;
+        checked++;
+        const wanted = new Map<string, number>();
+        for (const item of schedule.bases.flatMap((base) => base.items)) {
+          wanted.set(item.bombId, (wanted.get(item.bombId) ?? 0) + item.count);
+        }
+        // Each bomb from its own first, then from what is left of its variants:
+        // a setup's bombs go towards one of the schedule's, not to each alike.
+        const fits = (hung: Map<string, number>) => {
+          const spare = new Map(hung);
+          const short = new Map(wanted);
+          const take = (bombId: string, counts: (id: string) => boolean) => {
+            for (const [id, n] of spare) {
+              if (!counts(id)) continue;
+              const used = Math.min(n, short.get(bombId)!);
+              spare.set(id, n - used);
+              short.set(bombId, short.get(bombId)! - used);
+            }
+          };
+          for (const bombId of wanted.keys()) take(bombId, (id) => id === bombId);
+          for (const bombId of wanted.keys()) {
+            const bomb = bombs.get(bombId);
+            take(bombId, (id) => {
+              const other = bombs.get(id);
+              return Boolean(bomb && other && variantOf(other, bomb));
+            });
+          }
+          return [...short.values()].every((n) => n === 0);
+        };
+        if (setups.some(fits)) return next;
+        misfits.push(
+          `${plane.nation}/${plane.name} loadout ${index + 1} at ${schedule.baseHp} HP: ` +
+            [...wanted].map(([bombId, count]) => `${count} × ${nameOf(bombId)}`).join(", "),
+        );
+        return { ...next, noSetup: true as const };
+      }),
+    }));
+    return { ...plane, options };
+  });
+
+  console.log(
+    `${misfits.length === 0 ? "ok   " : "warn "} ${misfits.length}/${checked} schedule(s) on aircraft with fixed ` +
+      "setups drop what none of its setups hangs, marked for the planner:",
+  );
+  for (const line of misfits) console.log(`        ${line}`);
+  return marked;
 }
 
 /**

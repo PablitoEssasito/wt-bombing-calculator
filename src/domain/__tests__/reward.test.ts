@@ -87,16 +87,16 @@ describe("loadoutRewardMul", () => {
     // 12 × Mk 82: the sheet says 6.6; a real battle paid 5.6.
     const f4j = plane("usa-f-4j").options[3];
     expect(f4j.rewardMultiplier).toBe(6.6);
-    expect(loadoutRewardMul(f4j, damageOf, economy["usa-f-4j"], constants.bombing)! * 10).toBeCloseTo(5.58, 2);
+    expect(loadoutRewardMul(f4j.schedules[0], damageOf, economy["usa-f-4j"], constants.bombing)! * 10).toBeCloseTo(5.58, 2);
     // The sheet files the Chinese B-25J-30 as a fighter (capped at 8); the game doesn't.
     const b25 = plane("china-b-25j-30").options[0];
     expect(b25.rewardMultiplier).toBe(8);
-    expect(loadoutRewardMul(b25, damageOf, economy["china-b-25j-30"], constants.bombing)).toBe(1);
+    expect(loadoutRewardMul(b25.schedules[0], damageOf, economy["china-b-25j-30"], constants.bombing)).toBe(1);
   });
 
   it("gives up on bases the sheet only counts, whose bombs it never lists", () => {
     const ju88 = plane("germany-ju-88-a-1").options[0];
-    expect(loadoutRewardMul(ju88, damageOf, economy["germany-ju-88-a-1"], constants.bombing)).toBeNull();
+    expect(loadoutRewardMul(ju88.schedules[0], damageOf, economy["germany-ju-88-a-1"], constants.bombing)).toBeNull();
   });
 });
 

@@ -5,7 +5,7 @@
  * numbers match the client's screens rather than approximating them.
  */
 
-import type { LoadoutOption } from "./types";
+import type { Schedule } from "./types";
 
 /** Air AB / RB / SB, in that order, as the game's per-mode figures are. */
 export type ModeTriple = [number, number, number];
@@ -101,26 +101,43 @@ export function rewardMultiplier(
 }
 
 /**
- * `presetRewardMul` for one of the sheet's loadouts, over the damage of every
- * bomb it carries — or null where that can't be had: a bomb the chart doesn't
- * price, or bases the sheet only counts ("+ 2") and whose bombs it never lists.
+ * `presetRewardMul` over the damage of every bomb in a payload — or null where
+ * that can't be had: a bomb the chart doesn't price, or nothing priced at all.
  */
-export function loadoutRewardMul(
-  option: LoadoutOption,
+export function payloadRewardMul(
+  items: readonly { bombId: string; count: number }[],
   damageOf: (bombId: string) => number | null | undefined,
   unit: Pick<AircraftEconomy, "goldPriced" | "fighter">,
   constants: RewardConstants["bombing"],
 ): number | null {
-  const schedule = option.schedules[0];
-  if (!schedule) return null;
-  if (schedule.basesDestroyed !== null && schedule.basesDestroyed > schedule.bases.length) return null;
   let damage = 0;
-  for (const item of schedule.bases.flatMap((base) => base.items)) {
+  for (const item of items) {
     const value = damageOf(item.bombId);
     if (value === null || value === undefined) return null;
     damage += value * item.count;
   }
   return damage > 0 ? presetRewardMul(damage, unit, constants) : null;
+}
+
+/**
+ * `payloadRewardMul` for one of the sheet's schedules, over every bomb it
+ * carries — its own, since a loadout's bombs can differ from one bracket to
+ * the next — or null where that can't be had, bases the sheet only counts
+ * ("+ 2") and whose bombs it never lists among them.
+ */
+export function loadoutRewardMul(
+  schedule: Schedule,
+  damageOf: (bombId: string) => number | null | undefined,
+  unit: Pick<AircraftEconomy, "goldPriced" | "fighter">,
+  constants: RewardConstants["bombing"],
+): number | null {
+  if (schedule.basesDestroyed !== null && schedule.basesDestroyed > schedule.bases.length) return null;
+  return payloadRewardMul(
+    schedule.bases.flatMap((base) => base.items),
+    damageOf,
+    unit,
+    constants,
+  );
 }
 
 /** `round_by_value` (dagor std): to the nearest step. */

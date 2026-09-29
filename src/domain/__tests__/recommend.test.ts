@@ -1,14 +1,10 @@
 import { describe, expect, it } from "vitest";
-import aircraftData from "../../data/aircraft.json";
-import bombData from "../../data/bombs.json";
+import { aircraft, bombsById as bombs } from "../../lib/dataset";
 import { reachableBaseHps } from "../base-hp";
 import { defaultTarget, pickLoadout, stanceOf, type Candidate } from "../recommend";
 import { buildPlan, payloadOf, scheduleFor } from "../schedule";
 import type { BaseHp } from "../constants";
-import type { Aircraft, Bomb, LoadoutOption } from "../types";
-
-const bombs = new Map((bombData as Bomb[]).map((b) => [b.id, b]));
-const aircraft = aircraftData as Aircraft[];
+import type { Aircraft, LoadoutOption } from "../types";
 
 const find = (name: string) => {
   const plane = aircraft.find((a) => a.name === name);
@@ -26,6 +22,7 @@ function evaluate(plane: Aircraft, baseHp: BaseHp) {
       index,
       basesDestroyed: plan.basesDestroyed,
       bombCount: payloadOf(schedule, bombs).reduce((n, i) => n + i.count, 0),
+      rewardMultiplier: schedule.rewardMultiplier ?? null,
     };
   });
 }
@@ -49,6 +46,7 @@ const option = (over: Partial<LoadoutOption> = {}): LoadoutOption => ({
 const candidate = (over: Partial<Candidate> & { option: LoadoutOption }): Candidate => ({
   basesDestroyed: 1,
   bombCount: 4,
+  rewardMultiplier: 5,
   ...over,
 });
 
@@ -68,17 +66,18 @@ describe("stanceOf", () => {
 
 describe("pickLoadout", () => {
   it("prefers the source's star over a loadout that out-multiplies it", () => {
-    const star = candidate({ option: option({ noteMarker: "star", rewardMultiplier: 7.6 }) });
-    const richer = candidate({ option: option({ rewardMultiplier: 9.2 }) });
+    const star = candidate({ option: option({ noteMarker: "star" }), rewardMultiplier: 7.6 });
+    const richer = candidate({ option: option(), rewardMultiplier: 9.2 });
     expect(pickLoadout([richer, star], 1)).toBe(star);
   });
 
   it("skips a loadout the source argues against when another does the job", () => {
     const refused = candidate({
-      option: option({ discouraged: true, rewardMultiplier: 9 }),
+      option: option({ discouraged: true }),
+      rewardMultiplier: 9,
       basesDestroyed: 2,
     });
-    const plain = candidate({ option: option({ rewardMultiplier: 4 }), basesDestroyed: 2 });
+    const plain = candidate({ option: option(), rewardMultiplier: 4, basesDestroyed: 2 });
     expect(pickLoadout([refused, plain], 2)).toBe(plain);
   });
 
@@ -89,8 +88,8 @@ describe("pickLoadout", () => {
   });
 
   it("takes the better multiplier between two the source says nothing about", () => {
-    const lean = candidate({ option: option({ rewardMultiplier: 8 }) });
-    const heavy = candidate({ option: option({ rewardMultiplier: 6 }) });
+    const lean = candidate({ option: option(), rewardMultiplier: 8 });
+    const heavy = candidate({ option: option(), rewardMultiplier: 6 });
     expect(pickLoadout([heavy, lean], 1)).toBe(lean);
   });
 
@@ -98,10 +97,11 @@ describe("pickLoadout", () => {
     // Asking for one base and being handed the four-base loadout leaves the
     // control doing nothing, which is what the star used to cause here.
     const star = candidate({
-      option: option({ noteMarker: "star", rewardMultiplier: 5.4 }),
+      option: option({ noteMarker: "star" }),
+      rewardMultiplier: 5.4,
       basesDestroyed: 4,
     });
-    const light = candidate({ option: option({ rewardMultiplier: 8.5 }), basesDestroyed: 2 });
+    const light = candidate({ option: option(), rewardMultiplier: 8.5, basesDestroyed: 2 });
 
     expect(pickLoadout([star, light], 1)).toBe(light);
     expect(pickLoadout([star, light], 2)).toBe(light);
@@ -109,8 +109,8 @@ describe("pickLoadout", () => {
   });
 
   it("still prefers the star among loadouts that reach just as far", () => {
-    const star = candidate({ option: option({ noteMarker: "star", rewardMultiplier: 7.6 }) });
-    const richer = candidate({ option: option({ rewardMultiplier: 9.2 }) });
+    const star = candidate({ option: option({ noteMarker: "star" }), rewardMultiplier: 7.6 });
+    const richer = candidate({ option: option(), rewardMultiplier: 9.2 });
     expect(pickLoadout([richer, star], 1)).toBe(star);
   });
 });
@@ -153,7 +153,7 @@ describe("what the planner offers first, against the real sheet", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("leads with the starred loadout wherever the source names one", () => {
+  it("leads with the starred loadout wherever the source names one, and it brings a base down", () => {
     const overridden: string[] = [];
 
     for (const plane of aircraft) {
@@ -165,7 +165,9 @@ describe("what the planner offers first, against the real sheet", () => {
       }
     }
 
-    expect(overridden).toEqual([]);
+    // The AV-8Bs' starred ten GBU-38s come to 20 720 of 23 357 at the game's
+    // 2072 each, so the four Mk 77s that do bring a base down lead instead.
+    expect(overridden).toEqual(["AV-8B (NA) @ 25900 HP", "AV-8B Plus @ 25900 HP"]);
   });
 
   it("gives the F-15A the light loadout the author points at, not the incendiaries", () => {

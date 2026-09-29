@@ -4,7 +4,7 @@ import { Wrench } from "lucide-react";
 import { useMemo } from "react";
 import { effectiveBaseHp, reachableBaseHps } from "@/domain/base-hp";
 import { BASE_COUNTS, GAME_MODES, type BaseCount, type BaseHp, type GameMode } from "@/domain/constants";
-import { buildFor, releaseLimitOf, variantOf, type Armament, type Build } from "@/domain/loadout";
+import { buildFor, releaseLimitOf, variantOf, violationsOf, type Armament, type Build } from "@/domain/loadout";
 import { defaultTarget, pickLoadout, stanceOf, type Stance } from "@/domain/recommend";
 import {
   buildPlan,
@@ -16,7 +16,7 @@ import {
   type Plan,
 } from "@/domain/schedule";
 import rewardConstantsData from "@/data/reward-constants.json";
-import { loadoutRewardMul, type AircraftEconomy, type RewardConstants } from "@/domain/reward";
+import { payloadRewardMul, type AircraftEconomy, type RewardConstants } from "@/domain/reward";
 import { rewardDamageOf } from "@/domain/bomb-chart";
 import type { Aircraft, Bomb, LoadoutOption, Schedule } from "@/domain/types";
 import { AnimatedCount, AnimatedNumber } from "@/components/animated-number";
@@ -43,6 +43,7 @@ type Evaluated = {
   plan: Plan;
   basesDestroyed: number;
   bombCount: number;
+  rewardMultiplier: number | null;
 };
 
 export function AircraftPlanner({
@@ -90,7 +91,8 @@ export function AircraftPlanner({
         const schedule = scheduleFor(option, baseHp);
         const plan = buildPlan(schedule, bombsById, { baseHp, mode: mode as GameMode, baseCount });
         const bombCount = payloadOf(schedule, bombsById).reduce((n, i) => n + i.count, 0);
-        return { option, index, schedule, plan, basesDestroyed: plan.basesDestroyed, bombCount };
+        const rewardMultiplier = schedule.rewardMultiplier ?? null;
+        return { option, index, schedule, plan, basesDestroyed: plan.basesDestroyed, bombCount, rewardMultiplier };
       }),
     [plane.options, baseHp, bombsById, mode, baseCount],
   );
@@ -120,13 +122,36 @@ export function AircraftPlanner({
     [active.plan, canTrim, wanted],
   );
   const wantedFewer = target !== AUTO_TARGET && wanted < active.plan.basesDestroyed;
+  // Bases the sheet counts without writing their bombs ("+ 2"), still on board:
+  // what is mounted isn't wholly known, whatever the plan redistributes.
+  const unknownLoad = (active.schedule.basesDestroyed ?? 0) > active.schedule.bases.length && !shown.trimmed;
+
+  /**
+   * `presetRewardMul` for what is actually mounted, by the game's formula — a
+   * load cut down to fewer bases earns more per base than the full one. Null
+   * where the load isn't wholly known or has a bomb with no damage to count.
+   */
+  const payload = useMemo(() => {
+    if (!economy || unknownLoad) return null;
+    return payloadRewardMul(
+      mountedIn(shown).map((item) => ({ bombId: item.bomb.id, count: item.count })),
+      (id) => {
+        const bomb = bombsById.get(id);
+        return bomb ? rewardDamageOf(bomb) : undefined;
+      },
+      economy,
+      (rewardConstantsData as RewardConstants).bombing,
+    );
+  }, [unknownLoad, shown, economy, bombsById]);
+  // As the loadout screen shows it; else the schedule's own, the full load's.
+  const multiplier = payload !== null ? Math.round(payload * 100) / 10 : active.rewardMultiplier;
 
   // What is shown, hung pylon by pylon, for the creator to open on — a bomb
   // the pylons don't hang taking a variant they do (see `buildFor`). Not
   // where the sheet leaves bases unwritten ("+ 2"), whose bombs nobody knows.
   const armament = creator?.armament ?? null;
   const creatorBuild = useMemo(() => {
-    if (!armament || shown.unlistedBases > 0) return null;
+    if (!armament || unknownLoad) return null;
     const standsIn = (bombId: string, forBombId: string) => {
       const bomb = bombsById.get(bombId);
       const of = bombsById.get(forBombId);
@@ -134,9 +159,26 @@ export function AircraftPlanner({
     };
     const wanted = mountedIn(shown).map((item) => ({ bombId: item.bomb.id, count: item.count }));
     return buildFor(armament, wanted, standsIn);
-  }, [armament, shown, bombsById]);
+  }, [armament, unknownLoad, shown, bombsById]);
   // Known only where the load maps onto the pylons: the limit is the presets'.
   const releaseLimit = armament && creatorBuild ? releaseLimitOf(creatorBuild, armament) : null;
+
+  // What is shown can't go on the aircraft as it stands: none of its setups
+  // carries it, its pylons can't take all of it at once, or it weighs more
+  // than the aircraft lifts. A load cut down to fewer bases may well fit.
+  const overweight =
+    armament && creatorBuild ? violationsOf(creatorBuild, armament).find((v) => v.kind === "overweight") : undefined;
+  const hangNote = active.schedule.noSetup
+    ? fill(m.planner.noSetup, { name: displayName })
+    : armament && !unknownLoad && !creatorBuild
+      ? fill(m.planner.noRoom, { name: displayName })
+      : overweight?.kind === "overweight"
+        ? fill(m.planner.overweight, {
+            name: displayName,
+            kg: number(Math.round(overweight.kg)),
+            limit: number(overweight.limitKg),
+          })
+        : null;
 
   return (
     <div className="space-y-8">
@@ -222,15 +264,15 @@ export function AircraftPlanner({
           <p className="text-sm text-ink-dim">
             <AnimatedCount forms={m.common.bases} value={shown.basesDestroyed} /> ·{" "}
             <ItemList items={mountedIn(shown)} />
-            {active.option.rewardMultiplier !== null ? (
+            {multiplier !== null ? (
               <>
                 {" "}
                 ·{" "}
                 <span className="text-ink">
-                  <AnimatedNumber value={active.option.rewardMultiplier} format={{ maximumFractionDigits: 2 }} suffix="×" />
+                  <AnimatedNumber value={multiplier} format={{ maximumFractionDigits: 2 }} suffix="×" />
                 </span>{" "}
                 {m.planner.reward}
-                {shown.trimmed ? m.planner.onFullLoad : ""}
+                {shown.trimmed && payload === null ? m.planner.onFullLoad : ""}
               </>
             ) : null}
             {releaseLimit !== null ? (
@@ -274,6 +316,10 @@ export function AircraftPlanner({
 
         {active.option.note || active.option.noteMarker ? (
           <LoadoutNote option={active.option} sourceUrl={sourceUrl} />
+        ) : null}
+
+        {hangNote ? (
+          <p className="text-sm text-ink-dim border border-warn/30 bg-warn/5 rounded-lg px-3 py-2">{hangNote}</p>
         ) : null}
 
         {shown.source === "recomputed" ? (
@@ -325,9 +371,7 @@ export function AircraftPlanner({
                   >
                     <td className="nums px-3 py-2 font-medium">{entry.basesDestroyed}</td>
                     <td className="nums px-3 py-2 text-ink-dim">
-                      {entry.option.rewardMultiplier !== null
-                        ? `${entry.option.rewardMultiplier}×`
-                        : "—"}
+                      {entry.rewardMultiplier !== null ? `${entry.rewardMultiplier}×` : "—"}
                     </td>
                     <td className="px-3 py-2">
                       <StanceTag stance={stanceOf(entry.option)} m={m} />
@@ -364,23 +408,14 @@ export function AircraftPlanner({
           aircraftId={plane.id}
           economy={economy}
           mode={mode as GameMode}
-          // The game's own payload multiplier, unrounded; the sheet's (×10 on the
-          // loadout screen) only where that can't be worked out.
+          // The game's own payload multiplier, unrounded; the shown one (×10 on
+          // the loadout screen) only where that can't be worked out.
           sortie={
-            active.option.rewardMultiplier !== null
+            multiplier !== null
               ? {
                   bases: shown.basesDestroyed,
                   baseHp: effectiveBaseHp(baseHp, "rb", baseCount),
-                  payload:
-                    loadoutRewardMul(
-                      active.option,
-                      (id) => {
-                        const bomb = bombsById.get(id);
-                        return bomb ? rewardDamageOf(bomb) : undefined;
-                      },
-                      economy,
-                      (rewardConstantsData as RewardConstants).bombing,
-                    ) ?? active.option.rewardMultiplier / 10,
+                  payload: payload ?? multiplier / 10,
                 }
               : null
           }

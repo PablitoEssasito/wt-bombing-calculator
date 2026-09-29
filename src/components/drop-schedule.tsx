@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * `shortfalls` marks the bases the sheet counts down that the game's own damage
- * figures leave standing (see shortfallOf) — shown on the tile rather than
- * quietly re-counted, since the rest of the sheet's plan still stands.
+ * figures leave standing (see shortfallOf) — counted as standing, and said so on
+ * the tile with what it would take, since the rest of the sheet's plan still stands.
  */
 export function DropSchedule({ plan, shortfalls = [] }: { plan: Plan; shortfalls?: Shortfall[] }) {
   const { m, number, count, fill } = useI18n();
@@ -38,7 +38,7 @@ export function DropSchedule({ plan, shortfalls = [] }: { plan: Plan; shortfalls
       {plan.unlistedBases > 0 ? (
         <p className="text-sm text-ink-dim">
           <span className="text-ink-faint">{count(m.drop.plusMore, plan.unlistedBases)}</span>
-          {fill(m.drop.unlisted, { counted: plan.basesDestroyed, written: plan.bases.length })}
+          {fill(m.drop.unlisted, { counted: plan.bases.length + plan.unlistedBases, written: plan.bases.length })}
         </p>
       ) : null}
 
@@ -48,7 +48,7 @@ export function DropSchedule({ plan, shortfalls = [] }: { plan: Plan; shortfalls
           <ItemList items={plan.leftover} />
           <span className="text-ink-faint">
             {plan.trimmed
-              ? count(m.drop.surplus, plan.bases.length)
+              ? count(m.drop.surplus, plan.basesDestroyed)
               : plan.respawns
                 ? m.drop.notEnoughRespawn
                 : m.drop.notEnoughNoRespawn}

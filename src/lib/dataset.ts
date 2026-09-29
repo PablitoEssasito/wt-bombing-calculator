@@ -23,6 +23,7 @@ import type { Locale } from "@/i18n/locales";
 import type { Armament, SlotOption, Store, StoreKind } from "@/domain/loadout";
 import rewardConstantsData from "@/data/reward-constants.json";
 import { loadoutRewardMul, type AircraftEconomy, type ModeTriple, type RewardConstants } from "@/domain/reward";
+import { buildPlan } from "@/domain/schedule";
 import {
   BATTLE_MODES,
   type Aircraft,
@@ -31,6 +32,7 @@ import {
   type Bomb,
   type ChangelogEntry,
   type Meta,
+  type Schedule,
   type WeaponStats,
 } from "@/domain/types";
 
@@ -76,7 +78,8 @@ export const imagesByAircraft = imageData as Record<string, string>;
 /**
  * Aircraft the wiki marks a squadron vehicle — earned through a squadron's own
  * activity rather than research or purchase. Premium needs no set of its own:
- * the sheet already states it per aircraft, in `category`.
+ * `category` states it per aircraft, as the game's files have it (see
+ * scripts/battle-ratings).
  */
 const squadronIds = new Set(squadronData as string[]);
 
@@ -114,27 +117,36 @@ export const economyFor = (aircraftId: string): AircraftEconomy | null => econom
 const rewardDamage = new Map(bombs.map((b) => [b.id, rewardDamageOf(b)]));
 
 /**
- * Each loadout's reward multiplier as the game works it out (`loadoutRewardMul`,
- * with the aircraft's class from wpcost.blkx), in place of the sheet's. The
- * sheet's differs on about one loadout in ten, from damage values it predates
- * and 14 aircraft filed under the wrong class: the F-4J's 12 × Mk 82 is 6.6
- * there and 5.6 in the game, which a real battle paid by. The sheet's figure
- * stays where the game's can't be had.
+ * Each schedule's reward multiplier as the game works it out (`loadoutRewardMul`,
+ * with the aircraft's class from wpcost.blkx), in place of the sheet's one per
+ * loadout. The sheet's differs on about one loadout in ten, from damage values
+ * it predates and 14 aircraft filed under the wrong class: the F-4J's 12 × Mk 82
+ * is 6.6 there and 5.6 in the game, which a real battle paid by — and it gives
+ * one figure where a loadout's bombs change with the bracket: the Il-4's ten
+ * FAB-100s and three FAB-500s earn 6.6, the eight it takes a bracket lower 7.1.
+ * The sheet's figure stays where the game's can't be had.
  */
-function gameMultiplier(plane: Aircraft, option: Aircraft["options"][number]): number | null {
+function gameMultiplier(plane: Aircraft, option: Aircraft["options"][number], schedule: Schedule): number | null {
   // Only weapons the game never priced: nothing to multiply, as in the creator —
   // not the sheet's figure, which counts their estimated damage.
-  const items = option.schedules[0]?.bases.flatMap((base) => base.items) ?? [];
+  const items = schedule.bases.flatMap((base) => base.items);
   if (items.length > 0 && items.every((item) => rewardDamage.get(item.bombId) === 0)) return null;
   const unit = economy.aircraft[plane.id];
-  if (!unit || option.rewardMultiplier === null) return option.rewardMultiplier;
-  const mul = loadoutRewardMul(option, (id) => rewardDamage.get(id), unit, (rewardConstantsData as RewardConstants).bombing);
+  const mul = unit
+    ? loadoutRewardMul(schedule, (id) => rewardDamage.get(id), unit, (rewardConstantsData as RewardConstants).bombing)
+    : null;
   return mul === null ? option.rewardMultiplier : Math.round(mul * 100) / 10;
 }
 
 export const aircraft: Aircraft[] = (aircraftData as Aircraft[]).map((plane) => ({
   ...plane,
-  options: plane.options.map((option) => ({ ...option, rewardMultiplier: gameMultiplier(plane, option) })),
+  options: plane.options.map((option) => ({
+    ...option,
+    schedules: option.schedules.map((schedule) => ({
+      ...schedule,
+      rewardMultiplier: gameMultiplier(plane, option, schedule),
+    })),
+  })),
 }));
 
 /** Aircraft id to the wiki's own class — fighter, bomber, or strike aircraft. */
@@ -419,11 +431,15 @@ export const aircraftIndex: AircraftSummary[] = aircraft
     rank: plane.rank,
     br: plane.br,
     brs: brsOf(plane),
+    // As the planner counts them: the sheet's count, where the game's figures bear it out.
     maxBases: Math.max(
       0,
-      ...shownOptions(plane).map(
-        (o) => o.schedules[0]?.basesDestroyed ?? o.schedules[0]?.bases.length ?? 0,
-      ),
+      ...shownOptions(plane).map((o) => {
+        const schedule = o.schedules[0];
+        return schedule
+          ? buildPlan(schedule, bombsById, { baseHp: schedule.baseHp, mode: "rb", baseCount: 4 }).basesDestroyed
+          : 0;
+      }),
     ),
     preview: headlineBomb(plane),
     imageId: imagesByAircraft[plane.id] ?? null,
