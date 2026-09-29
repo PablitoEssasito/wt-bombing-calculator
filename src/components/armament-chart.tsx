@@ -485,9 +485,11 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
           {m.bombChart.empty}
         </p>
       ) : (
-        <div className="space-y-2">
-          {/* With extra columns the table outgrows the page: it scrolls in a window
-              of its own then, so the sideways scrollbar is in sight rather than
+        <div className={cn("space-y-2", wide && "mx-[min(0px,calc(50%_-_50vw_+_1.5rem))]")}>
+          {/* With extra columns the table outgrows the page. It takes the window's
+              width then, set tighter, labels and words wrapping, so every column
+              fits on a wide enough screen. Where it still doesn't, it scrolls in a
+              window of its own, so the sideways scrollbar is in sight rather than
               under the last of a few hundred rows, with the header and the
               weapon's name held in place. Not on a phone, where a swipe scrolls
               it sideways and a pinned name would leave no room. */}
@@ -502,6 +504,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
+                    compact={wide}
                   />
                   <SortTh
                     column="needed"
@@ -511,6 +514,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
+                    compact={wide}
                   />
                   <SortTh
                     column="damage"
@@ -520,6 +524,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
+                    compact={wide}
                   />
                   <SortTh
                     column="mass"
@@ -529,6 +534,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
+                    compact={wide}
                   />
                   <SortTh
                     column="tnt"
@@ -538,6 +544,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
+                    compact={wide}
                   />
                   <SortTh
                     column="efficiency"
@@ -547,6 +554,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
+                    compact={wide}
                   />
                   <SortTh
                     column="kind"
@@ -555,6 +563,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     sort={sort}
                     dir={dir}
                     onSort={handleSort}
+                    compact={wide}
                   />
                   {EXTRA_COLUMNS.filter((column) => shownColumns.has(column)).map((column) => (
                     <SortTh
@@ -566,6 +575,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                       sort={sort}
                       dir={dir}
                       onSort={handleSort}
+                      compact={wide}
                     />
                   ))}
                 </tr>
@@ -574,7 +584,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                 rows={listed}
                 massUnit={shownUnit}
                 columns={shownColumns}
-                pinName={wide}
+                wide={wide}
                 guidanceLabels={guidanceLabels}
                 compared={comparedSet}
                 onCompare={toggleCompared}
@@ -620,7 +630,7 @@ const BombRows = memo(function BombRows({
   rows,
   massUnit,
   columns,
-  pinName,
+  wide,
   guidanceLabels,
   compared,
   onCompare,
@@ -628,8 +638,11 @@ const BombRows = memo(function BombRows({
   rows: SortableRow[];
   massUnit: MassUnit;
   columns: ReadonlySet<ExtraColumn>;
-  /** Holds the name column in place while the table scrolls sideways — see ArmamentChart. */
-  pinName: boolean;
+  /**
+   * Extra columns are on: set tighter, words free to wrap, and the name column
+   * held in place while the table scrolls sideways — see ArmamentChart.
+   */
+  wide: boolean;
   guidanceLabels: Record<string, string>;
   compared: ReadonlySet<string>;
   onCompare: (id: string) => void;
@@ -656,12 +669,13 @@ const BombRows = memo(function BombRows({
     }
   };
   const extras = EXTRA_COLUMNS.filter((column) => columns.has(column));
+  const pad = wide ? "px-2" : "px-3";
 
   return (
     <tbody>
       {rows.map(({ bomb, needed }) => (
         <tr key={bomb.id} className="group border-t border-line hover:bg-surface-2">
-          <td className={cn("px-3 py-2", pinName && "sm:sticky sm:left-0 sm:z-[5] bg-surface group-hover:bg-surface-2")}>
+          <td className={cn("py-2", pad, wide && "sm:sticky sm:left-0 sm:z-[5] bg-surface group-hover:bg-surface-2")}>
             <div className="flex items-center gap-2.5">
               <CompareToggle
                 on={compared.has(bomb.id)}
@@ -681,13 +695,18 @@ const BombRows = memo(function BombRows({
                   {bomb.nation ? <Flag nation={bomb.nation} size={13} /> : null}
                   {bomb.chartName || bomb.fullName}
                 </Link>
-                <div className="text-xs text-ink-faint truncate max-w-[9rem] sm:max-w-[22rem]">
+                <div
+                  className={cn(
+                    "text-xs text-ink-faint truncate max-w-[9rem]",
+                    wide ? "sm:max-w-[12rem]" : "sm:max-w-[22rem]",
+                  )}
+                >
                   {bomb.fullName}
                 </div>
               </div>
             </div>
           </td>
-          <td className="nums px-3 py-2 text-right text-accent font-semibold text-base whitespace-nowrap">
+          <td className={cn("nums py-2 text-right text-accent font-semibold text-base whitespace-nowrap", pad)}>
             {needed !== null && Number.isFinite(needed) ? (
               <>
                 {bomb.damageSource === "estimate" ? <span className="font-normal text-ink-faint">≈ </span> : null}
@@ -697,27 +716,29 @@ const BombRows = memo(function BombRows({
               "—"
             )}
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap">
+          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap", pad)}>
             <DamageValue bomb={bomb} />
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap hidden sm:table-cell">
+          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap hidden sm:table-cell", pad)}>
             {formatMass(bomb, massUnit)}
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell">
+          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell", pad)}>
             {bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : "—"}
           </td>
-          <td className="nums px-3 py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell">
+          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell", pad)}>
             {bomb.efficiency ?? "—"}
           </td>
-          <td className="px-3 py-2 text-ink-faint whitespace-nowrap hidden lg:table-cell">
+          <td className={cn("py-2 text-ink-faint hidden lg:table-cell", pad, !wide && "whitespace-nowrap")}>
             {bomb.guidance ? (guidanceLabels[bomb.guidance] ?? bomb.guidance) : m.bombKinds[bomb.kind]}
           </td>
           {extras.map((column) => (
             <td
               key={column}
               className={cn(
-                "px-3 py-2 text-ink-dim whitespace-nowrap",
-                column === "warhead" || column === "explosive" ? "text-left" : "nums text-right",
+                "py-2 text-ink-dim",
+                pad,
+                // The words of a warhead or a filler wrap; a figure stays whole.
+                column === "warhead" || column === "explosive" ? "text-left" : "nums text-right whitespace-nowrap",
               )}
             >
               {extraCell(bomb, column) ?? "—"}
@@ -846,6 +867,7 @@ function SortTh({
   onSort,
   align = "left",
   className,
+  compact,
 }: {
   column: Sort;
   label: string;
@@ -854,18 +876,21 @@ function SortTh({
   onSort: (column: Sort) => void;
   align?: "left" | "right";
   className?: string;
+  /** Set tighter, the label free to wrap — for the table with extra columns. */
+  compact?: boolean;
 }) {
   const active = sort === column;
   return (
     <th
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={cn("font-normal px-3 py-2", align === "right" ? "text-right" : "text-left", className)}
+      className={cn("font-normal py-2", compact ? "px-2" : "px-3", align === "right" ? "text-right" : "text-left", className)}
     >
       <button
         type="button"
         onClick={() => onSort(column)}
         className={cn(
-          "group inline-flex items-center gap-1 transition-colors hover:text-ink whitespace-nowrap",
+          "group inline-flex items-center gap-1 transition-colors hover:text-ink",
+          !compact && "whitespace-nowrap",
           align === "right" && "flex-row-reverse",
           active && "text-ink",
         )}
