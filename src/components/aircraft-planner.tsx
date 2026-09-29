@@ -353,50 +353,76 @@ export function AircraftPlanner({
             <table className="w-full text-sm">
               <thead className="text-ink-faint">
                 <tr className="hairline">
-                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.bases}</th>
-                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.reward}</th>
-                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.status}</th>
-                  <th className="text-left font-normal px-3 py-2">{m.planner.columns.payload}</th>
-                  <th className="px-3 py-2" />
+                  <th className="text-left font-normal px-2 sm:px-3 py-2">{m.planner.columns.bases}</th>
+                  <th className="text-left font-normal px-2 sm:px-3 py-2">{m.planner.columns.reward}</th>
+                  <th className="text-left font-normal px-2 sm:px-3 py-2">{m.planner.columns.status}</th>
+                  <th className="text-left font-normal px-2 sm:px-3 py-2">{m.planner.columns.payload}</th>
+                  <th className="hidden sm:table-cell px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
-                {evaluated.map((entry) => (
-                  <tr
-                    key={entry.index}
-                    className={cn(
-                      "border-t border-line",
-                      entry === active && "bg-accent-dim",
-                    )}
-                  >
-                    <td className="nums px-3 py-2 font-medium">{entry.basesDestroyed}</td>
-                    <td className="nums px-3 py-2 text-ink-dim">
-                      {entry.rewardMultiplier !== null ? `${entry.rewardMultiplier}×` : "—"}
-                    </td>
-                    <td className="px-3 py-2">
-                      <StanceTag stance={stanceOf(entry.option)} m={m} />
-                    </td>
-                    <td className="px-3 py-2 text-ink-dim">
-                      <ItemList items={payloadOf(entry.schedule, bombsById)} />
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      {entry === active ? (
-                        <span className="text-xs text-accent">{m.planner.shownAbove}</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            withViewTransition(() => setPicked(entry.index));
-                            track("planner_adjusted", { control: "loadout_pick", value: entry.index });
-                          }}
-                          className="text-xs text-ink-dim hover:text-accent underline underline-offset-4"
-                        >
-                          {m.planner.show}
-                        </button>
+                {evaluated.map((entry) => {
+                  const items = payloadOf(entry.schedule, bombsById);
+                  const pick = () => {
+                    withViewTransition(() => setPicked(entry.index));
+                    track("planner_adjusted", { control: "loadout_pick", value: entry.index });
+                  };
+                  return (
+                    <tr
+                      key={entry.index}
+                      className={cn(
+                        "border-t border-line",
+                        entry === active && "bg-accent-dim",
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    >
+                      <td className="nums px-2 sm:px-3 py-2 font-medium">{entry.basesDestroyed}</td>
+                      <td className="nums px-2 sm:px-3 py-2 text-ink-dim">
+                        {entry.rewardMultiplier !== null ? `${entry.rewardMultiplier}×` : "—"}
+                      </td>
+                      <td className="px-2 sm:px-3 py-2">
+                        {/* On a phone it may take two lines, kept one badge. */}
+                        <StanceTag
+                          stance={stanceOf(entry.option)}
+                          m={m}
+                          className="inline-block text-center whitespace-normal rounded-lg sm:whitespace-nowrap sm:rounded-full"
+                        />
+                      </td>
+                      <td className="px-2 sm:px-3 py-2 text-ink-dim">
+                        {/* On a phone the load itself picks the loadout: the column
+                            saying "show" has no room there. */}
+                        {entry === active ? (
+                          <ItemList items={items} />
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={pick}
+                              className="sm:hidden text-left underline underline-offset-4 hover:text-accent"
+                            >
+                              <ItemList items={items} />
+                            </button>
+                            <span className="hidden sm:inline">
+                              <ItemList items={items} />
+                            </span>
+                          </>
+                        )}
+                      </td>
+                      <td className="hidden sm:table-cell px-3 py-2 text-right">
+                        {entry === active ? (
+                          <span className="text-xs text-accent">{m.planner.shownAbove}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={pick}
+                            className="text-xs text-ink-dim hover:text-accent underline underline-offset-4"
+                          >
+                            {m.planner.show}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -446,7 +472,7 @@ function headingFor(
   return count(m.planner.bestFor, wanted);
 }
 
-function StanceTag({ stance, m }: { stance: Stance; m: ClientMessages }) {
+function StanceTag({ stance, m, className }: { stance: Stance; m: ClientMessages; className?: string }) {
   if (stance === "neutral") return null;
   return (
     <span
@@ -455,6 +481,7 @@ function StanceTag({ stance, m }: { stance: Stance; m: ClientMessages }) {
         stance === "recommended"
           ? "border-accent/40 text-accent bg-accent-dim"
           : "border-danger/40 text-danger bg-danger/5",
+        className,
       )}
     >
       {stance === "recommended" ? m.planner.recommendedTag : m.planner.advisedAgainst}

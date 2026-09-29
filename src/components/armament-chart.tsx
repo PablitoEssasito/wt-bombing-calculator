@@ -669,14 +669,15 @@ const BombRows = memo(function BombRows({
     }
   };
   const extras = EXTRA_COLUMNS.filter((column) => columns.has(column));
-  const pad = wide ? "px-2" : "px-3";
+  // Tighter on a phone too, where the name, the count and the damage have to share 360 px.
+  const pad = wide ? "px-2" : "px-2 sm:px-3";
 
   return (
     <tbody>
       {rows.map(({ bomb, needed }) => (
         <tr key={bomb.id} className="group border-t border-line hover:bg-surface-2">
           <td className={cn("py-2", pad, wide && "sm:sticky sm:left-0 sm:z-[5] bg-surface group-hover:bg-surface-2")}>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5">
               <CompareToggle
                 on={compared.has(bomb.id)}
                 disabled={full && !compared.has(bomb.id)}
@@ -695,9 +696,10 @@ const BombRows = memo(function BombRows({
                   {bomb.nation ? <Flag nation={bomb.nation} size={13} /> : null}
                   {bomb.chartName || bomb.fullName}
                 </Link>
+                {/* The full name has no room on a phone; the weapon's page gives it. */}
                 <div
                   className={cn(
-                    "text-xs text-ink-faint truncate max-w-[9rem]",
+                    "hidden sm:block text-xs text-ink-faint truncate",
                     wide ? "sm:max-w-[12rem]" : "sm:max-w-[22rem]",
                   )}
                 >
@@ -876,21 +878,26 @@ function SortTh({
   onSort: (column: Sort) => void;
   align?: "left" | "right";
   className?: string;
-  /** Set tighter, the label free to wrap — for the table with extra columns. */
+  /** Set tighter, the label free to wrap — for the table with extra columns. A phone gets that anyway. */
   compact?: boolean;
 }) {
   const active = sort === column;
   return (
     <th
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={cn("font-normal py-2", compact ? "px-2" : "px-3", align === "right" ? "text-right" : "text-left", className)}
+      className={cn(
+        "font-normal py-2",
+        compact ? "px-2" : "px-2 sm:px-3",
+        align === "right" ? "text-right" : "text-left",
+        className,
+      )}
     >
       <button
         type="button"
         onClick={() => onSort(column)}
         className={cn(
           "group inline-flex items-center gap-1 transition-colors hover:text-ink",
-          !compact && "whitespace-nowrap",
+          !compact && "sm:whitespace-nowrap",
           align === "right" && "flex-row-reverse",
           active && "text-ink",
         )}
@@ -903,7 +910,8 @@ function SortTh({
             <ChevronDown size={13} className="text-accent" />
           )
         ) : (
-          <ChevronsUpDown size={13} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+          // Shown on hover, so no room kept for it on a phone, which has none.
+          <ChevronsUpDown size={13} className="hidden sm:block opacity-0 group-hover:opacity-60 transition-opacity" />
         )}
       </button>
     </th>
