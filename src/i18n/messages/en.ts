@@ -293,11 +293,11 @@ export const en = {
     howToDrag:
       "Or drag a choice straight onto a pylon. Drop it on the strip that shows up over the list to hang it on every free pylon that takes it.",
     howToMove:
-      "Drag from one pylon to another to move or swap, or onto the strip that shows up to take it off. Anything replaced or taken off can be undone from the message that pops up.",
+      "Drag from one pylon to another to move or swap, or onto a strip that shows up above or below the pylons to take it off. Anything replaced or taken off can be undone from the message that pops up.",
     howToHoldChoice:
       "Or hold a choice in the list that slides up, then drag it onto a pylon — or onto the strip that shows up, to hang it on every free pylon that takes it.",
     howToHold:
-      "Hold a pylon for a moment, then drag it onto another to move or swap, or onto the strip that shows up to take it off. Anything replaced or taken off can be undone from the message that pops up.",
+      "Hold a pylon for a moment, then drag it onto another to move or swap, or onto a strip that shows up above or below the pylons to take it off. Anything replaced or taken off can be undone from the message that pops up.",
     pylonSheetTitle: "Pylon {n}",
     pickWhatItCarries: "Pick what it carries.",
     dropOnAll: "Drop here to hang it on every free pylon that takes it",

@@ -184,16 +184,29 @@ export function PylonTarget({
 
 /**
  * A strip that only exists mid-drag: "take it off" while a pylon's choice is
- * in hand, "every free pylon" while a menu choice is.
+ * in hand, "every free pylon" while a menu choice is. `below` is the second
+ * "take it off" strip, under the pylons.
  */
-export function DropZone({ kind, children }: { kind: "remove" | "all"; children: React.ReactNode }) {
+export function DropZone({
+  kind,
+  below = false,
+  children,
+}: {
+  kind: "remove" | "all";
+  below?: boolean;
+  children: React.ReactNode;
+}) {
   const { dragging, build, armament } = useDnd();
   const target: TargetData = { to: kind };
   const active =
     dragging !== null &&
     (kind === "remove" ? dragging.from === "pylon" : dragging.from === "menu") &&
     applyDrop(build, armament, dragging, target) !== null;
-  const { ref, isDropTarget } = useDroppable({ id: `zone:${kind}`, data: target, disabled: !active });
+  const { ref, isDropTarget } = useDroppable({
+    id: `zone:${kind}${below ? ":below" : ""}`,
+    data: target,
+    disabled: !active,
+  });
   if (!active) return null;
   return (
     <div

@@ -415,157 +415,166 @@ export function LoadoutCreator({
             );
           }}
         >
-          <section className="card overflow-hidden">
-            <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-3">
-              <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-ink-dim">
-                <span>
-                  {m.creator.editing} <span className="text-ink">{fill(m.creator.pylon, { n: editing })}</span>
-                </span>
-                {fillAll ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const added = fillAll.build.size - build.size;
-                      commit(fillAll.build, count(m.creator.alsoHung, added));
-                    }}
-                    className="text-accent underline underline-offset-4 hover:text-ink"
-                  >
-                    {fill(m.creator.alsoOnEveryFree, { n: fillAll.build.size - build.size })}
-                  </button>
-                ) : null}
-              </p>
-              <div className="flex items-center gap-3">
-                {howToHidden ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleHowTo(false)}
-                    aria-label={m.creator.howTo}
-                    title={m.creator.howTo}
-                    className="text-ink-faint transition-colors hover:text-accent"
-                  >
-                    <CircleHelp size={16} aria-hidden />
-                  </button>
-                ) : null}
-                <p className="nums text-sm">
-                  <span className="text-ink-faint">{m.creator.mass}</span>
-                  <span className={cn("font-semibold", overweight ? "text-danger" : "text-ink")}>
-                    <AnimatedNumber value={massIn(massKg, unit)} suffix={` ${unit}`} />
+          <div className="relative">
+            <section className="card overflow-hidden">
+              <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-3">
+                <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-ink-dim">
+                  <span>
+                    {m.creator.editing} <span className="text-ink">{fill(m.creator.pylon, { n: editing })}</span>
                   </span>
-                  {armament.maxLoadKg !== null ? (
-                    <span className="text-ink-faint"> / {formatMass(armament.maxLoadKg, unit, w)}</span>
+                  {fillAll ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const added = fillAll.build.size - build.size;
+                        commit(fillAll.build, count(m.creator.alsoHung, added));
+                      }}
+                      className="text-accent underline underline-offset-4 hover:text-ink"
+                    >
+                      {fill(m.creator.alsoOnEveryFree, { n: fillAll.build.size - build.size })}
+                    </button>
                   ) : null}
                 </p>
-                <div role="group" aria-label={m.creator.massUnit} className="flex rounded-md border border-line text-xs">
-                  {MASS_UNITS.map((u) => (
+                <div className="flex items-center gap-3">
+                  {howToHidden ? (
                     <button
-                      key={u}
                       type="button"
-                      onClick={() => setUnit(u)}
-                      aria-pressed={unit === u}
-                      className={cn(
-                        "px-2 py-0.5 transition-colors",
-                        unit === u ? "bg-accent-dim text-accent" : "text-ink-faint hover:text-ink",
-                      )}
+                      onClick={() => toggleHowTo(false)}
+                      aria-label={m.creator.howTo}
+                      title={m.creator.howTo}
+                      className="text-ink-faint transition-colors hover:text-accent"
                     >
-                      {u}
+                      <CircleHelp size={16} aria-hidden />
                     </button>
-                  ))}
+                  ) : null}
+                  <p className="nums text-sm">
+                    <span className="text-ink-faint">{m.creator.mass}</span>
+                    <span className={cn("font-semibold", overweight ? "text-danger" : "text-ink")}>
+                      <AnimatedNumber value={massIn(massKg, unit)} suffix={` ${unit}`} />
+                    </span>
+                    {armament.maxLoadKg !== null ? (
+                      <span className="text-ink-faint"> / {formatMass(armament.maxLoadKg, unit, w)}</span>
+                    ) : null}
+                  </p>
+                  <div role="group" aria-label={m.creator.massUnit} className="flex rounded-md border border-line text-xs">
+                    {MASS_UNITS.map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setUnit(u)}
+                        aria-pressed={unit === u}
+                        className={cn(
+                          "px-2 py-0.5 transition-colors",
+                          unit === u ? "bg-accent-dim text-accent" : "text-ink-faint hover:text-ink",
+                        )}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {armament.maxLoadKg !== null ? (
+                  <div className="basis-full pt-1">
+                    <MassBar massKg={massKg} limitKg={armament.maxLoadKg} />
+                  </div>
+                ) : null}
+              </header>
+  
+              <div className="relative">
+                {narrow ? (
+                  <p className="px-4 py-3 text-sm text-ink-dim">
+                    {m.creator.tapAPylon}
+                  </p>
+                ) : (
+                  <div className="max-h-[26rem] overflow-y-auto px-2 py-2">{menu(() => {})}</div>
+                )}
+                {/* Over the list's foot rather than in the flow, so the pylons don't
+                    shift under the pointer the moment a drag begins. */}
+                <div className="pointer-events-none absolute inset-x-2 bottom-2 space-y-2 [&>*]:pointer-events-auto [&>*]:bg-surface/95">
+                  <DropZone kind="all">{m.creator.dropOnAll}</DropZone>
+                  <DropZone kind="remove">{m.creator.dropToRemove}</DropZone>
                 </div>
               </div>
-              {armament.maxLoadKg !== null ? (
-                <div className="basis-full pt-1">
-                  <MassBar massKg={massKg} limitKg={armament.maxLoadKg} />
-                </div>
-              ) : null}
-            </header>
-
-            <div className="relative">
-              {narrow ? (
-                <p className="px-4 py-3 text-sm text-ink-dim">
-                  {m.creator.tapAPylon}
-                </p>
-              ) : (
-                <div className="max-h-[26rem] overflow-y-auto px-2 py-2">{menu(() => {})}</div>
-              )}
-              {/* Over the list's foot rather than in the flow, so the pylons don't
-                  shift under the pointer the moment a drag begins. */}
-              <div className="pointer-events-none absolute inset-x-2 bottom-2 space-y-2 [&>*]:pointer-events-auto [&>*]:bg-surface/95">
-                <DropZone kind="all">{m.creator.dropOnAll}</DropZone>
-                <DropZone kind="remove">{m.creator.dropToRemove}</DropZone>
-              </div>
-            </div>
-
-            <div className="border-t border-line px-3 py-3 overflow-x-auto">
-              <div className="flex gap-1 justify-center min-w-max">
-                {armament.hardpoints.map((point) => {
-                  const chosen = build.get(point.index);
-                  const option = chosen
-                    ? point.options.find((o) => o.name === chosen)
-                    : undefined;
-                  return (
-                    <PylonTarget key={point.index} slot={point.index} option={chosen} className="shrink-0">
-                      {(state, over, ref) => (
-                        <button
-                          ref={ref}
-                          type="button"
-                          onClick={() => {
-                            setEditing(point.index);
-                            if (narrow) setSheetOpen(true);
-                          }}
-                          aria-pressed={point.index === editing}
-                          title={
-                            state.kind === "blocked" && state.blocker
-                              ? describeBlocker(state.blocker, armament, unit, w)
-                              : state.kind === "incompatible"
-                                ? fill(m.creator.cantHang, { n: point.index })
-                                : option
-                                  ? labelForOption(option, w)
-                                  : fill(m.creator.emptyPylon, { n: point.index })
-                          }
-                          className={cn(
-                            "w-12 h-14 rounded-md border flex flex-col items-center justify-center gap-1 transition",
-                            point.index === editing
-                              ? "border-accent bg-accent-dim"
-                              : option
-                                ? "border-line-bright bg-surface-2 hover:border-accent/60"
-                                : "border-line border-dashed hover:border-line-bright",
-                            state.kind === "ok" && "outline-2 outline-dashed outline-offset-2 outline-accent/70",
-                            over && "scale-110 bg-accent-dim outline-accent",
-                            state.kind === "blocked" && "opacity-40",
-                            state.kind === "incompatible" && "opacity-20",
-                          )}
-                        >
-                          <AnimatePresence initial={false}>
-                            <motion.span
-                              key={option?.name ?? "empty"}
-                              initial={{ scale: 0.4, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              transition={{ type: "spring", stiffness: 500, damping: 24 }}
-                              className="flex h-5 items-center"
-                            >
-                              {option ? (
-                                <StoreGlyph option={option} size={20} />
-                              ) : (
-                                <span className="text-ink-faint text-lg leading-none">·</span>
-                              )}
-                            </motion.span>
-                          </AnimatePresence>
-                          <span
+  
+              <div className="border-t border-line px-3 py-3 overflow-x-auto">
+                <div className="flex gap-1 justify-center min-w-max">
+                  {armament.hardpoints.map((point) => {
+                    const chosen = build.get(point.index);
+                    const option = chosen
+                      ? point.options.find((o) => o.name === chosen)
+                      : undefined;
+                    return (
+                      <PylonTarget key={point.index} slot={point.index} option={chosen} className="shrink-0">
+                        {(state, over, ref) => (
+                          <button
+                            ref={ref}
+                            type="button"
+                            onClick={() => {
+                              setEditing(point.index);
+                              if (narrow) setSheetOpen(true);
+                            }}
+                            aria-pressed={point.index === editing}
+                            title={
+                              state.kind === "blocked" && state.blocker
+                                ? describeBlocker(state.blocker, armament, unit, w)
+                                : state.kind === "incompatible"
+                                  ? fill(m.creator.cantHang, { n: point.index })
+                                  : option
+                                    ? labelForOption(option, w)
+                                    : fill(m.creator.emptyPylon, { n: point.index })
+                            }
                             className={cn(
-                              "nums text-[10px]",
-                              point.index === editing ? "text-accent" : "text-ink-faint",
+                              "w-12 h-14 rounded-md border flex flex-col items-center justify-center gap-1 transition",
+                              point.index === editing
+                                ? "border-accent bg-accent-dim"
+                                : option
+                                  ? "border-line-bright bg-surface-2 hover:border-accent/60"
+                                  : "border-line border-dashed hover:border-line-bright",
+                              state.kind === "ok" && "outline-2 outline-dashed outline-offset-2 outline-accent/70",
+                              over && "scale-110 bg-accent-dim outline-accent",
+                              state.kind === "blocked" && "opacity-40",
+                              state.kind === "incompatible" && "opacity-20",
                             )}
                           >
-                            {point.index}
-                          </span>
-                        </button>
-                      )}
-                    </PylonTarget>
-                  );
-                })}
+                            <AnimatePresence initial={false}>
+                              <motion.span
+                                key={option?.name ?? "empty"}
+                                initial={{ scale: 0.4, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 24 }}
+                                className="flex h-5 items-center"
+                              >
+                                {option ? (
+                                  <StoreGlyph option={option} size={20} />
+                                ) : (
+                                  <span className="text-ink-faint text-lg leading-none">·</span>
+                                )}
+                              </motion.span>
+                            </AnimatePresence>
+                            <span
+                              className={cn(
+                                "nums text-[10px]",
+                                point.index === editing ? "text-accent" : "text-ink-faint",
+                              )}
+                            >
+                              {point.index}
+                            </span>
+                          </button>
+                        )}
+                      </PylonTarget>
+                    );
+                  })}
+                </div>
               </div>
+            </section>
+            {/* Again under the pylons, over what follows: with the pylons near the top of the
+                window, the list's foot is under the site's header. */}
+            <div className="pointer-events-none absolute inset-x-0 top-full z-20 mt-2 [&>*]:pointer-events-auto [&>*]:bg-surface">
+              <DropZone kind="remove" below>
+                {m.creator.dropToRemove}
+              </DropZone>
             </div>
-          </section>
+          </div>
           {narrow ? (
             <MenuSheet
               open={sheetOpen}

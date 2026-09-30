@@ -301,11 +301,11 @@ export const pl: ClientMessages = {
     howToDrag:
       "Albo przeciągnij opcję prosto na pylon. Upuść ją na pasku, który pojawi się nad listą, żeby zawiesić ją na każdym wolnym pylonie, który ją przyjmie.",
     howToMove:
-      "Przeciągnij z pylonu na inny, żeby przenieść albo zamienić, albo na pasek, który się pojawi, żeby zdjąć. Każdą podmianę i zdjęcie cofniesz w komunikacie, który wyskoczy.",
+      "Przeciągnij z pylonu na inny, żeby przenieść albo zamienić, albo na pasek, który pojawi się nad pylonami lub pod nimi, żeby zdjąć. Każdą podmianę i zdjęcie cofniesz w komunikacie, który wyskoczy.",
     howToHoldChoice:
       "Albo przytrzymaj opcję na liście, która wyjedzie, i przeciągnij ją na pylon — lub na pasek, który się pojawi, żeby zawiesić ją na każdym wolnym pylonie, który ją przyjmie.",
     howToHold:
-      "Przytrzymaj chwilę pylon, a potem przeciągnij go na inny, żeby przenieść albo zamienić, albo na pasek, który się pojawi, żeby zdjąć. Każdą podmianę i zdjęcie cofniesz w komunikacie, który wyskoczy.",
+      "Przytrzymaj chwilę pylon, a potem przeciągnij go na inny, żeby przenieść albo zamienić, albo na pasek, który pojawi się nad pylonami lub pod nimi, żeby zdjąć. Każdą podmianę i zdjęcie cofniesz w komunikacie, który wyskoczy.",
     pylonSheetTitle: "Pylon {n}",
     pickWhatItCarries: "Wybierz, co ma nieść.",
     dropOnAll: "Upuść tutaj, żeby zawiesić na każdym wolnym pylonie, który to przyjmie",
