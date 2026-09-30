@@ -1,4 +1,5 @@
 import type { BaseHp, Nation, VehicleCategory } from "./constants";
+import type { WeaponCategory, WeaponTag } from "./weapon-tags";
 
 export type BombKind =
   | "GP"
@@ -47,6 +48,13 @@ export type Bomb = {
    * anything unguided.
    */
   guidance?: string;
+  /**
+   * What the armament pages file it under and filter it by, from the game's
+   * file (see weapon-tags.ts) — or, for a sheet row the game has none for,
+   * from its kind. Set by the armament import.
+   */
+  category?: WeaponCategory;
+  tags?: WeaponTag[];
   /** Present, as "game", only on a row the sheet has no entry for. */
   source?: "game";
   /**
@@ -120,6 +128,8 @@ export type WeaponStats = {
   seekerRangeRearM?: number;
   seekerRangeAllM?: number;
   allAspect?: boolean;
+  /** A seeker that shrugs flares off: a rejected band, or a gate narrower than its view. */
+  irccm?: boolean;
   guaranteedRangeM?: number;
   operatedDistM?: number;
   machMax?: number;

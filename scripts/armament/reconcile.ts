@@ -1,5 +1,6 @@
 import { NATIONS, type Nation } from "../../src/domain/constants";
 import type { Bomb, BombKind, WeaponStats } from "../../src/domain/types";
+import { categoryOfKind, categoryOfRound, tagsOf, tagsOfKind, type WeaponTag } from "../../src/domain/weapon-tags";
 import type { Round } from "./stores";
 
 /**
@@ -65,13 +66,32 @@ function figuresOf(members: Round[]) {
   };
 }
 
+/**
+ * A row's tags: what most of its files earn — O-100 is two plain OFAB-100s and
+ * a Czech high-drag one. On a tie, the tags its kind agrees with: the sheet's
+ * 500M-62 is the plain bomb, not the glide kit priced alike.
+ */
+function tagsOfRow(members: Round[], kind: BombKind): WeaponTag[] {
+  const counts = new Map<string, { tags: WeaponTag[]; n: number }>();
+  for (const member of members) {
+    const tags = tagsOf(member);
+    const entry = counts.get(tags.join(",")) ?? { tags, n: 0 };
+    entry.n++;
+    counts.set(tags.join(","), entry);
+  }
+  const most = Math.max(...[...counts.values()].map((entry) => entry.n));
+  const tied = [...counts.values()].filter((entry) => entry.n === most);
+  const hint = tagsOfKind(kind);
+  return (tied.find((entry) => hint.length > 0 && hint.every((tag) => entry.tags.includes(tag))) ?? tied[0]).tags;
+}
+
 /** A game-only row's kind, from what its file says it is. */
 export function kindOfRound(round: Round): BombKind {
   switch (round.category) {
     case "bomb":
       if (round.incendiary) return "INC";
       if (round.drag) return "DRAG";
-      return /\b(AP|SAP)\b|armou?r[- ]piercing/i.test(round.name ?? "") ? "AP" : "GP";
+      return round.armourPiercing ? "AP" : "GP";
     case "guidedBomb":
       if (round.stats.aiming) return "RC";
       return KIND_OF_SEEKER[(round.stats.guidance ?? "").split("+")[0]] ?? "OTHER";
@@ -108,7 +128,12 @@ export type Reconciled = {
   estimates: string[];
   /** Sheet rows with no file of their own that take a same-named weapon's figures. */
   aliased: string[];
+  /** Sheet bombs whose file makes them another type than the sheet's kind: "row: sheet GP, game sap". */
+  types: string[];
 };
+
+/** The bomb type a sheet kind names, to hold against the tag the game's file earns. */
+const TYPE_OF_KIND: Partial<Record<BombKind, WeaponTag>> = { GP: "gp", AP: "ap", DRAG: "drag", INC: "incendiary" };
 
 /**
  * Lays the game's rounds over the sheet's rows, and adds a row for every
@@ -131,6 +156,7 @@ export function reconcile(
   const unmatched: string[] = [];
   const estimates: string[] = [];
   const aliased: string[] = [];
+  const types: string[] = [];
 
   /** Keeps what the sheet printed for each figure the game overruled, and reports it. */
   const withSheet = (sheet: Bomb, next: Bomb): Bomb => {
@@ -172,6 +198,12 @@ export function reconcile(
       next.efficiency =
         next.damageValue !== null && next.massKg ? Math.round(next.damageValue / next.massKg) : null;
     }
+    next.category = categoryOfRound(representative(members).category);
+    next.tags = tagsOfRow(members, sheet.kind);
+    const sheetType = TYPE_OF_KIND[sheet.kind];
+    if (sheetType && next.category === "bomb" && next.tags[0] !== sheetType) {
+      types.push(`${sheet.chartName || sheet.fullName}: sheet ${sheet.kind}, game ${next.tags[0]}`);
+    }
     return withSheet(sheet, next);
   });
 
@@ -196,6 +228,8 @@ export function reconcile(
       fullName: first.name ?? first.short ?? first.file,
       kind: kindOfRound(first),
       ...(game.guidance ? { guidance: game.guidance } : {}),
+      category: categoryOfRound(first.category),
+      tags: tagsOfRow(members, kindOfRound(first)),
       source: "game",
       nation,
       massKg: massKg === null ? null : round2(massKg),
@@ -220,7 +254,13 @@ export function reconcile(
     if (row) return row;
     unmatched.push(sheet.chartName || sheet.fullName);
     const twin = byName.get(sheet.fullName.toLowerCase());
-    const next: Bomb = { ...sheet, damageValue: null, efficiency: null };
+    const next: Bomb = {
+      ...sheet,
+      damageValue: null,
+      efficiency: null,
+      category: categoryOfKind(sheet.kind),
+      tags: tagsOfKind(sheet.kind),
+    };
     delete next.damageSource;
     if (twin) {
       aliased.push(`${sheet.chartName || sheet.fullName} → ${twin.chartName || twin.fullName}`);
@@ -232,11 +272,13 @@ export function reconcile(
         damageValue: twin.damageValue,
         efficiency: twin.efficiency,
         aliasOf: twin.id,
+        category: twin.category,
+        tags: twin.tags,
         ...(twin.damageSource ? { damageSource: twin.damageSource } : {}),
         ...(twin.guidance ? { guidance: twin.guidance } : {}),
       });
     }
     return withSheet(sheet, next);
   });
-  return { rows: [...rows, ...gameRows], stats, changes, unmatched, estimates, aliased };
+  return { rows: [...rows, ...gameRows], stats, changes, unmatched, estimates, aliased, types };
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import bombData from "../../data/bombs.json";
 import bombIconData from "../../data/bomb-icons.json";
 import aircraftBombIcons from "../../data/aircraft-bomb-icons.json";
+import { defOf } from "../../../scripts/bomb-icons/fetch";
 import { matchBombIcons, type WeaponDef } from "../../../scripts/bomb-icons/match";
 import { bombIconsFor } from "../../lib/dataset";
 import { presetIcons, type PresetIcon } from "../preset-icons";
@@ -251,5 +252,19 @@ describe("the imported bomb icon map", () => {
       expect(iconType.length).toBeGreaterThan(0);
       expect(iconType).not.toContain("/");
     }
+  });
+});
+
+describe("defOf", () => {
+  it("reads high drag and fire off the file itself, the way the armament import does", () => {
+    const def = (path: string, bomb: Record<string, unknown>) => defOf(path, { bomb });
+    // Snakeye: fins that open on release.
+    expect(def("bombguns/us_500lb_mk_82_ldgp_snakeye.blkx", { brakeArm: 0.5, brakeCxK: 110 }).isDrag).toBe(true);
+    // A guided bomb's own drag, and the RDS-37's, are not that.
+    expect(def("bombguns/us_gbu_39.blkx", { brakeCxK: 0.05, guidance: {} }).isDrag).toBe(false);
+    expect(def("bombguns/su_rds37.blkx", { brakeCxK: 0.2 }).isDrag).toBe(false);
+    // ZAB-500: its filling is "sks", no word of fire in it, but it burns.
+    expect(def("bombguns/su_zb_500.blkx", { explosiveType: "sks", fireDamage: {} }).isIncendiary).toBe(true);
+    expect(def("bombguns/su_fab500.blkx", { explosiveType: "tnt" }).isIncendiary).toBe(false);
   });
 });

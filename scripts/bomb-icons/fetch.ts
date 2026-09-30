@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import { dragOf } from "../armament/stats";
 import { API_BASE, ICON_DIR, OUT_ICONS_DIR, RAW_BASE, WEAPON_DIRS, WEAPONS_PATH } from "./config";
 import type { WeaponDef } from "./match";
 
@@ -19,29 +20,47 @@ async function fetchRaw(relativePath: string): Promise<string | null> {
   return response.ok ? response.text() : null;
 }
 
-/** Pulls the handful of fields we need out of a weapon's raw game-data file. */
-function parseDef(relativePath: string, text: string): WeaponDef | null {
-  let json: Record<string, unknown>;
+type Json = Record<string, unknown>;
+
+/**
+ * What a weapon's file says about its icon, read the way the armament import
+ * reads a round: high drag by `dragOf`, fire by the `fireDamage` block — the
+ * ZAB's "sks" filling names no fire, yet it burns.
+ */
+export function defOf(relativePath: string, json: Json): WeaponDef {
+  const payload = (json.bomb ?? json.rocket ?? {}) as Json;
+  return {
+    path: relativePath,
+    iconType: (json.iconType as string) ?? (payload.iconType as string) ?? null,
+    massKg: typeof payload.mass === "number" ? payload.mass : null,
+    isMine: relativePath.startsWith("mines/"),
+    isRocket: relativePath.startsWith("rocketguns/"),
+    isGuided: payload.guidance != null,
+    isDrag: dragOf(payload),
+    isIncendiary: payload.fireDamage != null,
+  };
+}
+
+/**
+ * The part of a weapon's file `defOf` reads, kept as the file has it: the
+ * cache holds what the game says, not what was made of it, so a change to a
+ * rule needs no fetch.
+ */
+function trimmed(text: string): Json | null {
+  let json: Json;
   try {
     json = JSON.parse(text);
   } catch {
     return null;
   }
-
-  const payload = (json.bomb ?? json.rocket ?? {}) as Record<string, unknown>;
-  const iconType = (json.iconType as string) ?? (payload.iconType as string) ?? null;
-  const massKg = typeof payload.mass === "number" ? payload.mass : null;
-
-  return {
-    path: relativePath,
-    iconType,
-    massKg,
-    isMine: relativePath.startsWith("mines/"),
-    isRocket: relativePath.startsWith("rocketguns/"),
-    isGuided: payload.guidance != null,
-    isDrag: payload.brakeArm != null || payload.brakeCxK != null,
-    isIncendiary: /napalm|incendiary|aerea/i.test(String(payload.explosiveType ?? "")),
-  };
+  const key = json.bomb != null ? "bomb" : json.rocket != null ? "rocket" : null;
+  const payload = (key ? json[key] : {}) as Json;
+  const kept: Json = {};
+  for (const field of ["iconType", "mass", "brakeArm", "brakeCxK", "guidance", "fireDamage"]) {
+    // Only whether a block is there matters, not what is in it.
+    if (payload[field] != null) kept[field] = typeof payload[field] === "object" ? {} : payload[field];
+  }
+  return { iconType: json.iconType, ...(key ? { [key]: kept } : {}) };
 }
 
 /**
@@ -52,16 +71,17 @@ function parseDef(relativePath: string, text: string): WeaponDef | null {
  * push it.
  */
 export async function fetchWeaponDefs(useCache: boolean): Promise<WeaponDef[]> {
-  const cachePath = path.join(CACHE_DIR, "defs.json");
+  const cachePath = path.join(CACHE_DIR, "files.json");
+  const defsOf = (files: { path: string; json: Json }[]) => files.map((file) => defOf(file.path, file.json));
 
   if (useCache && existsSync(cachePath)) {
-    return JSON.parse(await readFile(cachePath, "utf8")) as WeaponDef[];
+    return defsOf(JSON.parse(await readFile(cachePath, "utf8")));
   }
 
   const dirLists = await Promise.all(WEAPON_DIRS.map((dir) => listDir(dir)));
   const allPaths = dirLists.flat();
 
-  const defs: WeaponDef[] = [];
+  const files: { path: string; json: Json }[] = [];
   const queue = [...allPaths];
   const CONCURRENCY = 20;
 
@@ -71,15 +91,17 @@ export async function fetchWeaponDefs(useCache: boolean): Promise<WeaponDef[]> {
       if (!relativePath) break;
       const text = await fetchRaw(relativePath);
       if (!text) continue;
-      const def = parseDef(relativePath, text);
-      if (def) defs.push(def);
+      const json = trimmed(text);
+      if (json) files.push({ path: relativePath, json });
     }
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
+  // In path order, so a cache written by one run reads the same as another's.
+  files.sort((a, b) => a.path.localeCompare(b.path));
   await mkdir(CACHE_DIR, { recursive: true });
-  await writeFile(cachePath, JSON.stringify(defs));
-  return defs;
+  await writeFile(cachePath, JSON.stringify(files));
+  return defsOf(files);
 }
 
 /** Downloads one icon from the game's own UI atlas, as-is (no resizing needed — it's 100x100 already). */

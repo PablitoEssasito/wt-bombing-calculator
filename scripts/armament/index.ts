@@ -195,12 +195,12 @@ async function main() {
 
   const rounds = JSON.parse(await readFile(ROUNDS_FILE, "utf8")) as Round[];
   const wpcost = await loadWpcost(true);
-  const { rows: bombs, stats, changes, unmatched: noFile, estimates, aliased } = reconcile(
+  const { rows: bombs, stats, changes, unmatched: noFile, estimates, aliased, types } = reconcile(
     sheetRows,
     rounds,
     (unit) => wpcost.units[unit]?.country,
   );
-  reportReconciled(bombs, changes, noFile, estimates, aliased);
+  reportReconciled(bombs, changes, noFile, estimates, aliased, types);
   await writeFile(OUT_STATS, JSON.stringify(stats), "utf8");
 
   const carriers = sharedAcrossDuplicates(gameCarriersOf(aircraft, unitIds, byUnit, catalogue), bombs);
@@ -406,7 +406,14 @@ function reportShortfalls(aircraft: Aircraft[], bombs: Map<string, Bomb>) {
 }
 
 /** What the game's files changed about the sheet's rows, and what they added. */
-function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], estimates: string[], aliased: string[]) {
+function reportReconciled(
+  rows: Bomb[],
+  changes: string[],
+  noFile: string[],
+  estimates: string[],
+  aliased: string[],
+  types: string[],
+) {
   const game = rows.filter((row) => row.source === "game");
   const bySource = (source: string) => rows.filter((row) => row.damageSource === source).length;
   console.log(`\n--- armament table ---`);
@@ -432,6 +439,10 @@ function reportReconciled(rows: Bomb[], changes: string[], noFile: string[], est
   if (estimates.length > 0) {
     console.log(`note  ${estimates.length} sheet figure(s) the explosion model puts otherwise, the estimate taken:`);
     for (const line of estimates) console.log(`        ${line}`);
+  }
+  if (types.length > 0) {
+    console.log(`note  ${types.length} sheet bomb(s) the game's file makes another type, filtered by the game's:`);
+    for (const line of types) console.log(`        ${line}`);
   }
 }
 

@@ -5,12 +5,14 @@ import { NATIONS } from "../../domain/constants";
 import type { BaseLoadout, WeaponStats } from "../../domain/types";
 import { bombsIn, buildFor, carriedWithin, variantOf, violationsOf } from "../../domain/loadout";
 import { splitIntoBases } from "../../domain/fit";
+import { WEAPON_CATEGORIES, WEAPON_TAGS } from "../../domain/weapon-tags";
 import { buildPlan } from "../../domain/schedule";
 import {
   aircraft,
   aircraftCarrying,
   aircraftIndex,
   armamentFor,
+  bombs,
   bombsById,
   chartRowsFor,
   gameLabel,
@@ -285,6 +287,70 @@ describe("the armament table, the game's files over the sheet", () => {
     expect(stats["kd-88"].tntKg).toBeCloseTo(90.95, 2);
     // The KD-88A's IR seeker: 20 km lock range.
     expect(stats["kd-88a"]).toMatchObject({ guidance: "ir+IOG+GNSS", seekerRangeM: 20000 });
+  });
+});
+
+describe("categories and tags, off the game's files", () => {
+  const tagsOf = (id: string) => bombsById.get(id)!.tags;
+  const BOMB_TYPES = ["gp", "ap", "sap", "drag", "incendiary", "nuclear"];
+  const SEEKERS = ["laser", "tv", "ir", "gnss", "sarh", "arh", "antiRadiation", "saclos", "beamRiding", "mclos"];
+
+  it("files every row under a category, with only tags the pages know", () => {
+    for (const bomb of bombs) {
+      expect(WEAPON_CATEGORIES, bomb.id).toContain(bomb.category);
+      for (const tag of bomb.tags!) expect(WEAPON_TAGS, bomb.id).toContain(tag);
+    }
+  });
+
+  it("gives every bomb the pages show one type, and everything but a torpedo, mine or gun pod something to steer it or not", () => {
+    // A sheet row the game has no file for shows nowhere, and its kind alone names no type.
+    for (const bomb of pagedBombs) {
+      const tags = bomb.tags!;
+      if (bomb.category === "bomb") expect(tags.filter((t) => BOMB_TYPES.includes(t)), bomb.id).toHaveLength(1);
+      if (["bomb", "rocket", "agm", "aam"].includes(bomb.category!)) {
+        const steering = tags.filter((t) => t === "unguided" || SEEKERS.includes(t));
+        expect(steering, bomb.id).toHaveLength(1);
+      } else {
+        expect(tags, bomb.id).toEqual([]);
+      }
+    }
+  });
+
+  it("calls no guided bomb high-drag: its own drag is not a chute", () => {
+    const guidedDrag = bombs.filter((b) => b.tags!.includes("drag") && !b.tags!.includes("unguided"));
+    expect(guidedDrag.map((b) => b.id)).toEqual([]);
+    expect(tagsOf("ls-6-ir-500")).not.toContain("drag");
+    expect(tagsOf("spice-1k")).not.toContain("drag");
+    expect(tagsOf("rds-37")).toEqual(["nuclear", "unguided"]);
+    expect(tagsOf("500-lb-mk-82-snake-eye")).toEqual(["drag", "unguided"]);
+  });
+
+  it("splits air-to-air missiles the way the game's tooltip does", () => {
+    expect(tagsOf("aim-9b")).toEqual(["ir", "rearAspect"]);
+    // IRCCM: a rejected flare band (AIM-9M) or a gate narrower than the view (R-73, R-27ET); the AIM-9L has neither.
+    expect(tagsOf("aim-9l")).toEqual(["ir", "allAspect"]);
+    expect(tagsOf("aim-9m")).toEqual(["ir", "allAspect", "irccm"]);
+    expect(tagsOf("r-73")).toEqual(["ir", "allAspect", "irccm"]);
+    expect(tagsOf("r-27et")).toEqual(["ir", "allAspect", "irccm"]);
+    expect(tagsOf("aim-7m")).toEqual(["sarh"]);
+    expect(tagsOf("r-27er")).toEqual(["sarh", "iog", "datalink"]);
+    expect(tagsOf("aim-120a")).toEqual(["arh", "iog", "datalink"]);
+    expect(tagsOf("aim-120d")).toEqual(["arh", "iog", "gnssAid", "datalink"]);
+  });
+
+  it("tags air-to-ground weapons, bombs and rockets by their files", () => {
+    expect(tagsOf("agm-88c")).toEqual(["antiRadiation", "iog", "he"]);
+    expect(tagsOf("kd-88")).toEqual(["tv", "iog", "gnssAid", "aphe"]);
+    expect(tagsOf("gbu-54")).toEqual(["gp", "laser", "iog", "gnssAid"]);
+    expect(tagsOf("gbu-38")).toEqual(["gp", "gnss"]);
+    expect(tagsOf("brab-500-e")).toEqual(["ap", "unguided"]);
+    // SD 50: a blast bomb that also pierces — the sheet calls it GP.
+    expect(tagsOf("sd50")).toEqual(["sap", "unguided"]);
+    // ZAB: "sks" names no fire, but it burns.
+    expect(tagsOf("zb-500")).toEqual(["incendiary", "unguided"]);
+    expect(tagsOf("sneb-type-23")).toEqual(["unguided", "heat"]);
+    // O-100: two plain OFAB-100s outvote the Czech high-drag one.
+    expect(tagsOf("o-100")).toEqual(["gp", "unguided"]);
   });
 });
 

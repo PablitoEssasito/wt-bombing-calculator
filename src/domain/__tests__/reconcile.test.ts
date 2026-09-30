@@ -30,6 +30,7 @@ const round = (over: Partial<Round>): Round => ({
   tntKg: 117.585,
   incendiary: false,
   drag: false,
+  armourPiercing: null,
   iconType: null,
   stats: { massKg: 240.9 },
   units: ["f-4e"],
@@ -125,6 +126,50 @@ describe("reconcile", () => {
   });
 });
 
+describe("category and tags", () => {
+  it("files a row under its round's category and tags", () => {
+    const kd88 = round({ category: "agm", bombId: "kd-88", stats: { massKg: 710, guidance: "tv+IOG+GNSS", warhead: "aphe" } });
+    const { rows } = reconcile([], [kd88], countryOf);
+    expect(rows[0]).toMatchObject({ category: "agm", tags: ["tv", "iog", "gnssAid", "aphe"] });
+  });
+
+  it("tags a sheet row by the game's file, and reports where the sheet's kind says otherwise", () => {
+    const { rows, types } = reconcile([row({ kind: "GP" })], [round({ armourPiercing: "sap" })], countryOf);
+    expect(rows[0]).toMatchObject({ kind: "GP", category: "bomb", tags: ["sap", "unguided"] });
+    expect(types).toEqual(["X: sheet GP, game sap"]);
+    // A guided bomb is a bomb.
+    const guided = round({ category: "guidedBomb", stats: { massKg: 240.9, guidance: "sns" } });
+    expect(reconcile([row({ kind: "GNSS" })], [guided], countryOf).rows[0]).toMatchObject({ category: "bomb", tags: ["gp", "gnss"] });
+  });
+
+  it("tags a row by what most of its files are, its kind breaking a tie", () => {
+    // O-100: two plain OFAB-100s and a Czech high-drag one, priced alike.
+    const ofab = (file: string, drag: boolean) => round({ file, bombId: "o-100", drag });
+    const o100 = reconcile(
+      [row({ id: "o-100", kind: "GP" })],
+      [ofab("cz_ofab_100mb", true), ofab("su_ofab_100_120", false), ofab("su_ofab100_120", false)],
+      countryOf,
+    );
+    expect(o100.rows[0].tags).toEqual(["gp", "unguided"]);
+    expect(o100.types).toEqual([]);
+    // 500M-62: the plain bomb and its satellite-guided glide kit, one each; the sheet's row is the plain one.
+    const fab = round({ file: "su_fab_500m_62t", bombId: "x" });
+    const umpk = round({ file: "su_umpk_500m62", bombId: "x", category: "guidedBomb", stats: { massKg: 240.9, guidance: "sns" } });
+    expect(reconcile([row({ kind: "GP" })], [umpk, fab], countryOf).rows[0].tags).toEqual(["gp", "unguided"]);
+  });
+
+  it("gives a sheet row the game has nothing for what its kind says, and an alias its twin's", () => {
+    const { rows } = reconcile([row({ id: "mk-18", chartName: "Mk.18", fullName: "Mk.18", kind: "DRAG" })], [], countryOf);
+    expect(rows[0]).toMatchObject({ category: "bomb", tags: ["drag", "unguided"] });
+
+    const early = row({ id: "g-p-1000-e", chartName: "G.P.1000(e)", fullName: "1000 lb G.P. Mk.I" });
+    const late = row({ id: "g-p-1000-l", chartName: "G.P.1000(l)", fullName: "1000 lb G.P. Mk.I", kind: "AP" });
+    const mk1 = round({ bombId: "g-p-1000-e", drag: true });
+    const aliased = reconcile([early, late], [mk1], countryOf).rows[1];
+    expect(aliased).toMatchObject({ category: "bomb", tags: ["drag", "unguided"] });
+  });
+});
+
 describe("a gun pod", () => {
   it("gets no mass: its file weighs the round, not the pod", () => {
     const bk27 = round({ file: "bk27", name: "27 mm Mauser BK27 cannon", short: "BK27", category: "gun", bombId: "bk27", damage: null, damageSource: null, stats: { massKg: 0.26, caliberMm: 27 } });
@@ -137,7 +182,10 @@ describe("kindOfRound", () => {
   it("sorts a game-only row by what its file says it is", () => {
     expect(kindOfRound(round({ incendiary: true }))).toBe("INC");
     expect(kindOfRound(round({ drag: true }))).toBe("DRAG");
-    expect(kindOfRound(round({ name: "500 kg PD500 armor-piercing bomb" }))).toBe("AP");
+    expect(kindOfRound(round({ armourPiercing: "ap" }))).toBe("AP");
+    expect(kindOfRound(round({ armourPiercing: "sap" }))).toBe("AP");
+    // The file, not the name: a name that says armour-piercing is not enough.
+    expect(kindOfRound(round({ name: "500 kg PD500 armor-piercing bomb" }))).toBe("GP");
     expect(kindOfRound(round({ category: "guidedBomb", stats: { guidance: "tv" } }))).toBe("TV");
     expect(kindOfRound(round({ category: "guidedBomb", stats: { aiming: "manual" } }))).toBe("RC");
     expect(kindOfRound(round({ category: "aam" }))).toBe("AAM");

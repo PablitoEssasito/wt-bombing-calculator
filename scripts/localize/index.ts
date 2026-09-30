@@ -49,6 +49,7 @@ const LABEL_KEYS = [
   "missile/aspect",
   "missile/aspect/allAspect",
   "missile/aspect/rearAspect",
+  "missile/irccm",
   "missile/loadFactorMax",
   "missile/timeGuidance",
   "missile/timeSelfdestruction",

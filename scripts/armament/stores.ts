@@ -6,7 +6,7 @@ import type { Bomb, WeaponStats } from "../../src/domain/types";
 import { normalizeBombName, slugifyBomb } from "../etl/aliases";
 import { loadWpcost, WEAPON_PREFIXES, type Wpcost, type WpcostWeapon } from "../shared/wpcost";
 import { mostCommon, sheetView } from "./reconcile";
-import { explosivesOf, guidanceOf, payloadOf, statsOf, tntOf, type Category, type Explosives } from "./stats";
+import { armourPiercingOf, dragOf, explosivesOf, guidanceOf, payloadOf, statsOf, tntOf, type Category, type Explosives } from "./stats";
 
 const RAW =
   "https://raw.githubusercontent.com/gszabi99/War-Thunder-Datamine/master/aces.vromfs.bin_u/gamedata";
@@ -599,6 +599,8 @@ export type Round = {
   incendiary: boolean;
   /** A bomb slowed by a parachute or fins so it can be dropped low. */
   drag: boolean;
+  /** A kinetic bomb, or a blast bomb that also pierces. */
+  armourPiercing: "ap" | "sap" | null;
   iconType: string | null;
   stats: WeaponStats;
   /** Every aircraft in the game that can carry it, by the price list's unit name. */
@@ -901,7 +903,8 @@ function roundsOf(
         damageSource: null,
         tntKg: tntOf(payload, explosives) ?? null,
         incendiary: payload.fireDamage != null,
-        drag: store.category === "bomb" && (payload.brakeArm != null || payload.brakeCxK != null),
+        drag: store.category === "bomb" && dragOf(payload),
+        armourPiercing: store.category === "bomb" || store.category === "guidedBomb" ? armourPiercingOf(payload) : null,
         iconType: store.iconType,
         stats: statsOf(body, store.category, explosives),
         units: [],

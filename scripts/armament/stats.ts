@@ -111,6 +111,18 @@ export function guidanceOf(payload: Blk): string | undefined {
   return key;
 }
 
+/**
+ * A high-drag bomb: one whose fins or chute open on release. Every guided and
+ * glide bomb states a small drag of its own (`brakeCxK` 0.05–0.2), which is not that.
+ */
+export const dragOf = (payload: Blk): boolean => payload.brakeArm != null || (num(payload.brakeCxK) ?? 0) >= 100;
+
+/** An armour-piercing bomb is a kinetic one; a blast bomb that also pierces is semi-armour-piercing. */
+export function armourPiercingOf(payload: Blk): "ap" | "sap" | null {
+  if (payload.bulletType === "ke_bomb") return "ap";
+  return payload.penetrationBySpeed === true ? "sap" : null;
+}
+
 /** What the tooltip calls a rocket's or missile's warhead. */
 function warheadOf(payload: Blk): WeaponStats["warhead"] {
   const kinetic = payload.armorpower != null || payload.penetrationBySpeed === true;
@@ -190,6 +202,15 @@ export function statsOf(body: Blk, category: Category, explosives: Explosives): 
       if (rear > 0 || all > 0) stats.allAspect = all >= 1000;
     } else if (category === "agm" && seeker?.groundVehiclesAsTarget && (rear > 0 || all > 0)) {
       set("seekerRangeM", Math.min(rear, all));
+    }
+    // `seekerIRCCM`: the band mask counts on an IR seeker's file only, the gate on a TV one's too.
+    const gate = num(seeker?.gateWidth);
+    const fov = num(seeker?.fov);
+    if (
+      ((payload.guidanceType === "optical" || payload.guidanceType === "tv") && gate !== undefined && fov !== undefined && gate < fov) ||
+      (payload.guidanceType === "optical" && (num(seeker?.bandMaskToReject) ?? 0) !== 0)
+    ) {
+      stats.irccm = true;
     }
     const radar = block(block(payload.guidance)?.radarSeeker);
     set("seekerRangeM", num(block(radar?.receiver)?.range));

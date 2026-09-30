@@ -10,6 +10,8 @@ export function sheetView(bomb: Bomb): Bomb {
   delete row.sheet;
   delete row.damageSource;
   delete row.guidance;
+  delete row.category;
+  delete row.tags;
   delete row.aliasOf;
   return row;
 }

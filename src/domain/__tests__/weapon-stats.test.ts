@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { explosivesOf, guidanceOf, statsOf } from "../../../scripts/armament/stats";
+import { armourPiercingOf, dragOf, explosivesOf, guidanceOf, statsOf } from "../../../scripts/armament/stats";
 
 /** explosive.blk, cut down to what these weapons use. */
 const EXPLOSIVES = explosivesOf({
@@ -61,6 +61,28 @@ describe("guidanceOf", () => {
   });
 });
 
+describe("dragOf", () => {
+  it("calls a bomb high-drag by its fins or chute, not by the drag every guided bomb states", () => {
+    // Snakeye: the brake opens on release.
+    expect(dragOf({ brakeArm: 0.5, brakeCxK: 110 })).toBe(true);
+    // A glide or guided bomb's own drag, and the RDS-37's.
+    expect(dragOf({ brakeCxK: 0.05 })).toBe(false);
+    expect(dragOf({ brakeCxK: 0.2 })).toBe(false);
+    expect(dragOf({})).toBe(false);
+  });
+});
+
+describe("armourPiercingOf", () => {
+  it("reads armour-piercing and semi-armour-piercing off the bomb's own type", () => {
+    // BRAB-500: a kinetic bomb.
+    expect(armourPiercingOf({ bulletType: "ke_bomb", penetrationBySpeed: true })).toBe("ap");
+    // SD 50: a blast bomb that also pierces.
+    expect(armourPiercingOf({ bulletType: "he_bomb", penetrationBySpeed: true })).toBe("sap");
+    expect(armourPiercingOf({ bulletType: "he_bomb" })).toBeNull();
+    expect(armourPiercingOf({})).toBeNull();
+  });
+});
+
 describe("statsOf", () => {
   it("reads the KD-88 the way the game's tooltip shows it", () => {
     const stats = statsOf(KD_88, "agm", EXPLOSIVES);
@@ -102,6 +124,22 @@ describe("statsOf", () => {
   it("leaves the TNT figure out for TNT itself, as the tooltip does", () => {
     const fab = { bomb: { mass: 100, explosiveType: "tnt", explosiveMass: 50 } };
     expect(statsOf(fab, "bomb", EXPLOSIVES).tntKg).toBeUndefined();
+  });
+
+  it("marks a seeker IRCCM where the game's tooltip does", () => {
+    const irccm = (opticalSeeker: Record<string, unknown>, guidanceType = "optical") =>
+      statsOf({ rocket: { guidanceType, guidance: { opticalSeeker } } }, "aam", EXPLOSIVES).irccm;
+    // AIM-9M: it rejects the flares' band.
+    expect(irccm({ rangeBand0: 11000, rangeBand1: 3000, bandMaskToReject: 4, fov: 3.6 })).toBe(true);
+    // R-73: its tracking gate is narrower than its field of view.
+    expect(irccm({ rangeBand0: 11000, rangeBand1: 3400, gateWidth: 0.75, fov: 4.5 })).toBe(true);
+    // AIM-9L: neither.
+    expect(irccm({ rangeBand0: 11000, rangeBand1: 3000, fov: 3.6 })).toBeUndefined();
+    // A gate as wide as the view narrows nothing.
+    expect(irccm({ gateWidth: 4.5, fov: 4.5 })).toBeUndefined();
+    // The tooltip reads the gate on a TV seeker too, the band mask on an IR one only.
+    expect(irccm({ gateWidth: 1, fov: 2 }, "tv")).toBe(true);
+    expect(irccm({ bandMaskToReject: 4, fov: 2 }, "tv")).toBeUndefined();
   });
 
   it("marks a weapon flown by hand rather than guided", () => {
