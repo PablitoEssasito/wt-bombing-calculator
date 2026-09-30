@@ -12,12 +12,14 @@ import { Filled } from "@/components/filled";
 import { Flag } from "@/components/flag";
 import { RangeSlider } from "@/components/range-slider";
 import { ShareButton } from "@/components/share-button";
+import { TriChip } from "@/components/tri-chip";
 import { VehicleTypeIcon } from "@/components/vehicle-type-icon";
 import { NATIONS, VEHICLE_TYPES, type VehicleType } from "@/domain/constants";
 import { BATTLE_MODES, type BattleMode } from "@/domain/types";
 import { useI18n } from "@/i18n/client";
 import { track } from "@/lib/analytics";
 import { iconUrl, TALISMAN_ICON_URL } from "@/lib/assets";
+import { FACET_TRACKED, facetState, matchesFacet, nextFacet } from "@/lib/facet";
 import type { AircraftSummary, BombGlyphData } from "@/lib/dataset";
 import { RANK_LABELS } from "@/lib/labels";
 import { REWARD_TINT, rewardKindOf } from "@/lib/reward-kind";
@@ -68,6 +70,10 @@ const VIEWS = ["tiles", "list"] as const;
 const TYPE_FILTER = urlStringSet(VEHICLE_TYPES);
 const REWARD_FILTER = urlStringSet(REWARD_KINDS);
 
+/** The values an aircraft has on the Type and Class rows. */
+const typesOf = (a: AircraftSummary): VehicleType[] => (a.vehicleType === null ? [] : [a.vehicleType]);
+const rewardsOf = (a: AircraftSummary) => REWARD_KINDS.filter((r) => (r === "premium" ? a.premium : a.squadron));
+
 export function AircraftSearch({
   index,
   brSteps,
@@ -90,8 +96,12 @@ export function AircraftSearch({
   // Type and class are independent toggles, not a single choice — picking
   // Fighter and Bomber together shows both, same as picking Premium and
   // Squadron together. An empty set means no filter on that axis at all.
+  // What's crossed out is kept apart: crossing out Premium and Squadron
+  // leaves the tech tree.
   const [types, setTypes] = useUrlState("type", TYPE_FILTER);
   const [rewards, setRewards] = useUrlState("reward", REWARD_FILTER);
+  const [notTypes, setNotTypes] = useUrlState("notType", TYPE_FILTER);
+  const [notRewards, setNotRewards] = useUrlState("notReward", REWARD_FILTER);
   const [sort, setSort] = useUrlState("sort", urlLiteral(SORTS, "br"));
   const [sortDir, setSortDir] = useUrlState("dir", urlLiteral(SORT_DIRS, "asc"));
   const [view, setView] = useUrlState("view", urlLiteral(VIEWS, "tiles"));
@@ -157,25 +167,21 @@ export function AircraftSearch({
   };
 
   const toggleType = (t: VehicleType) => {
-    const next = new Set(types);
-    const turningOn = !next.has(t);
-    if (next.has(t)) next.delete(t);
-    else next.add(t);
-    setTypes(next);
-    track("filter_applied", { surface: "aircraft", filter: "type", value: t, state: turningOn ? "on" : "off" });
+    const next = nextFacet(t, types, notTypes);
+    setTypes(next.ticked);
+    setNotTypes(next.crossed);
+    track("filter_applied", { surface: "aircraft", filter: "type", value: t, state: FACET_TRACKED[next.state] });
   };
 
   const toggleReward = (r: (typeof REWARD_KINDS)[number]) => {
-    const next = new Set(rewards);
-    const turningOn = !next.has(r);
-    if (next.has(r)) next.delete(r);
-    else next.add(r);
-    setRewards(next);
+    const next = nextFacet(r, rewards, notRewards);
+    setRewards(next.ticked);
+    setNotRewards(next.crossed);
     track("filter_applied", {
       surface: "aircraft",
       filter: "reward",
       value: r,
-      state: turningOn ? "on" : "off",
+      state: FACET_TRACKED[next.state],
     });
   };
 
@@ -184,10 +190,8 @@ export function AircraftSearch({
     let filtered = matched.filter(
       (a) =>
         (nation === "all" || a.nation === nation) &&
-        (types.size === 0 || (a.vehicleType !== null && types.has(a.vehicleType))) &&
-        (rewards.size === 0 ||
-          (rewards.has("premium") && a.premium) ||
-          (rewards.has("squadron") && a.squadron)) &&
+        matchesFacet(typesOf(a), types, notTypes) &&
+        matchesFacet(rewardsOf(a), rewards, notRewards) &&
         inBrRange(a) &&
         a.rank >= rankSteps[rankLo] &&
         a.rank <= rankSteps[rankHi],
@@ -211,7 +215,9 @@ export function AircraftSearch({
     byMode,
     nation,
     types,
+    notTypes,
     rewards,
+    notRewards,
     sort,
     sortDir,
     mode,
@@ -229,41 +235,37 @@ export function AircraftSearch({
     () =>
       (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : byMode).filter(
         (a) =>
-          (types.size === 0 || (a.vehicleType !== null && types.has(a.vehicleType))) &&
-          (rewards.size === 0 ||
-            (rewards.has("premium") && a.premium) ||
-            (rewards.has("squadron") && a.squadron)) &&
+          matchesFacet(typesOf(a), types, notTypes) &&
+          matchesFacet(rewardsOf(a), rewards, notRewards) &&
           inBrRange(a) &&
           a.rank >= rankSteps[rankLo] &&
           a.rank <= rankSteps[rankHi],
       ),
-    [deferred, fuse, byMode, types, rewards, inBrRange, rankSteps, rankLo, rankHi],
+    [deferred, fuse, byMode, types, notTypes, rewards, notRewards, inBrRange, rankSteps, rankLo, rankHi],
   );
   const withoutType = useMemo(
     () =>
       (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : byMode).filter(
         (a) =>
           (nation === "all" || a.nation === nation) &&
-          (rewards.size === 0 ||
-            (rewards.has("premium") && a.premium) ||
-            (rewards.has("squadron") && a.squadron)) &&
+          matchesFacet(rewardsOf(a), rewards, notRewards) &&
           inBrRange(a) &&
           a.rank >= rankSteps[rankLo] &&
           a.rank <= rankSteps[rankHi],
       ),
-    [deferred, fuse, byMode, nation, rewards, inBrRange, rankSteps, rankLo, rankHi],
+    [deferred, fuse, byMode, nation, rewards, notRewards, inBrRange, rankSteps, rankLo, rankHi],
   );
   const withoutReward = useMemo(
     () =>
       (deferred.trim() ? fuse.search(deferred.trim()).map((r) => r.item) : byMode).filter(
         (a) =>
           (nation === "all" || a.nation === nation) &&
-          (types.size === 0 || (a.vehicleType !== null && types.has(a.vehicleType))) &&
+          matchesFacet(typesOf(a), types, notTypes) &&
           inBrRange(a) &&
           a.rank >= rankSteps[rankLo] &&
           a.rank <= rankSteps[rankHi],
       ),
-    [deferred, fuse, byMode, nation, types, inBrRange, rankSteps, rankLo, rankHi],
+    [deferred, fuse, byMode, nation, types, notTypes, inBrRange, rankSteps, rankLo, rankHi],
   );
   const nationCount = (n: (typeof NATIONS)[number] | "all") =>
     n === "all" ? withoutNation.length : withoutNation.filter((a) => a.nation === n).length;
@@ -275,7 +277,9 @@ export function AircraftSearch({
     query.trim() !== "" ||
     nation !== "all" ||
     types.size > 0 ||
+    notTypes.size > 0 ||
     rewards.size > 0 ||
+    notRewards.size > 0 ||
     mode !== "air-rb" ||
     from !== 0 ||
     to !== steps.length - 1 ||
@@ -286,7 +290,9 @@ export function AircraftSearch({
     setQuery("");
     setNation("all");
     setTypes(new Set());
+    setNotTypes(new Set());
     setRewards(new Set());
+    setNotRewards(new Set());
     setBrFrom(0);
     setBrTo(steps.length - 1);
     setMode("air-rb");
@@ -297,7 +303,7 @@ export function AircraftSearch({
   // Reset the reveal count when the filters change, without an effect —
   // adjusting state during render is the pattern React itself recommends for
   // "this derived value resets when its inputs change".
-  const filterKey = `${deferred} ${nation} ${[...types].sort().join(",")} ${[...rewards].sort().join(",")} ${sort} ${sortDir} ${mode} ${from} ${to} ${rankLo} ${rankHi}`;
+  const filterKey = `${deferred} ${nation} ${[...types].sort().join(",")} ${[...notTypes].sort().join(",")} ${[...rewards].sort().join(",")} ${[...notRewards].sort().join(",")} ${sort} ${sortDir} ${mode} ${from} ${to} ${rankLo} ${rankHi}`;
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [seenFilterKey, setSeenFilterKey] = useState(filterKey);
   if (filterKey !== seenFilterKey) {
@@ -340,26 +346,26 @@ export function AircraftSearch({
           ))}
         </FilterRow>
 
-        <FilterRow label={m.common.type}>
+        <FilterRow label={m.common.type} hint={m.common.excludeHint}>
           {VEHICLE_TYPES.map((t) => (
-            <Chip key={t} active={types.has(t)} onClick={() => toggleType(t)}>
+            <TriChip key={t} state={facetState(t, types, notTypes)} onClick={() => toggleType(t)}>
               <VehicleTypeIcon type={t} size={18} />
               {m.vehicleTypes[t]}
               <Count>{typeCount(t)}</Count>
-            </Chip>
+            </TriChip>
           ))}
         </FilterRow>
 
-        <FilterRow label={m.search.class}>
+        <FilterRow label={m.search.class} hint={m.common.excludeHint}>
           {REWARD_KINDS.map((r) => (
-            <Chip key={r} active={rewards.has(r)} onClick={() => toggleReward(r)}>
+            <TriChip key={r} state={facetState(r, rewards, notRewards)} onClick={() => toggleReward(r)}>
               <span
                 aria-hidden
                 className={cn("size-2 rounded-full", r === "premium" ? "bg-premium" : "bg-squadron")}
               />
               {m.search[r]}
               <Count>{rewardCount(r)}</Count>
-            </Chip>
+            </TriChip>
           ))}
         </FilterRow>
 
@@ -518,10 +524,13 @@ export function AircraftSearch({
 }
 
 /** A labelled strip of chips — nation, type, class each get one of these. */
-function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FilterRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-xs uppercase tracking-wider text-ink-faint">{label}</p>
+      <p className="text-xs text-ink-faint">
+        <span className="uppercase tracking-wider">{label}</span>
+        {hint ? ` · ${hint}` : null}
+      </p>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );

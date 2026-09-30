@@ -90,6 +90,13 @@ export const en = {
     removedFavorite: "Removed from favorites",
     sourceLanguage: "EN",
     sourceLanguageTitle: "Written in English",
+    excludeHint: "click again to leave out",
+    facet: { in: "ticked", out: "left out" },
+    facetNext: {
+      off: "Show only these",
+      in: "Click again to leave these out",
+      out: "Click again to clear",
+    },
   },
 
   conditions: {

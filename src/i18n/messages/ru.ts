@@ -81,6 +81,13 @@ export const ru: ClientMessages = {
     removedFavorite: "Убрано из избранного",
     sourceLanguage: "EN",
     sourceLanguageTitle: "Написано на английском",
+    excludeHint: "повторный клик исключает",
+    facet: { in: "выбрано", out: "исключено" },
+    facetNext: {
+      off: "Показать только эти",
+      in: "Нажмите ещё раз, чтобы исключить их",
+      out: "Нажмите ещё раз, чтобы сбросить",
+    },
   },
 
   conditions: {

@@ -81,6 +81,13 @@ export const pl: ClientMessages = {
     removedFavorite: "Usunięto z ulubionych",
     sourceLanguage: "EN",
     sourceLanguageTitle: "Napisane po angielsku",
+    excludeHint: "drugie kliknięcie wyklucza",
+    facet: { in: "zaznaczone", out: "wykluczone" },
+    facetNext: {
+      off: "Pokaż tylko te",
+      in: "Kliknij jeszcze raz, żeby je wykluczyć",
+      out: "Kliknij jeszcze raz, żeby wyłączyć",
+    },
   },
 
   conditions: {

@@ -22,8 +22,10 @@ import type { BombKind } from "@/domain/types";
 import { Flag } from "@/components/flag";
 import { Segmented } from "@/components/segmented";
 import { ShareButton } from "@/components/share-button";
+import { TriChip } from "@/components/tri-chip";
 import { track } from "@/lib/analytics";
 import { useI18n } from "@/i18n/client";
+import { FACET_TRACKED, facetState, matchesFacet, nextFacet } from "@/lib/facet";
 import {
   readUrlState,
   urlInteger,
@@ -134,6 +136,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const [dir, setDir] = useUrlState("dir", urlLiteral<SortDir>(["asc", "desc"], DEFAULT_DIR.needed));
   const [nation, setNation] = useUrlState("nation", urlLiteral(["all", ...NATIONS] as const, "all"));
   const [kinds, setKinds] = useUrlState("kinds", KIND_FILTER);
+  const [notKinds, setNotKinds] = useUrlState("notKinds", KIND_FILTER);
   const [source, setSource] = useUrlState("src", urlLiteral(SOURCES, "all"));
   const [columns, setColumns] = useUrlState("cols", COLUMNS);
   const [compared, setCompared] = useUrlState("cmp", COMPARED);
@@ -193,7 +196,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
         return false;
       }
       if (except !== "nation" && nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
-      if (except !== "kind" && kinds.size > 0 && !kindsOf(bomb).some((k) => kinds.has(k))) return false;
+      if (except !== "kind" && !matchesFacet(kindsOf(bomb), kinds, notKinds)) return false;
       if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
       if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
       if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
@@ -228,6 +231,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
     dir,
     nation,
     kinds,
+    notKinds,
     massMin,
     massMax,
     tntMin,
@@ -254,6 +258,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
     setView(next);
     // A kind picked under one view may not exist under the next.
     setKinds(new Set());
+    setNotKinds(new Set());
     track("filter_applied", { surface: "bombs", filter: "view", value: next });
   };
 
@@ -272,12 +277,10 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   };
 
   const toggleKind = (kind: BombKind) => {
-    const next = new Set(kinds);
-    const turningOn = !next.has(kind);
-    if (next.has(kind)) next.delete(kind);
-    else next.add(kind);
-    setKinds(next);
-    track("filter_applied", { surface: "bombs", filter: "kind", value: kind, state: turningOn ? "on" : "off" });
+    const next = nextFacet(kind, kinds, notKinds);
+    setKinds(next.ticked);
+    setNotKinds(next.crossed);
+    track("filter_applied", { surface: "bombs", filter: "kind", value: kind, state: FACET_TRACKED[next.state] });
   };
 
   const toggleColumn = (column: ExtraColumn) => {
@@ -299,11 +302,18 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
     setDmgMax(null);
   };
 
-  const filtersActive = query.trim() !== "" || nation !== "all" || kinds.size > 0 || source !== "all" || rangesActive;
+  const filtersActive =
+    query.trim() !== "" ||
+    nation !== "all" ||
+    kinds.size > 0 ||
+    notKinds.size > 0 ||
+    source !== "all" ||
+    rangesActive;
   const clearFilters = () => {
     setQuery("");
     setNation("all");
     setKinds(new Set());
+    setNotKinds(new Set());
     setSource("all");
     clearRanges();
   };
@@ -378,13 +388,15 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
         </div>
 
         <div className="space-y-1.5">
-          <div className="text-xs uppercase tracking-wider text-ink-faint">{m.common.type}</div>
+          <div className="text-xs text-ink-faint">
+            <span className="uppercase tracking-wider">{m.common.type}</span> · {m.common.excludeHint}
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {viewKinds.map((kind) => (
-              <CheckChip key={kind} checked={kinds.has(kind)} onClick={() => toggleKind(kind)}>
+              <TriChip key={kind} state={facetState(kind, kinds, notKinds)} onClick={() => toggleKind(kind)}>
                 {m.bombKinds[kind]}
                 <Count>{kindCount(kind)}</Count>
-              </CheckChip>
+              </TriChip>
             ))}
           </div>
         </div>
