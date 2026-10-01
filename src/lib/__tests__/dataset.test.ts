@@ -316,6 +316,16 @@ describe("categories and tags, off the game's files", () => {
     }
   });
 
+  it("files a missile as the game's tooltip does, by the trigger an aircraft fires it with", () => {
+    // SACLOS, anti-ship and the Orion's beam-riding Kornets: none of them air-to-air.
+    for (const id of ["e-24-a1", "grom", "am39", "as-34", "as-34-ii", "9m133m-2", "9m133fm3"]) {
+      expect(bombsById.get(id)!.category, id).toBe("agm");
+    }
+    const steering = new Set(bombs.filter((b) => b.category === "aam").flatMap((b) => b.tags!.filter((t) => SEEKERS.includes(t))));
+    // Radar, IR, and the X-4 and AA-20 flown down a wire.
+    expect([...steering].sort()).toEqual(["arh", "ir", "mclos", "sarh"]);
+  });
+
   it("calls no guided bomb high-drag: its own drag is not a chute", () => {
     const guidedDrag = bombs.filter((b) => b.tags!.includes("drag") && !b.tags!.includes("unguided"));
     expect(guidedDrag.map((b) => b.id)).toEqual([]);

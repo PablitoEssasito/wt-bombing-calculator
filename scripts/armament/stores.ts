@@ -487,15 +487,24 @@ function matchBomb(
  * from a pylon are marked too: that is what tells a gun pod from an aircraft's
  * own guns, which a fixed setup names alongside its bombs.
  */
-async function referenced(
-  wpcost: Wpcost,
-): Promise<{ files: Map<string, string>; onPylon: Set<string>; carriers: Map<string, Set<string>> }> {
+async function referenced(wpcost: Wpcost): Promise<{
+  files: Map<string, string>;
+  onPylon: Set<string>;
+  carriers: Map<string, Set<string>>;
+  triggers: Map<string, Set<string>>;
+}> {
   const byFile = new Map<string, string>();
   const onPylon = new Set<string>();
   // Which aircraft each file hangs from, by unit — the price list's own list
   // misses what an older fixed setup hangs, which only the flight model names.
   const carriers = new Map<string, Set<string>>();
-  const carriedBy = (file: string, unit: string) => carriers.set(file, (carriers.get(file) ?? new Set()).add(unit));
+  // The triggers each file is mounted with: what tells an air-to-air missile
+  // from an air-to-ground one in the game's own tooltip.
+  const triggers = new Map<string, Set<string>>();
+  const carriedBy = (file: string, unit: string, trigger: unknown) => {
+    carriers.set(file, (carriers.get(file) ?? new Set()).add(unit));
+    if (typeof trigger === "string") triggers.set(file, (triggers.get(file) ?? new Set()).add(trigger));
+  };
   for (const name of await readdir(UNITS_DIR)) {
     const unit = name.replace(/\.json$/, "");
     const raw = JSON.parse(await readFile(path.join(UNITS_DIR, name), "utf8")) as {
@@ -506,7 +515,7 @@ async function referenced(
       for (const weapon of many<Record<string, unknown>>(preset.Weapon)) {
         if (typeof weapon.blk !== "string") continue;
         byFile.set(storeFile(weapon.blk), weapon.blk);
-        carriedBy(storeFile(weapon.blk), unit);
+        carriedBy(storeFile(weapon.blk), unit, weapon.trigger);
       }
     }
     for (const slot of many<Record<string, unknown>>(raw.fm.WeaponSlots?.WeaponSlot)) {
@@ -516,7 +525,7 @@ async function referenced(
           if (typeof weapon.blk !== "string") continue;
           byFile.set(storeFile(weapon.blk), weapon.blk);
           onPylon.add(storeFile(weapon.blk));
-          carriedBy(storeFile(weapon.blk), unit);
+          carriedBy(storeFile(weapon.blk), unit, weapon.trigger);
         }
       }
     }
@@ -527,9 +536,9 @@ async function referenced(
     const file = key.slice(prefix.length + 1).toLowerCase();
     if (!byFile.has(file)) byFile.set(file, `gameData/Weapons/${prefix}/${file}.blk`);
     onPylon.add(file);
-    for (const unit of weapon.units) carriedBy(file, unit);
+    for (const unit of weapon.units) carriedBy(file, unit, undefined);
   }
-  return { files: byFile, onPylon, carriers };
+  return { files: byFile, onPylon, carriers, triggers };
 }
 
 /** The price list's entry for a store file, whichever kind the game files it under. */
@@ -548,7 +557,19 @@ function wpcostOf(file: string, wpcost: Wpcost): WpcostWeapon | undefined {
  * game states which — and by what its seeker is set to look for where the
  * price list is silent.
  */
-function categoryOf(kind: StoreKind, payload: Record<string, unknown>, role: WpcostWeapon["role"]): Category | null {
+/**
+ * What the tooltip files a store under. A missile goes by the trigger the
+ * aircraft mount it with — the tooltip's own rule (`WEAPON_TYPE.AAM` for the
+ * "aam" trigger, `AGM` for "agm" and "atgm"). Where no flight model names one,
+ * a missile steered along a line of sight (SACLOS, beam riding) is for the
+ * ground, whatever role the price list gives it; then that role; then its seeker.
+ */
+export function categoryOf(
+  kind: StoreKind,
+  payload: Record<string, unknown>,
+  role: WpcostWeapon["role"],
+  triggers: ReadonlySet<string>,
+): Category | null {
   switch (kind) {
     case "bomb":
       return payload.guidance != null || payload.operated === true ? "guidedBomb" : "bomb";
@@ -561,9 +582,13 @@ function categoryOf(kind: StoreKind, payload: Record<string, unknown>, role: Wpc
     case "gun":
       return "gun";
     case "missile": {
+      const airToAir = triggers.has("aam");
+      const airToGround = triggers.has("agm") || triggers.has("atgm");
+      if (airToAir !== airToGround) return airToAir ? "aam" : "agm";
+      const guidance = (payload.guidance ?? {}) as Record<string, unknown>;
+      if (guidance.lineOfSightAutopilot != null) return "agm";
       if (role === "aam") return "aam";
       if (role === "agm" || role === "guidedBomb") return "agm";
-      const guidance = (payload.guidance ?? {}) as Record<string, unknown>;
       const optical = (guidance.opticalSeeker ?? {}) as Record<string, unknown>;
       const radar = (guidance.radarSeeker ?? {}) as Record<string, unknown>;
       const againstGround =
@@ -679,7 +704,7 @@ async function fixedSetupShares(
 async function main() {
   const useCache = process.argv.includes("--cache");
   const wpcost = await loadWpcost(useCache);
-  const { files: hung, onPylon, carriers } = await referenced(wpcost);
+  const { files: hung, onPylon, carriers, triggers } = await referenced(wpcost);
   console.log(`${hung.size} distinct stores hang from hardpoints across the game's aircraft`);
 
   await mkdir(STORES_DIR, { recursive: true });
@@ -746,6 +771,15 @@ async function main() {
       fullName: CHART_NAME_CORRECTIONS[row.fullName] ?? row.fullName,
     }));
 
+  // A rail is what an aircraft mounts, the missile it holds what it fires:
+  // every rail's triggers count for its missile.
+  const coreTriggers = new Map<string, Set<string>>();
+  for (const [file, mounted] of triggers) {
+    if (!bodies.has(file)) continue;
+    const core = innermost(file, bodies).file;
+    coreTriggers.set(core, new Set([...(coreTriggers.get(core) ?? []), ...mounted]));
+  }
+
   const stores: Store[] = [];
   const coreOf = new Map<string, { file: string; count: number }>();
   for (const [file, reference] of hung) {
@@ -763,7 +797,7 @@ async function main() {
 
     const kind = classify(coreRef, coreBody);
     const payload = payloadOf(coreBody) ?? {};
-    const category = categoryOf(kind, payload, wpcostOf(core.file, wpcost)?.role);
+    const category = categoryOf(kind, payload, wpcostOf(core.file, wpcost)?.role, coreTriggers.get(core.file) ?? new Set());
     // Missiles too: the chart prices the few that bomb bases, rocket-boosted
     // guided bombs like the AGM-123 Skipper the game files as missiles.
     const bombId = ["bomb", "mine", "torpedo", "rocket", "missile"].includes(kind)
