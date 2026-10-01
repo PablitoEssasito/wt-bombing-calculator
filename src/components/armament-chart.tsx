@@ -91,7 +91,7 @@ const WORDS: ReadonlySet<ColumnId> = new Set(["kind", "aspect", "warhead", "expl
 /**
  * The Type column's wording: the game's own guidance label for a guided
  * weapon, how one flown by wire or radio is flown, a bomb's type, a rocket's
- * warhead, else the sheet's kind.
+ * warhead, else what it is — a torpedo, a mine, a gun pod.
  */
 function typeOf(bomb: ChartRow, m: ClientMessages, guidanceLabels: Record<string, string>): string {
   if (bomb.guidance) return guidanceLabels[bomb.guidance] ?? bomb.guidance;
@@ -100,7 +100,7 @@ function typeOf(bomb: ChartRow, m: ClientMessages, guidanceLabels: Record<string
   // The chips' own words, so the column reads as the filters above it do.
   const own = bomb.category === "bomb" ? BOMB_TYPES : bomb.category === "rocket" ? WARHEADS : [];
   const tag = bomb.tags.find((t) => (own as readonly string[]).includes(t));
-  return tag ? m.weaponTags[tag] : m.bombKinds[bomb.kind];
+  return tag ? m.weaponTags[tag] : m.weaponCategory[bomb.category];
 }
 
 /**

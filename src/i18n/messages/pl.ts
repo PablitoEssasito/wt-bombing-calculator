@@ -37,23 +37,14 @@ export const pl: ClientMessages = {
 
   vehicleTypes: { fighter: "Myśliwiec", bomber: "Bombowiec", assault: "Samolot szturmowy" },
 
-  bombKinds: {
-    GP: "Ogólnego przeznaczenia",
-    AP: "Przeciwpancerne",
-    DRAG: "Hamowane",
-    INC: "Zapalające",
-    MINE: "Mina",
-    GNSS: "Naprowadzane satelitarnie",
-    LAS: "Naprowadzane laserowo",
-    TV: "Naprowadzane telewizyjnie",
-    IR: "Naprowadzane na podczerwień",
-    RC: "Naprowadzane radiowo",
-    ROCKET: "Rakieta",
-    AGM: "Pocisk powietrze-ziemia",
-    AAM: "Pocisk powietrze-powietrze",
-    TORPEDO: "Torpeda",
-    GUN: "Zasobnik z działkiem",
-    OTHER: "Inne",
+  weaponCategory: {
+    bomb: "Bomba",
+    rocket: "Rakieta",
+    agm: "Pocisk powietrze-ziemia",
+    aam: "Pocisk powietrze-powietrze",
+    torpedo: "Torpeda",
+    mine: "Mina",
+    gun: "Zasobnik z działkiem",
   },
 
   weaponCategories: {

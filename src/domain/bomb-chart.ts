@@ -107,6 +107,21 @@ export function inTab(row: Pick<ChartRow, "category" | "damageValue" | "chartNam
 }
 
 /**
+ * What makes two weapons alike for "similar weapons": the same category, and
+ * steered alike — a guided bomb beside guided bombs, not iron ones; an
+ * air-to-air missile beside those on its own tab, radar or IR.
+ */
+export function familyOf(row: Pick<ChartRow, "category" | "damageValue" | "chartName" | "tags">): string {
+  const steering =
+    row.category === "aam"
+      ? ((["aamRadar", "aamIr"] as const).find((tab) => inTab(row, tab)) ?? "other")
+      : row.tags.includes("unguided")
+        ? "unguided"
+        : "guided";
+  return `${row.category}:${steering}`;
+}
+
+/**
  * One row of chips on a tab: the categories, or a family of tags. "any" for
  * values a weapon has one of (a seeker, a warhead) — a row with any ticked;
  * "all" for what it has besides (IOG, a data link, IRCCM) — every one ticked.

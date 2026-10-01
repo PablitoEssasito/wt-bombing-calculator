@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupValues, inArmamentChart, inTab, TAB_GROUPS, TABS, type ChartTab } from "../bomb-chart";
+import { familyOf, groupValues, inArmamentChart, inTab, TAB_GROUPS, TABS, type ChartTab } from "../bomb-chart";
 import { WEAPON_TAGS, type WeaponCategory, type WeaponTag } from "../weapon-tags";
 
 describe("inArmamentChart", () => {
@@ -88,6 +88,27 @@ describe("the tabs' filter groups", () => {
     expect(ids("rocket")).toEqual(["guidance", "warhead"]);
     expect(ids("agm")).toEqual(["guidance", "features", "warhead"]);
     for (const tab of ["bases", "other", "all"] as const) expect(ids(tab)[0]).toBe("category");
+  });
+});
+
+describe("familyOf", () => {
+  const row = (category: WeaponCategory, tags: WeaponTag[]) => ({ chartName: "X", damageValue: null, category, tags });
+
+  it("keeps a guided bomb with guided bombs, apart from iron ones", () => {
+    expect(familyOf(row("bomb", ["gp", "laser"]))).toBe(familyOf(row("bomb", ["sap", "tv", "iog"])));
+    expect(familyOf(row("bomb", ["drag", "unguided"]))).toBe(familyOf(row("bomb", ["gp", "unguided"])));
+    expect(familyOf(row("bomb", ["gp", "laser"]))).not.toBe(familyOf(row("bomb", ["gp", "unguided"])));
+  });
+
+  it("keeps an air-to-air missile with those on its own tab, radar or IR", () => {
+    expect(familyOf(row("aam", ["sarh"]))).toBe(familyOf(row("aam", ["arh", "iog", "datalink"])));
+    expect(familyOf(row("aam", ["ir", "rearAspect"]))).not.toBe(familyOf(row("aam", ["arh"])));
+    expect(familyOf(row("aam", ["mclos"]))).not.toBe(familyOf(row("aam", ["ir", "allAspect"])));
+  });
+
+  it("never pairs two categories", () => {
+    expect(familyOf(row("agm", ["laser", "he"]))).not.toBe(familyOf(row("bomb", ["gp", "laser"])));
+    expect(familyOf(row("mine", []))).not.toBe(familyOf(row("bomb", ["gp", "unguided"])));
   });
 });
 

@@ -128,6 +128,7 @@ export const ruServer: ServerMessages = {
     figures: "Характеристики",
     fireRate: "Скорострельность (выстр./мин)",
     nuclearYield: "Мощность",
+    yes: "Да",
     estimated: "Оценка по модели взрыва — не учитывается в награде.",
     noDamage: "Не наносит урона базам.",
     otherAircraft: "Также несут самолёты без страницы здесь",

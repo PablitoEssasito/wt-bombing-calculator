@@ -7,8 +7,9 @@ import { Flag } from "@/components/flag";
 import { PageTransition } from "@/components/page-transition";
 import { VehicleTypeIcon } from "@/components/vehicle-type-icon";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
+import { familyOf } from "@/domain/bomb-chart";
 import { BASE_HP_TIERS, type BaseCount, type GameMode, type Nation } from "@/domain/constants";
-import type { Bomb, BombKind } from "@/domain/types";
+import type { Bomb } from "@/domain/types";
 import { fill, formatNumber, plural } from "@/i18n/format";
 import { localePath, type Locale } from "@/i18n/locales";
 import { messagesFor } from "@/i18n/messages";
@@ -16,6 +17,7 @@ import {
   aircraftCarrying,
   aircraftName,
   bombsById,
+  filingOf,
   gameLabel,
   otherCarriersOf,
   pagedBombs,
@@ -54,28 +56,18 @@ const LAYOUTS: { mode: GameMode; bases: BaseCount }[] = [
   { mode: "ab", bases: 3 },
 ];
 
-/** Which kinds count as alike for "similar weapons": a guided bomb beside missiles, not beside iron bombs. */
-const FAMILIES: BombKind[][] = [
-  ["GP", "AP", "DRAG", "INC", "MINE"],
-  ["GNSS", "LAS", "TV", "IR", "RC", "AGM"],
-  ["ROCKET"],
-  ["AAM"],
-  ["TORPEDO"],
-  ["GUN"],
-];
 const SIMILAR = 6;
 
-/** Kinds already named after their seeker. */
-const SEEKER_KINDS = new Set<BombKind>(["GNSS", "LAS", "TV", "IR"]);
+const familyOfBomb = (bomb: Bomb) => familyOf({ ...bomb, ...filingOf(bomb) });
 
 /** The weapons most like this one: its family, nearest by damage to a base, or by mass where nothing prices it. */
 function similarTo(bomb: Bomb): Bomb[] {
-  const family = FAMILIES.find((kinds) => kinds.includes(bomb.kind)) ?? [bomb.kind];
+  const family = familyOfBomb(bomb);
   const measure = (b: Bomb) => (bomb.damageValue ? b.damageValue : b.massKg);
   const own = measure(bomb);
   if (own === null) return [];
   return pagedBombs
-    .filter((b) => b.id !== bomb.id && family.includes(b.kind) && measure(b) !== null)
+    .filter((b) => b.id !== bomb.id && familyOfBomb(b) === family && measure(b) !== null)
     .map((b) => ({ b, distance: Math.abs(Math.log(measure(b)! / own)) }))
     .filter(({ distance }) => Number.isFinite(distance))
     .sort((a, z) => a.distance - z.distance)
@@ -120,7 +112,9 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
     groups: m.bombPage.groups,
     fireRate: m.bombPage.fireRate,
     nuclearYield: m.bombPage.nuclearYield,
+    yes: m.bombPage.yes,
   });
+  const { category, tags } = filingOf(bomb);
   const similar = similarTo(bomb);
 
   return (
@@ -149,11 +143,7 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
                 <Flag nation={bomb.nation} size={13} /> {m.nations[bomb.nation]} ·
               </>
             ) : null}{" "}
-            {m.bombKinds[bomb.kind]}
-            {/* "Laser guided · Laser" says it twice; "· TV+IOG+GNSS" adds what the kind doesn't. */}
-            {bomb.guidance && (bomb.guidance.includes("+") || !SEEKER_KINDS.has(bomb.kind))
-              ? ` · ${gameLabel(locale, `missile/guidance/${bomb.guidance}`) ?? bomb.guidance}`
-              : null}
+            {m.weaponCategory[category]}
             {" · "}
             <Link
               href={`${localePath(locale, "/armament/compare/")}?ids=${bomb.id}`}
@@ -162,6 +152,15 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
               <Columns3 size={13} aria-hidden /> {m.compare.compareThis}
             </Link>
           </p>
+          {tags.length > 0 ? (
+            <ul className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <li key={tag} className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-dim">
+                  {m.weaponTags[tag]}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </header>
 
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">

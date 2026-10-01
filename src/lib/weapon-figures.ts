@@ -1,3 +1,4 @@
+import type { ChartRow } from "@/domain/bomb-chart";
 import type { Bomb, WeaponStats } from "@/domain/types";
 
 /** One weapon as the comparison gets it — see `/armament-data.json`. */
@@ -15,7 +16,8 @@ export type CompareRow = Pick<
   | "damageValue"
   | "damageSource"
   | "efficiency"
->;
+> &
+  Pick<ChartRow, "category" | "tags">;
 
 /** Every paged weapon and its figures, fetched once by the comparison rather than shipped with every page. */
 export type CompareData = { rows: CompareRow[]; stats: Record<string, WeaponStats> };
@@ -50,6 +52,8 @@ export type FigureWords = {
   groups: Record<FigureGroup, string>;
   fireRate: string;
   nuclearYield: string;
+  /** What the tooltip writes beside a feature a weapon has, such as IRCCM. */
+  yes: string;
 };
 
 export function figureGroups(stats: WeaponStats, words: FigureWords): { key: FigureGroup; title: string; lines: FigureLine[] }[] {
@@ -90,6 +94,7 @@ export function figureGroups(stats: WeaponStats, words: FigureWords): { key: Fig
   add("guidance", "seekerRangeM", "missile/seekerRange", stats.seekerRangeM, distance, "higher");
   add("guidance", "seekerRangeRearM", "missile/seekerRange/rearAspect", stats.seekerRangeRearM, distance, "higher");
   add("guidance", "seekerRangeAllM", "missile/seekerRange/allAspect", stats.seekerRangeAllM, distance, "higher");
+  if (stats.irccm) lines.guidance.push({ key: "irccm", label: label("missile/irccm"), value: words.yes, raw: null });
   add("guidance", "launchRangeM", "missile/launchRange", stats.launchRangeM, distance, "higher");
   add("guidance", "guaranteedRangeM", "guaranteedRange", stats.guaranteedRangeM, distance);
   add("guidance", "operatedDistM", "firingRange", stats.operatedDistM, distance, "higher");

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BombIcon } from "@/components/bomb-glyph";
 import { Flag } from "@/components/flag";
+import { BOMB_TYPES } from "@/domain/weapon-tags";
 import { useI18n } from "@/i18n/client";
 import { withBasePath } from "@/lib/base-path";
 import { urlList, useUrlState } from "@/lib/use-url-state";
@@ -38,7 +39,7 @@ export function WeaponCompare({
 }: {
   /** The game's own words for the figures, in the page's language — see figureLabels. */
   labels: Record<string, string>;
-  words: { groups: Record<FigureGroup, string>; fireRate: string; nuclearYield: string };
+  words: { groups: Record<FigureGroup, string>; fireRate: string; nuclearYield: string; yes: string };
 }) {
   const { m, number, fill, path } = useI18n();
   const [ids, setIds] = useUrlState("ids", IDS);
@@ -68,8 +69,6 @@ export function WeaponCompare({
       .filter((row) => `${row.chartName} ${row.fullName}`.toLowerCase().includes(needle))
       .slice(0, MATCHES);
   }, [query, data, key]);
-
-  const label = (lang: string) => labels[lang] ?? lang;
 
   // Every figure any of them has, in the tooltip's own order, a blank where one lacks it.
   const table = useMemo(() => {
@@ -203,8 +202,12 @@ export function WeaponCompare({
                             {row.nation ? <Flag nation={row.nation} size={12} /> : null}
                             {nameOf(row)}
                           </Link>
+                          {/* What it is; how it is steered and what it has besides are rows of their own below. */}
                           <div className="text-xs text-ink-faint">
-                            {row.guidance ? label(`missile/guidance/${row.guidance}`) : m.bombKinds[row.kind]}
+                            {[
+                              m.weaponCategory[row.category],
+                              ...row.tags.filter((tag) => (BOMB_TYPES as readonly string[]).includes(tag)).map((tag) => m.weaponTags[tag]),
+                            ].join(" · ")}
                           </div>
                         </div>
                         <button

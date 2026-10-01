@@ -128,6 +128,7 @@ export const plServer: ServerMessages = {
     figures: "Specyfikacja",
     fireRate: "Szybkostrzelność (strz./min)",
     nuclearYield: "Moc",
+    yes: "Tak",
     estimated: "Szacunek z modelu wybuchu — nie liczy się do nagrody.",
     noDamage: "Nie zadaje obrażeń bazom.",
     otherAircraft: "Przenoszą ją też samoloty bez strony tutaj",

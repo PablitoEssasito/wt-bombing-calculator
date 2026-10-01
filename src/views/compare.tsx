@@ -30,7 +30,12 @@ export function CompareView({ locale }: { locale: Locale }) {
         </PageHeader>
         <WeaponCompare
           labels={figureLabels(locale)}
-          words={{ groups: m.bombPage.groups, fireRate: m.bombPage.fireRate, nuclearYield: m.bombPage.nuclearYield }}
+          words={{
+            groups: m.bombPage.groups,
+            fireRate: m.bombPage.fireRate,
+            nuclearYield: m.bombPage.nuclearYield,
+            yes: m.bombPage.yes,
+          }}
         />
       </div>
     </PageTransition>

@@ -46,23 +46,14 @@ export const en = {
 
   vehicleTypes: { fighter: "Fighter", bomber: "Bomber", assault: "Strike aircraft" },
 
-  bombKinds: {
-    GP: "General purpose",
-    AP: "Armour piercing",
-    DRAG: "Retarded",
-    INC: "Incendiary",
-    MINE: "Mine",
-    GNSS: "Satellite guided",
-    LAS: "Laser guided",
-    TV: "TV guided",
-    IR: "IR guided",
-    RC: "Radio guided",
-    ROCKET: "Rocket",
-    AGM: "Air-to-ground missile",
-    AAM: "Air-to-air missile",
-    TORPEDO: "Torpedo",
-    GUN: "Gun pod",
-    OTHER: "Other",
+  weaponCategory: {
+    bomb: "Bomb",
+    rocket: "Rocket",
+    agm: "Air-to-ground missile",
+    aam: "Air-to-air missile",
+    torpedo: "Torpedo",
+    mine: "Mine",
+    gun: "Gun pod",
   },
 
   weaponCategories: {

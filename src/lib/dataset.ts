@@ -223,6 +223,12 @@ const weaponStats = armamentStatsData as unknown as Record<string, WeaponStats>;
 
 export const statsOf = (bombId: string): WeaponStats => weaponStats[bombId] ?? {};
 
+/** What a weapon is filed under: off the game's files, or by the sheet's kind for a row the game has none for. */
+export const filingOf = (bomb: Bomb): Pick<ChartRow, "category" | "tags"> => ({
+  category: bomb.category ?? categoryOfKind(bomb.kind),
+  tags: bomb.tags ?? tagsOfKind(bomb.kind),
+});
+
 /** The armament chart's rows, cut down to what it shows, with the game's labels in the page's language. */
 export function chartRowsFor(locale: Locale): ChartRow[] {
   return pagedBombs.map((bomb) => {
@@ -234,8 +240,7 @@ export function chartRowsFor(locale: Locale): ChartRow[] {
       fullName: bomb.fullName,
       kind: bomb.kind,
       guidance: bomb.guidance,
-      category: bomb.category ?? categoryOfKind(bomb.kind),
-      tags: bomb.tags ?? tagsOfKind(bomb.kind),
+      ...filingOf(bomb),
       nation: bomb.nation,
       massKg: bomb.massKg,
       massLabel: bomb.massLabel,
@@ -269,6 +274,7 @@ export function compareData(): CompareData {
       fullName: bomb.fullName,
       kind: bomb.kind,
       ...(bomb.guidance ? { guidance: bomb.guidance } : {}),
+      ...filingOf(bomb),
       nation: bomb.nation,
       massKg: bomb.massKg,
       massLabel: bomb.massLabel,

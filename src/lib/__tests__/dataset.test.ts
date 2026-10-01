@@ -15,6 +15,7 @@ import {
   bombs,
   bombsById,
   chartRowsFor,
+  compareData,
   gameLabel,
   otherCarriersOf,
   pagedBombs,
@@ -155,6 +156,12 @@ describe("the armament chart's rows", () => {
       const tabs = TABS.filter((tab) => tab !== "bases" && tab !== "all" && inTab(row, tab));
       expect(tabs, row.id).toHaveLength(1);
     }
+  });
+
+  it("hand the comparison each weapon's category and tags too", () => {
+    const { rows } = compareData();
+    expect(rows.find((row) => row.id === "kd-88")).toMatchObject({ category: "agm", tags: ["tv", "iog", "gnssAid", "aphe"] });
+    expect(rows.every((row) => row.category && row.tags)).toBe(true);
   });
 });
 

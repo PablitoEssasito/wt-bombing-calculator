@@ -125,6 +125,7 @@ export const enServer = {
     figures: "Specification",
     fireRate: "Rate of fire (rounds/min)",
     nuclearYield: "Yield",
+    yes: "Yes",
     estimated: "Estimated from the explosion model — not counted towards the reward.",
     noDamage: "Does no damage to bases.",
     otherAircraft: "Also carried by aircraft with no page here",
