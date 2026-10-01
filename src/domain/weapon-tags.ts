@@ -49,6 +49,12 @@ export const WEAPON_TAGS = [
 ] as const;
 export type WeaponTag = (typeof WEAPON_TAGS)[number];
 
+/** What a bomb is — one of these to every bomb. */
+export const BOMB_TYPES = ["gp", "ap", "sap", "drag", "incendiary", "nuclear"] as const satisfies readonly WeaponTag[];
+
+/** A rocket's or missile's warhead, as the tooltip names it. */
+export const WARHEADS = ["he", "heat", "tandem", "aphe", "ap", "multidart", "smoke"] as const satisfies readonly WeaponTag[];
+
 /** What `tagsOf` reads of one round of the game's. */
 export type RoundFacts = {
   /** The tooltip's own sort — a guided bomb is a bomb here. */

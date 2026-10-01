@@ -14,11 +14,20 @@ export function facetState<T>(value: T, ticked: ReadonlySet<T>, crossed: Readonl
   return ticked.has(value) ? "in" : "off";
 }
 
-/** A row with any ticked value, if any is ticked, and no crossed-out one. */
-export function matchesFacet<T>(values: readonly T[], ticked: ReadonlySet<T>, crossed: ReadonlySet<T>): boolean {
+/**
+ * A row with no crossed-out value and, of the ticked ones, any — or, for
+ * features a weapon has together rather than alternatives, every one ("all").
+ */
+export function matchesFacet<T>(
+  values: readonly T[],
+  ticked: ReadonlySet<T>,
+  crossed: ReadonlySet<T>,
+  mode: "any" | "all" = "any",
+): boolean {
   if (values.some((v) => crossed.has(v))) return false;
   const wanted = [...ticked].filter((v) => !crossed.has(v));
-  return wanted.length === 0 || values.some((v) => wanted.includes(v));
+  if (wanted.length === 0) return true;
+  return mode === "all" ? wanted.every((v) => values.includes(v)) : values.some((v) => wanted.includes(v));
 }
 
 /** One click on a value's chip: off, then ticked, then crossed out, then off again. */

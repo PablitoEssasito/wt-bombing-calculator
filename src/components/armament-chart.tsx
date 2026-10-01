@@ -8,7 +8,15 @@ import { BombIcon } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
 import { Filled } from "@/components/filled";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
-import { CHART_VIEWS, inView, kindsOf, type ChartRow, type ChartView } from "@/domain/bomb-chart";
+import {
+  groupValues,
+  inTab,
+  TAB_GROUPS,
+  TABS,
+  type ChartRow,
+  type ChartTab,
+  type FilterGroup,
+} from "@/domain/bomb-chart";
 import {
   BASE_HP_TIERS,
   GAME_MODES,
@@ -18,14 +26,37 @@ import {
   type GameMode,
   type Nation,
 } from "@/domain/constants";
-import type { BombKind } from "@/domain/types";
+import {
+  COLUMN_IDS,
+  columnsFor,
+  compareRows,
+  DEFAULT_DIR,
+  EXTRA_COLUMNS,
+  extrasFor,
+  sortFor,
+  TAB_COLUMNS,
+  type ColumnId,
+  type ExtraColumn,
+  type Sort,
+  type SortableRow,
+  type SortDir,
+} from "@/domain/chart-columns";
+import {
+  BOMB_TYPES,
+  WARHEADS,
+  WEAPON_CATEGORIES,
+  WEAPON_TAGS,
+  type WeaponCategory,
+  type WeaponTag,
+} from "@/domain/weapon-tags";
+import type { ClientMessages } from "@/i18n/messages";
 import { Flag } from "@/components/flag";
 import { Segmented } from "@/components/segmented";
 import { ShareButton } from "@/components/share-button";
 import { TriChip } from "@/components/tri-chip";
 import { track } from "@/lib/analytics";
 import { useI18n } from "@/i18n/client";
-import { FACET_TRACKED, facetState, matchesFacet, nextFacet } from "@/lib/facet";
+import { FACET_TRACKED, facetState, matchesFacet, nextFacet, type FacetState } from "@/lib/facet";
 import {
   readUrlState,
   urlInteger,
@@ -40,40 +71,37 @@ import {
 import { cn } from "@/lib/utils";
 import { MAX_COMPARED } from "@/lib/weapon-figures";
 
-/**
- * Columns off the weapon's own file, shown on request — the table is wide
- * enough with the base figures alone, and most of these mean nothing for a
- * plain bomb.
- */
-const EXTRA_COLUMNS = ["range", "speed", "guidanceTime", "warhead", "explosive", "charge"] as const;
-type ExtraColumn = (typeof EXTRA_COLUMNS)[number];
+const SORTS = ["name", ...COLUMN_IDS] as const satisfies readonly Sort[];
 
-const SORTS = ["name", "needed", "damage", "mass", "tnt", "efficiency", "kind", ...EXTRA_COLUMNS] as const;
-type Sort = (typeof SORTS)[number];
-type SortDir = "asc" | "desc";
+/** Below which width a column gives way, so a phone keeps the name and what matters most. */
+function hideOf(column: ColumnId, tab: ChartTab): string {
+  // The seeker is what a radar missile is picked by, a phone too; an air-to-ground one's, from a tablet up.
+  if (column === "kind") return tab === "aamRadar" ? "" : tab === "agm" ? "hidden sm:table-cell" : "hidden lg:table-cell";
+  if (column === "mass" || column === "seeker") return "hidden sm:table-cell";
+  // A phone has room beside the name for what sets a tab apart, not a missile's reach too —
+  // unless it was asked for as an extra column.
+  if (column === "range" && TAB_COLUMNS[tab].includes("range")) return "hidden sm:table-cell";
+  if (column === "tnt" || column === "efficiency" || column === "speed" || column === "loadFactor") return "hidden md:table-cell";
+  return "";
+}
+
+/** Columns of words, which wrap and sit left; the rest are figures. */
+const WORDS: ReadonlySet<ColumnId> = new Set(["kind", "aspect", "warhead", "explosive"]);
 
 /**
- * Which direction a column starts in on its first click.
- *
- * Text columns start A-Z; for numbers, whichever end is more interesting to see
- * first — cheapest bombs-per-base, heaviest hitters by damage/mass/TNT, longest
- * reach — rather than defaulting every column to the same direction.
+ * The Type column's wording: the game's own guidance label for a guided
+ * weapon, how one flown by wire or radio is flown, a bomb's type, a rocket's
+ * warhead, else the sheet's kind.
  */
-const DEFAULT_DIR: Record<Sort, SortDir> = {
-  name: "asc",
-  needed: "asc",
-  damage: "desc",
-  mass: "desc",
-  tnt: "desc",
-  efficiency: "desc",
-  kind: "asc",
-  range: "desc",
-  speed: "desc",
-  guidanceTime: "desc",
-  warhead: "asc",
-  explosive: "asc",
-  charge: "desc",
-};
+function typeOf(bomb: ChartRow, m: ClientMessages, guidanceLabels: Record<string, string>): string {
+  if (bomb.guidance) return guidanceLabels[bomb.guidance] ?? bomb.guidance;
+  const flown = bomb.tags.find((tag) => tag === "mclos" || tag === "saclos" || tag === "beamRiding");
+  if (flown) return m.weaponTags[flown];
+  // The chips' own words, so the column reads as the filters above it do.
+  const own = bomb.category === "bomb" ? BOMB_TYPES : bomb.category === "rocket" ? WARHEADS : [];
+  const tag = bomb.tags.find((t) => (own as readonly string[]).includes(t));
+  return tag ? m.weaponTags[tag] : m.bombKinds[bomb.kind];
+}
 
 /**
  * How the Mass column reads. "Original" is whatever the source itself printed —
@@ -86,9 +114,6 @@ type MassUnit = (typeof MASS_UNITS)[number];
 
 const LB_PER_KG = 1 / 0.45359237;
 
-/** The speed of sound the game's Mach figures are read against, for sorting them beside m/s ones. */
-const MACH_MS = 343;
-
 function formatMass(bomb: ChartRow, unit: MassUnit): string {
   if (unit === "original") return bomb.massLabel || "—";
   if (bomb.massKg === null) return "—";
@@ -97,36 +122,25 @@ function formatMass(bomb: ChartRow, unit: MassUnit): string {
     : `${Math.round(bomb.massKg * LB_PER_KG)} lb`;
 }
 
-/** Every kind a row can have, in the order the chips list them. */
-const KINDS = [
-  "GP",
-  "AP",
-  "DRAG",
-  "INC",
-  "MINE",
-  "GNSS",
-  "LAS",
-  "TV",
-  "IR",
-  "RC",
-  "ROCKET",
-  "AGM",
-  "AAM",
-  "TORPEDO",
-  "GUN",
-] as const satisfies readonly BombKind[];
-
 const SOURCES = ["all", "game"] as const;
 
 /** The weapons ticked for the comparison, in the order they were ticked. */
 const COMPARED = urlList();
 // Made once, so the parsed sets keep their identity from render to render.
-const KIND_FILTER = urlStringSet<BombKind>(KINDS);
+const CATEGORY_FILTER = urlStringSet<WeaponCategory>(WEAPON_CATEGORIES);
+const TAG_FILTER = urlStringSet<WeaponTag>(WEAPON_TAGS);
 const COLUMNS = urlStringSet<ExtraColumn>(EXTRA_COLUMNS);
+
+/** The ticked and crossed-out values a group of chips reads, cut to its own. */
+function facetOf(group: FilterGroup, ticked: ReadonlySet<string>, crossed: ReadonlySet<string>) {
+  const values = group.values as readonly string[];
+  const own = (set: ReadonlySet<string>) => new Set([...set].filter((value) => values.includes(value)));
+  return { ticked: own(ticked), crossed: own(crossed) };
+}
 
 export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; guidanceLabels: Record<string, string> }) {
   const { m, number, fill, path } = useI18n();
-  const [view, setView] = useUrlState("view", urlLiteral(CHART_VIEWS, "bases"));
+  const [tab, setTab] = useUrlState("view", urlLiteral(TABS, "bases"));
   const [query, setQuery] = useUrlState("q", urlText());
   const [hp, setHp] = useUrlState("hp", urlInteger(25900));
   const [mode, setMode] = useUrlState("mode", urlLiteral(GAME_MODES, "rb"));
@@ -135,8 +149,10 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const [massUnit, setMassUnit] = useUrlState("massUnit", urlLiteral(MASS_UNITS, "original"));
   const [dir, setDir] = useUrlState("dir", urlLiteral<SortDir>(["asc", "desc"], DEFAULT_DIR.needed));
   const [nation, setNation] = useUrlState("nation", urlLiteral(["all", ...NATIONS] as const, "all"));
-  const [kinds, setKinds] = useUrlState("kinds", KIND_FILTER);
-  const [notKinds, setNotKinds] = useUrlState("notKinds", KIND_FILTER);
+  const [cats, setCats] = useUrlState("cat", CATEGORY_FILTER);
+  const [notCats, setNotCats] = useUrlState("notCat", CATEGORY_FILTER);
+  const [tags, setTags] = useUrlState("tags", TAG_FILTER);
+  const [notTags, setNotTags] = useUrlState("notTags", TAG_FILTER);
   const [source, setSource] = useUrlState("src", urlLiteral(SOURCES, "all"));
   const [columns, setColumns] = useUrlState("cols", COLUMNS);
   const [compared, setCompared] = useUrlState("cmp", COMPARED);
@@ -162,11 +178,12 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const baseCount = (mapSize === 3 ? 3 : 4) as BaseCount;
   const effectiveHp = effectiveBaseHp(baseHp, mode as GameMode, baseCount);
 
-  // Mass and TNT bounds read from every row in the view that states one;
+  // Mass and TNT bounds read from every row on the tab that states one;
   // damage only from what has a price — an air-to-air missile's blank damage
   // must not collapse this range to nothing, nor a megaton bomb stretch it.
+  // A tab with no damage to show — air-to-air missiles — gets no damage filter.
   const bounds = useMemo(() => {
-    const shown = bombs.filter((b) => inView(b, view));
+    const shown = bombs.filter((b) => inTab(b, tab));
     const priced = shown.filter((b) => b.damageValue !== null);
     const range = (values: number[]) =>
       values.length ? { min: Math.min(...values), max: Math.max(...values) } : { min: 0, max: 0 };
@@ -174,38 +191,71 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
       mass: range(shown.flatMap((b) => (b.massKg !== null ? [Math.round(b.massKg)] : []))),
       tnt: range(shown.flatMap((b) => (b.tntKg !== null ? [Math.round(b.tntKg)] : []))),
       damage: range(priced.map((b) => b.damageValue!)),
+      priced: priced.length > 0,
+      estimated: priced.some((b) => b.damageSource === "estimate"),
     };
-  }, [bombs, view]);
+  }, [bombs, tab]);
 
-  // Only the kinds the view has at all get a chip: no "Air-to-air missile"
-  // offered under what can hit a base.
-  const viewKinds = useMemo(
-    () => KINDS.filter((kind) => bombs.some((bomb) => inView(bomb, view) && kindsOf(bomb).includes(kind))),
-    [bombs, view],
-  );
+  const shownColumns = useDeferredValue(columns);
+  // The page's sort where the tab shows that column, else the tab's own order.
+  const order = sortFor(tab, sort, dir, columns);
+  const typeLabel = useCallback((bomb: ChartRow) => typeOf(bomb, m, guidanceLabels), [m, guidanceLabels]);
 
-  // The rows, and for the facet counts — how many rows each Nation/Type option
-  // would leave — the rows with every *other* filter applied but that axis's
-  // own, same idea as the aircraft page's chip counts.
-  const { rows, withoutNation, withoutKind } = useMemo(() => {
+  // The tab's chip rows, each with only the values that split its rows: no
+  // "Unguided" chip where every rocket is, no row at all with nothing to pick.
+  const groups = useMemo(() => {
+    const shown = bombs.filter((b) => inTab(b, tab));
+    return TAB_GROUPS[tab].flatMap((group) => {
+      const values = group.values.filter((value) => {
+        const having = shown.filter((b) => groupValues(b, group).includes(value)).length;
+        return having > 0 && having < shown.length;
+      });
+      return values.length > 0 ? [{ group, values }] : [];
+    });
+  }, [bombs, tab]);
+
+  // The rows, and for the facet counts — how many rows each option would
+  // leave — the rows with every *other* filter applied but that axis's own,
+  // same idea as the aircraft page's chip counts. A feature (IOG, a data
+  // link) narrows alongside the others ticked in its row, so its count keeps
+  // them and sets aside only its own chip.
+  const { rows, withoutNation, counts } = useMemo(() => {
     const needle = deferred.trim().toLowerCase();
-    const passes = (bomb: ChartRow, except?: "nation" | "kind") => {
-      if (!inView(bomb, view)) return false;
-      if (source === "game" && bomb.damageSource === "estimate") return false;
+    const setsOf = (group: FilterGroup, without?: string) => {
+      const sets =
+        group.axis === "category"
+          ? facetOf(group, cats as ReadonlySet<string>, notCats as ReadonlySet<string>)
+          : facetOf(group, tags as ReadonlySet<string>, notTags as ReadonlySet<string>);
+      if (without !== undefined) {
+        sets.ticked.delete(without);
+        sets.crossed.delete(without);
+      }
+      return sets;
+    };
+    const passes = (bomb: ChartRow, except?: "nation" | FilterGroup["id"], without?: string) => {
+      if (!inTab(bomb, tab)) return false;
+      if (bounds.estimated && source === "game" && bomb.damageSource === "estimate") return false;
       if (needle && !bomb.chartName.toLowerCase().includes(needle) && !bomb.fullName.toLowerCase().includes(needle)) {
         return false;
       }
       if (except !== "nation" && nation !== "all" && !bomb.usedByNations.includes(nation)) return false;
-      if (except !== "kind" && !matchesFacet(kindsOf(bomb), kinds, notKinds)) return false;
+      for (const group of TAB_GROUPS[tab]) {
+        if (group.id === except) continue;
+        const { ticked, crossed } = setsOf(group, without);
+        if (!matchesFacet(groupValues(bomb, group), ticked, crossed, group.mode)) return false;
+      }
       if (massMin !== null && (bomb.massKg ?? -Infinity) < massMin) return false;
       if (massMax !== null && (bomb.massKg ?? Infinity) > massMax) return false;
       if (tntMin !== null && (bomb.tntKg ?? -Infinity) < tntMin) return false;
       if (tntMax !== null && (bomb.tntKg ?? Infinity) > tntMax) return false;
       // A damage-range filter can't be tested against a blank value — treat
-      // "no data" as failing the filter rather than coercing null to 0.
-      if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
-      if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
-      if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
+      // "no data" as failing the filter rather than coercing null to 0. On a
+      // tab with no damage at all it is not on the page, so it filters nothing.
+      if (bounds.priced) {
+        if ((dmgMin !== null || dmgMax !== null) && bomb.damageValue === null) return false;
+        if (dmgMin !== null && bomb.damageValue !== null && bomb.damageValue < dmgMin) return false;
+        if (dmgMax !== null && bomb.damageValue !== null && bomb.damageValue > dmgMax) return false;
+      }
       return true;
     };
 
@@ -215,51 +265,67 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
         bomb,
         needed: bomb.damageValue ? bombsNeeded(effectiveHp, bomb.damageValue) : null,
       }))
-      .sort((a, b) => compareRows(a, b, sort, dir, m.bombKinds));
-    return {
-      rows: sorted,
-      withoutNation: bombs.filter((bomb) => passes(bomb, "nation")),
-      withoutKind: bombs.filter((bomb) => passes(bomb, "kind")),
-    };
+      .sort((a, b) => compareRows(a, b, order.sort, order.dir, typeLabel));
+    const counts = new Map<string, number>();
+    for (const group of TAB_GROUPS[tab]) {
+      const alternatives = group.mode === "any" ? bombs.filter((bomb) => passes(bomb, group.id)) : null;
+      for (const value of group.values) {
+        const pool = alternatives ?? bombs.filter((bomb) => passes(bomb, undefined, value));
+        counts.set(`${group.id}:${value}`, pool.filter((bomb) => groupValues(bomb, group).includes(value)).length);
+      }
+    }
+    return { rows: sorted, withoutNation: bombs.filter((bomb) => passes(bomb, "nation")), counts };
   }, [
     bombs,
-    view,
+    tab,
     source,
     deferred,
     effectiveHp,
-    sort,
-    dir,
+    order.sort,
+    order.dir,
     nation,
-    kinds,
-    notKinds,
+    cats,
+    notCats,
+    tags,
+    notTags,
     massMin,
     massMax,
     tntMin,
     tntMax,
     dmgMin,
     dmgMax,
-    m.bombKinds,
+    bounds.priced,
+    bounds.estimated,
+    typeLabel,
   ]);
 
   // The table redraws a few hundred rows on every filter, sort or unit change;
   // deferred, so the control itself answers the click first.
   const listed = useDeferredValue(rows);
   const shownUnit = useDeferredValue(massUnit);
-  const shownColumns = useDeferredValue(columns);
-  const wide = shownColumns.size > 0;
+  const shownTab = useDeferredValue(tab);
+  const tableColumns = useMemo(() => columnsFor(shownTab, shownColumns), [shownTab, shownColumns]);
+  // More than the six columns against a base: set tighter, and held in a window of its own.
+  const wide = tableColumns.length > 6;
   // A header cell stays at the top of the table's own scroll window — see the table below.
   const headCell = wide ? "sm:sticky sm:top-0 sm:z-10 bg-surface sm:shadow-[inset_0_-1px_0_var(--color-line)]" : undefined;
 
   const nationCount = (n: Nation | "all") =>
     n === "all" ? withoutNation.length : withoutNation.filter((b) => b.usedByNations.includes(n)).length;
-  const kindCount = (k: BombKind) => withoutKind.filter((b) => kindsOf(b).includes(k)).length;
+  const valueCount = (group: FilterGroup, value: string) => counts.get(`${group.id}:${value}`) ?? 0;
 
-  const selectView = (next: ChartView) => {
-    setView(next);
-    // A kind picked under one view may not exist under the next.
-    setKinds(new Set());
-    setNotKinds(new Set());
-    track("filter_applied", { surface: "bombs", filter: "view", value: next });
+  const clearFacets = () => {
+    setCats(new Set());
+    setNotCats(new Set());
+    setTags(new Set());
+    setNotTags(new Set());
+  };
+
+  const selectTab = (next: ChartTab) => {
+    setTab(next);
+    // A value picked on one tab may have no chip on the next.
+    clearFacets();
+    track("filter_applied", { surface: "bombs", filter: "tab", value: next });
   };
 
   const selectNation = (n: Nation | "all") => {
@@ -268,20 +334,35 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   };
 
   const handleSort = (column: Sort) => {
-    if (column === sort) setDir(dir === "asc" ? "desc" : "asc");
-    else {
+    if (column === order.sort) {
+      setSort(column);
+      setDir(order.dir === "asc" ? "desc" : "asc");
+    } else {
       setSort(column);
       setDir(DEFAULT_DIR[column]);
     }
     track("filter_applied", { surface: "bombs", filter: "sort", value: column });
   };
 
-  const toggleKind = (kind: BombKind) => {
-    const next = nextFacet(kind, kinds, notKinds);
-    setKinds(next.ticked);
-    setNotKinds(next.crossed);
-    track("filter_applied", { surface: "bombs", filter: "kind", value: kind, state: FACET_TRACKED[next.state] });
+  const toggleValue = (group: FilterGroup, value: string) => {
+    let state: FacetState;
+    if (group.axis === "category") {
+      const next = nextFacet(value as WeaponCategory, cats, notCats);
+      setCats(next.ticked);
+      setNotCats(next.crossed);
+      state = next.state;
+    } else {
+      const next = nextFacet(value as WeaponTag, tags, notTags);
+      setTags(next.ticked);
+      setNotTags(next.crossed);
+      state = next.state;
+    }
+    track("filter_applied", { surface: "bombs", filter: group.axis, value, state: FACET_TRACKED[state] });
   };
+  const stateOf = (group: FilterGroup, value: string) =>
+    group.axis === "category"
+      ? facetState(value as WeaponCategory, cats, notCats)
+      : facetState(value as WeaponTag, tags, notTags);
 
   const toggleColumn = (column: ExtraColumn) => {
     const next = new Set(columns);
@@ -305,20 +386,44 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const filtersActive =
     query.trim() !== "" ||
     nation !== "all" ||
-    kinds.size > 0 ||
-    notKinds.size > 0 ||
+    cats.size > 0 ||
+    notCats.size > 0 ||
+    tags.size > 0 ||
+    notTags.size > 0 ||
     source !== "all" ||
     rangesActive;
   const clearFilters = () => {
     setQuery("");
     setNation("all");
-    setKinds(new Set());
-    setNotKinds(new Set());
+    clearFacets();
     setSource("all");
     clearRanges();
   };
 
   const extraHeaders: Record<ExtraColumn, string> = m.bombChart.extraColumns;
+  const headerOf = (column: ColumnId, onTab: ChartTab): string => {
+    switch (column) {
+      case "kind":
+        // What sets these apart is what steers them.
+        return onTab === "agm" || onTab === "aamRadar" ? m.bombChart.groups.guidance : m.bombChart.columns.kind;
+      case "aspect":
+        return m.bombChart.groups.aspect;
+      case "irccm":
+        return m.weaponTags.irccm;
+      case "needed":
+      case "damage":
+      case "mass":
+      case "tnt":
+      case "efficiency":
+      case "seeker":
+      case "loadFactor":
+        return m.bombChart.columns[column];
+      default:
+        return extraHeaders[column];
+    }
+  };
+  // Match BR, mode and bases on the map mean something only where a row counts per base.
+  const againstBases = TAB_COLUMNS[tab].includes("needed");
 
   // Stable, so ticking one row doesn't redraw the other six hundred.
   const comparedKey = compared.join(",");
@@ -332,7 +437,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
 
   return (
     <div className="space-y-6">
-      <section className="card p-4 grid gap-5 sm:grid-cols-3">
+      <section className={cn("card p-4 grid gap-5 sm:grid-cols-3", !againstBases && "hidden")}>
         <Segmented
           label={m.conditions.matchBr}
           value={String(baseHp)}
@@ -366,9 +471,9 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
       <section className="card p-4 space-y-4">
         <Segmented
           label={m.bombChart.show}
-          value={view}
-          onChange={selectView}
-          options={CHART_VIEWS.map((v) => ({ value: v, label: m.bombChart.views[v] }))}
+          value={tab}
+          onChange={selectTab}
+          options={TABS.map((t) => ({ value: t, label: m.bombChart.tabs[t] }))}
         />
 
         <div className="space-y-1.5">
@@ -387,21 +492,26 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <div className="text-xs text-ink-faint">
-            <span className="uppercase tracking-wider">{m.common.type}</span> · {m.common.excludeHint}
+        {groups.map(({ group, values }, index) => (
+          <div key={group.id} className="space-y-1.5">
+            <div className="text-xs text-ink-faint">
+              <span className="uppercase tracking-wider">{m.bombChart.groups[group.id]}</span>
+              {index === 0 ? ` · ${m.common.excludeHint}` : null}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {values.map((value) => (
+                <TriChip key={value} state={stateOf(group, value)} onClick={() => toggleValue(group, value)}>
+                  {group.axis === "category"
+                    ? m.weaponCategories[value as WeaponCategory]
+                    : m.weaponTags[value as WeaponTag]}
+                  <Count>{valueCount(group, value)}</Count>
+                </TriChip>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {viewKinds.map((kind) => (
-              <TriChip key={kind} state={facetState(kind, kinds, notKinds)} onClick={() => toggleKind(kind)}>
-                {m.bombKinds[kind]}
-                <Count>{kindCount(kind)}</Count>
-              </TriChip>
-            ))}
-          </div>
-        </div>
+        ))}
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className={cn("grid gap-4", bounds.priced ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
           <RangeField
             label={m.bombChart.massKg}
             bounds={bounds.mass}
@@ -418,25 +528,29 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
             onMinChange={setTntMin}
             onMaxChange={setTntMax}
           />
-          <RangeField
-            label={m.bombChart.damage}
-            bounds={bounds.damage}
-            min={dmgMin}
-            max={dmgMax}
-            onMinChange={setDmgMin}
-            onMaxChange={setDmgMax}
-          />
+          {bounds.priced ? (
+            <RangeField
+              label={m.bombChart.damage}
+              bounds={bounds.damage}
+              min={dmgMin}
+              max={dmgMax}
+              onMinChange={setDmgMin}
+              onMaxChange={setDmgMax}
+            />
+          ) : null}
         </div>
 
-        <CheckChip
-          checked={source === "game"}
-          onClick={() => {
-            setSource(source === "game" ? "all" : "game");
-            track("filter_applied", { surface: "bombs", filter: "source", value: source === "game" ? "all" : "game" });
-          }}
-        >
-          {m.bombChart.gameOnly}
-        </CheckChip>
+        {bounds.estimated ? (
+          <CheckChip
+            checked={source === "game"}
+            onClick={() => {
+              setSource(source === "game" ? "all" : "game");
+              track("filter_applied", { surface: "bombs", filter: "source", value: source === "game" ? "all" : "game" });
+            }}
+          >
+            {m.bombChart.gameOnly}
+          </CheckChip>
+        ) : null}
       </section>
 
       <div className="space-y-3">
@@ -452,7 +566,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs uppercase tracking-wider text-ink-faint">{m.bombChart.moreColumns}</span>
           <div role="group" aria-label={m.bombChart.moreColumns} className="flex flex-wrap gap-1">
-            {EXTRA_COLUMNS.map((column) => (
+            {extrasFor(tab).map((column) => (
               <CheckChip key={column} checked={columns.has(column)} onClick={() => toggleColumn(column)}>
                 {extraHeaders[column]}
               </CheckChip>
@@ -485,7 +599,7 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
           </div>
           <p className="nums text-sm text-ink-dim">
             <Filled
-              template={m.bombChart.summary}
+              template={againstBases ? m.bombChart.summary : m.bombChart.summaryCount}
               slots={{ count: <AnimatedNumber value={listed.length} />, hp: <AnimatedNumber value={effectiveHp} /> }}
             />
           </p>
@@ -513,79 +627,20 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
                     column="name"
                     label={m.bombChart.columns.name}
                     className={cn(headCell, wide && "sm:left-0 sm:z-20")}
-                    sort={sort}
-                    dir={dir}
+                    sort={order.sort}
+                    dir={order.dir}
                     onSort={handleSort}
                     compact={wide}
                   />
-                  <SortTh
-                    column="needed"
-                    label={m.bombChart.columns.needed}
-                    align="right"
-                    className={headCell}
-                    sort={sort}
-                    dir={dir}
-                    onSort={handleSort}
-                    compact={wide}
-                  />
-                  <SortTh
-                    column="damage"
-                    label={m.bombChart.columns.damage}
-                    align="right"
-                    className={headCell}
-                    sort={sort}
-                    dir={dir}
-                    onSort={handleSort}
-                    compact={wide}
-                  />
-                  <SortTh
-                    column="mass"
-                    label={m.bombChart.columns.mass}
-                    align="right"
-                    className={cn("hidden sm:table-cell", headCell)}
-                    sort={sort}
-                    dir={dir}
-                    onSort={handleSort}
-                    compact={wide}
-                  />
-                  <SortTh
-                    column="tnt"
-                    label={m.bombChart.columns.tnt}
-                    align="right"
-                    className={cn("hidden md:table-cell", headCell)}
-                    sort={sort}
-                    dir={dir}
-                    onSort={handleSort}
-                    compact={wide}
-                  />
-                  <SortTh
-                    column="efficiency"
-                    label={m.bombChart.columns.efficiency}
-                    align="right"
-                    className={cn("hidden md:table-cell", headCell)}
-                    sort={sort}
-                    dir={dir}
-                    onSort={handleSort}
-                    compact={wide}
-                  />
-                  <SortTh
-                    column="kind"
-                    label={m.bombChart.columns.kind}
-                    className={cn("hidden lg:table-cell", headCell)}
-                    sort={sort}
-                    dir={dir}
-                    onSort={handleSort}
-                    compact={wide}
-                  />
-                  {EXTRA_COLUMNS.filter((column) => shownColumns.has(column)).map((column) => (
+                  {tableColumns.map((column) => (
                     <SortTh
                       key={column}
                       column={column}
-                      label={extraHeaders[column]}
-                      align={column === "warhead" || column === "explosive" ? "left" : "right"}
-                      className={headCell}
-                      sort={sort}
-                      dir={dir}
+                      label={headerOf(column, shownTab)}
+                      align={WORDS.has(column) ? "left" : "right"}
+                      className={cn(hideOf(column, shownTab), headCell)}
+                      sort={order.sort}
+                      dir={order.dir}
                       onSort={handleSort}
                       compact={wide}
                     />
@@ -595,9 +650,10 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
               <BombRows
                 rows={listed}
                 massUnit={shownUnit}
-                columns={shownColumns}
+                columns={tableColumns}
+                tab={shownTab}
                 wide={wide}
-                guidanceLabels={guidanceLabels}
+                typeOf={typeLabel}
                 compared={comparedSet}
                 onCompare={toggleCompared}
               />
@@ -635,37 +691,58 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   );
 }
 
-type SortableRow = { bomb: ChartRow; needed: number | null };
-
 /** The table's body, apart so the rest of the page can re-render without it. */
 const BombRows = memo(function BombRows({
   rows,
   massUnit,
   columns,
+  tab,
   wide,
-  guidanceLabels,
+  typeOf,
   compared,
   onCompare,
 }: {
   rows: SortableRow[];
   massUnit: MassUnit;
-  columns: ReadonlySet<ExtraColumn>;
+  /** The tab's columns, then the extras ticked — see chart-columns.ts. */
+  columns: readonly ColumnId[];
+  tab: ChartTab;
   /**
-   * Extra columns are on: set tighter, words free to wrap, and the name column
-   * held in place while the table scrolls sideways — see ArmamentChart.
+   * More columns than the six against a base: set tighter, words free to wrap,
+   * and the name column held in place while the table scrolls sideways — see ArmamentChart.
    */
   wide: boolean;
-  guidanceLabels: Record<string, string>;
+  typeOf: (bomb: ChartRow) => string;
   compared: ReadonlySet<string>;
   onCompare: (id: string) => void;
 }) {
   const { m, number, path, fill } = useI18n();
   const full = compared.size >= MAX_COMPARED;
   const decimal = (value: number, digits: number) => number(value, { maximumFractionDigits: digits });
-  const extraCell = (bomb: ChartRow, column: ExtraColumn): string | null => {
+  const km = (metres: number) => `${decimal(metres / 1000, 1)} km`;
+  const figure = (bomb: ChartRow, column: ColumnId): string | null => {
     switch (column) {
+      case "mass":
+        return formatMass(bomb, massUnit);
+      case "tnt":
+        return bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : null;
+      case "efficiency":
+        return bomb.efficiency !== null ? String(bomb.efficiency) : null;
+      case "kind":
+        // "ARH+IOG+GNSS+DL" is one word to a browser: let it break after a plus on a phone.
+        return typeOf(bomb).replaceAll("+", "+​");
+      case "aspect":
+        return bomb.tags.includes("allAspect")
+          ? m.weaponTags.allAspect
+          : bomb.tags.includes("rearAspect")
+            ? m.weaponTags.rearAspect
+            : null;
+      case "seeker":
+        return bomb.seekerRangeM !== undefined ? km(bomb.seekerRangeM) : null;
+      case "loadFactor":
+        return bomb.loadFactorMax !== undefined ? `${decimal(bomb.loadFactorMax, 1)} G` : null;
       case "range":
-        return bomb.launchRangeM !== undefined ? `${decimal(bomb.launchRangeM / 1000, 1)} km` : null;
+        return bomb.launchRangeM !== undefined ? km(bomb.launchRangeM) : null;
       case "speed":
         // As the game's tooltip gives it: Mach to one decimal, else m/s.
         if (bomb.machMax !== undefined) return `${number(bomb.machMax, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M`;
@@ -678,9 +755,10 @@ const BombRows = memo(function BombRows({
         return bomb.explosive ?? null;
       case "charge":
         return bomb.explosiveMassKg !== undefined ? `${decimal(bomb.explosiveMassKg, 2)} kg` : null;
+      default:
+        return null;
     }
   };
-  const extras = EXTRA_COLUMNS.filter((column) => columns.has(column));
   // Tighter on a phone too, where the name, the count and the damage have to share 360 px.
   const pad = wide ? "px-2" : "px-2 sm:px-3";
 
@@ -720,44 +798,56 @@ const BombRows = memo(function BombRows({
               </div>
             </div>
           </td>
-          <td className={cn("nums py-2 text-right text-accent font-semibold text-base whitespace-nowrap", pad)}>
-            {needed !== null && Number.isFinite(needed) ? (
-              <>
-                {bomb.damageSource === "estimate" ? <span className="font-normal text-ink-faint">≈ </span> : null}
-                {needed}
-              </>
-            ) : (
-              "—"
-            )}
-          </td>
-          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap", pad)}>
-            <DamageValue bomb={bomb} />
-          </td>
-          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap hidden sm:table-cell", pad)}>
-            {formatMass(bomb, massUnit)}
-          </td>
-          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell", pad)}>
-            {bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : "—"}
-          </td>
-          <td className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap hidden md:table-cell", pad)}>
-            {bomb.efficiency ?? "—"}
-          </td>
-          <td className={cn("py-2 text-ink-faint hidden lg:table-cell", pad, !wide && "whitespace-nowrap")}>
-            {bomb.guidance ? (guidanceLabels[bomb.guidance] ?? bomb.guidance) : m.bombKinds[bomb.kind]}
-          </td>
-          {extras.map((column) => (
-            <td
-              key={column}
-              className={cn(
-                "py-2 text-ink-dim",
-                pad,
-                // The words of a warhead or a filler wrap; a figure stays whole.
-                column === "warhead" || column === "explosive" ? "text-left" : "nums text-right whitespace-nowrap",
-              )}
-            >
-              {extraCell(bomb, column) ?? "—"}
-            </td>
-          ))}
+          {columns.map((column) => {
+            const hide = hideOf(column, tab);
+            if (column === "needed") {
+              return (
+                <td key={column} className={cn("nums py-2 text-right text-accent font-semibold text-base whitespace-nowrap", pad, hide)}>
+                  {needed !== null && Number.isFinite(needed) ? (
+                    <>
+                      {bomb.damageSource === "estimate" ? <span className="font-normal text-ink-faint">≈ </span> : null}
+                      {needed}
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              );
+            }
+            if (column === "damage") {
+              return (
+                <td key={column} className={cn("nums py-2 text-right text-ink-dim whitespace-nowrap", pad, hide)}>
+                  <DamageValue bomb={bomb} />
+                </td>
+              );
+            }
+            if (column === "irccm") {
+              return (
+                <td key={column} className={cn("py-2 text-right text-ink-dim", pad, hide)}>
+                  {bomb.tags.includes("irccm") ? (
+                    <Check size={15} strokeWidth={2.5} className="ml-auto text-accent" aria-label={m.weaponTags.irccm} />
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              );
+            }
+            return (
+              <td
+                key={column}
+                className={cn(
+                  "py-2",
+                  pad,
+                  hide,
+                  column === "kind" ? "text-ink-faint" : "text-ink-dim",
+                  // Words wrap where the table is tight — a phone, or many columns; a figure stays whole.
+                  WORDS.has(column) ? cn("text-left", !wide && "sm:whitespace-nowrap") : "nums text-right whitespace-nowrap",
+                )}
+              >
+                {figure(bomb, column) ?? "—"}
+              </td>
+            );
+          })}
         </tr>
       ))}
     </tbody>
@@ -810,67 +900,6 @@ function CompareToggle({
       {on ? <Check size={12} strokeWidth={3} /> : null}
     </button>
   );
-}
-
-type KindLabels = Record<BombKind, string>;
-
-function sortKeyOf(row: SortableRow, column: Sort, kinds: KindLabels): number | string | null {
-  const { bomb } = row;
-  switch (column) {
-    case "name":
-      return bomb.chartName || bomb.fullName;
-    case "needed":
-      return row.needed;
-    case "damage":
-      return bomb.damageValue;
-    case "mass":
-      return bomb.massKg;
-    case "tnt":
-      return bomb.tntKg;
-    case "efficiency":
-      return bomb.efficiency;
-    case "kind":
-      return kinds[bomb.kind];
-    case "range":
-      return bomb.launchRangeM ?? null;
-    case "speed":
-      return bomb.machMax !== undefined ? bomb.machMax * MACH_MS : (bomb.maxSpeedMs ?? null);
-    case "guidanceTime":
-      return bomb.guidanceTimeS ?? null;
-    case "warhead":
-      return bomb.warhead ?? null;
-    case "explosive":
-      return bomb.explosive ?? null;
-    case "charge":
-      return bomb.explosiveMassKg ?? null;
-  }
-}
-
-/**
- * Orders two rows by one column, nulls always last regardless of direction —
- * a bomb missing a TNT figure (incendiaries have none) shouldn't jump to the
- * top just because you flipped to "smallest first".
- *
- * Ties fall back to name, so equal values still land in a stable, readable
- * order rather than whatever the previous sort happened to leave them in.
- */
-function compareRows(a: SortableRow, b: SortableRow, column: Sort, dir: SortDir, kinds: KindLabels): number {
-  const av = sortKeyOf(a, column, kinds);
-  const bv = sortKeyOf(b, column, kinds);
-
-  let cmp: number;
-  if (av === null || bv === null) {
-    if (av === null && bv === null) cmp = 0;
-    else return av === null ? 1 : -1;
-  } else if (typeof av === "string" || typeof bv === "string") {
-    cmp = String(av).localeCompare(String(bv));
-  } else {
-    cmp = av - bv;
-  }
-
-  const directed = dir === "asc" ? cmp : -cmp;
-  if (directed !== 0 || column === "name") return directed;
-  return compareRows(a, b, "name", "asc", kinds);
 }
 
 function SortTh({

@@ -1,4 +1,5 @@
-import type { Bomb, BombKind } from "./types";
+import type { Bomb } from "./types";
+import { BOMB_TYPES, WARHEADS, WEAPON_CATEGORIES, type WeaponCategory, type WeaponTag } from "./weapon-tags";
 
 /**
  * A sheet row as the sheet printed it — undoing what an import overruled with
@@ -50,9 +51,14 @@ export type ChartRow = Pick<
   | "efficiency"
   | "usedByNations"
 > & {
+  category: WeaponCategory;
+  tags: WeaponTag[];
   launchRangeM?: number;
+  /** Lock range as the tooltip gives it: a radar's, or an IR seeker's from behind. */
+  seekerRangeM?: number;
   machMax?: number;
   maxSpeedMs?: number;
+  loadFactorMax?: number;
   /** How long it steers for — a guided weapon's only, not an unguided one's self-destruct time. */
   guidanceTimeS?: number;
   warhead?: string;
@@ -60,11 +66,15 @@ export type ChartRow = Pick<
   explosiveMassKg?: number;
 };
 
-/** The armament chart's starting points: what can hit a base, what steers itself there, or everything. */
-export const CHART_VIEWS = ["bases", "guided", "all"] as const;
-export type ChartView = (typeof CHART_VIEWS)[number];
+/**
+ * The armament chart's tabs: what can hit a base, each category of weapon on
+ * its own — air-to-air missiles split by seeker, radar and IR — torpedoes,
+ * mines, gun pods and a missile flown by hand together, or everything.
+ */
+export const TABS = ["bases", "bomb", "rocket", "agm", "aamRadar", "aamIr", "other", "all"] as const;
+export type ChartTab = (typeof TABS)[number];
 
-const GUIDED = new Set<BombKind>(["GNSS", "LAS", "TV", "IR", "RC", "AGM"]);
+const RADAR_SEEKERS: readonly WeaponTag[] = ["sarh", "arh"];
 
 /**
  * A nuclear weapon, as the game marks one in its name ("☢B61"): carried only by
@@ -73,25 +83,73 @@ const GUIDED = new Set<BombKind>(["GNSS", "LAS", "TV", "IR", "RC", "AGM"]);
 export const isNuclear = (bomb: Pick<Bomb, "chartName">) => bomb.chartName.startsWith("☢");
 
 /**
- * Whether a row belongs in a view. "Against bases" is what an ordinary battle
+ * Whether a row belongs on a tab. "Against bases" is what an ordinary battle
  * can bring to one — so not a nuclear bomb, whose one-per-base would top the
- * list. "Guided" is anything aimed at the ground that steers — a guided bomb,
- * an air-to-ground missile, a guided rocket — but not an air-to-air missile,
- * which never goes for a base.
+ * list; it stays with the bombs.
  */
-export function inView(bomb: Pick<Bomb, "damageValue" | "kind" | "guidance" | "chartName">, view: ChartView): boolean {
-  if (view === "bases") return (bomb.damageValue ?? 0) > 0 && !isNuclear(bomb);
-  if (view === "guided") return bomb.kind !== "AAM" && (GUIDED.has(bomb.kind) || Boolean(bomb.guidance));
-  return true;
+export function inTab(row: Pick<ChartRow, "category" | "damageValue" | "chartName" | "tags">, tab: ChartTab): boolean {
+  const radar = row.category === "aam" && row.tags.some((tag) => RADAR_SEEKERS.includes(tag));
+  const ir = row.category === "aam" && row.tags.includes("ir");
+  switch (tab) {
+    case "bases":
+      return (row.damageValue ?? 0) > 0 && !isNuclear(row);
+    case "aamRadar":
+      return radar;
+    case "aamIr":
+      return ir;
+    case "other":
+      return ["torpedo", "mine", "gun"].includes(row.category) || (row.category === "aam" && !radar && !ir);
+    case "all":
+      return true;
+    default:
+      return row.category === tab;
+  }
 }
 
 /**
- * Every kind a bomb is filtered under: its seeker's, and satellite guidance's
- * too where it flies on satellite-aided INS ("laser+IOG+GNSS") — a Paveway IV
- * is laser-guided and a GNSS bomb both.
+ * One row of chips on a tab: the categories, or a family of tags. "any" for
+ * values a weapon has one of (a seeker, a warhead) — a row with any ticked;
+ * "all" for what it has besides (IOG, a data link, IRCCM) — every one ticked.
  */
-export const kindsOf = (bomb: Pick<Bomb, "kind" | "guidance">): BombKind[] =>
-  bomb.guidance?.includes("+GNSS") && bomb.kind !== "GNSS" ? [bomb.kind, "GNSS"] : [bomb.kind];
+export type FilterGroup = {
+  id: "category" | "type" | "guidance" | "aspect" | "features" | "warhead";
+  axis: "category" | "tag";
+  values: readonly (WeaponCategory | WeaponTag)[];
+  mode: "any" | "all";
+};
+
+const CATEGORY: FilterGroup = { id: "category", axis: "category", values: WEAPON_CATEGORIES, mode: "any" };
+const TYPE: FilterGroup = { id: "type", axis: "tag", values: BOMB_TYPES, mode: "any" };
+const GUIDANCE: FilterGroup = {
+  id: "guidance",
+  axis: "tag",
+  values: ["unguided", "laser", "tv", "ir", "gnss", "sarh", "arh", "antiRadiation", "saclos", "beamRiding", "mclos"],
+  mode: "any",
+};
+const RADAR_GUIDANCE: FilterGroup = { id: "guidance", axis: "tag", values: RADAR_SEEKERS, mode: "any" };
+const ASPECT: FilterGroup = { id: "aspect", axis: "tag", values: ["rearAspect", "allAspect"], mode: "any" };
+const FEATURES: FilterGroup = { id: "features", axis: "tag", values: ["iog", "gnssAid", "datalink", "irccm"], mode: "all" };
+const RADAR_FEATURES: FilterGroup = { id: "features", axis: "tag", values: ["iog", "datalink", "gnssAid"], mode: "all" };
+const IR_FEATURES: FilterGroup = { id: "features", axis: "tag", values: ["irccm", "iog", "datalink", "gnssAid"], mode: "all" };
+const WARHEAD: FilterGroup = { id: "warhead", axis: "tag", values: WARHEADS, mode: "any" };
+
+/** The chip rows each tab offers, in order. A chip shows only for a value that splits the tab's rows. */
+export const TAB_GROUPS: Record<ChartTab, readonly FilterGroup[]> = {
+  bases: [CATEGORY, GUIDANCE],
+  bomb: [TYPE, GUIDANCE, FEATURES],
+  rocket: [GUIDANCE, WARHEAD],
+  agm: [GUIDANCE, FEATURES, WARHEAD],
+  aamRadar: [RADAR_GUIDANCE, RADAR_FEATURES],
+  aamIr: [ASPECT, IR_FEATURES],
+  other: [CATEGORY],
+  all: [CATEGORY, GUIDANCE],
+};
+
+/** What a row has of a group's values: its category, or those of its tags the group lists. */
+export function groupValues(row: Pick<ChartRow, "category" | "tags">, group: FilterGroup): string[] {
+  if (group.axis === "category") return [row.category];
+  return row.tags.filter((tag) => group.values.includes(tag));
+}
 
 /**
  * What a bomb counts for in the bombing reward: the game pays by its own

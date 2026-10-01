@@ -26,7 +26,7 @@ export function MovedPage({ locale, to }: { locale: Locale; to: string }) {
   const url = withBasePath(target);
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 text-center space-y-3">
-      {/* The script keeps the old address's query (`?hp=…&kinds=…`, the same
+      {/* The script keeps the old address's query (`?hp=…&mode=…`, the same
           parameters the armament chart reads), which a meta refresh can't. The
           refresh is for when scripts are off; left live, it would fire once the
           stub has loaded and could cut the scripted redirect short. Raw HTML, so

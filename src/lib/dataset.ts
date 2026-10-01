@@ -17,6 +17,7 @@ import squadronData from "@/data/squadron.json";
 import unitNameData from "@/data/unit-names.json";
 import vehicleTypeData from "@/data/vehicle-types.json";
 import { inArmamentChart, rewardDamageOf, type ChartRow } from "@/domain/bomb-chart";
+import { categoryOfKind, tagsOfKind } from "@/domain/weapon-tags";
 import { FIGURE_LABEL_PREFIXES, type CompareData } from "@/lib/weapon-figures";
 import { NATIONS, type VehicleType } from "@/domain/constants";
 import type { Locale } from "@/i18n/locales";
@@ -233,6 +234,8 @@ export function chartRowsFor(locale: Locale): ChartRow[] {
       fullName: bomb.fullName,
       kind: bomb.kind,
       guidance: bomb.guidance,
+      category: bomb.category ?? categoryOfKind(bomb.kind),
+      tags: bomb.tags ?? tagsOfKind(bomb.kind),
       nation: bomb.nation,
       massKg: bomb.massKg,
       massLabel: bomb.massLabel,
@@ -242,8 +245,10 @@ export function chartRowsFor(locale: Locale): ChartRow[] {
       efficiency: bomb.efficiency,
       usedByNations: bomb.usedByNations,
       launchRangeM: stats.launchRangeM,
+      seekerRangeM: stats.seekerRangeM ?? stats.seekerRangeRearM,
       machMax: stats.machMax,
       maxSpeedMs: stats.maxSpeedMs,
+      loadFactorMax: stats.loadFactorMax,
       guidanceTimeS: guided ? stats.timeLifeS : undefined,
       warhead: stats.warhead ? gameLabel(locale, `rocket/warhead/${stats.warhead}`) : undefined,
       explosive: stats.explosiveType ? gameLabel(locale, `explosiveType/${stats.explosiveType}`) : undefined,

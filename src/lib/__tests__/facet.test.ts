@@ -29,6 +29,14 @@ describe("matchesFacet", () => {
     expect(matchesFacet(["LAS"], set("LAS"), set("GNSS"))).toBe(true);
   });
 
+  it("in 'all' mode keeps only a row with every ticked value — for features a weapon has together", () => {
+    expect(matchesFacet(["iog", "datalink"], set("iog", "datalink"), set(), "all")).toBe(true);
+    expect(matchesFacet(["iog"], set("iog", "datalink"), set(), "all")).toBe(false);
+    expect(matchesFacet(["iog", "datalink"], set("iog"), set("datalink"), "all")).toBe(false);
+    expect(matchesFacet([], set(), set(), "all")).toBe(true);
+    expect(matchesFacet([], set(), set("irccm"), "all")).toBe(true);
+  });
+
   it("reads a value both ticked and crossed out as crossed out, as its chip does", () => {
     // Only a hand-edited link can say both; the chip shows the cross.
     expect(matchesFacet(["GP"], set("ROCKET"), set("ROCKET"))).toBe(true);

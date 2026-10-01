@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { inArmamentChart, inView, kindsOf } from "../bomb-chart";
+import { groupValues, inArmamentChart, inTab, TAB_GROUPS, TABS, type ChartTab } from "../bomb-chart";
+import { WEAPON_TAGS, type WeaponCategory, type WeaponTag } from "../weapon-tags";
 
 describe("inArmamentChart", () => {
   it("keeps every weapon the game catalogues, priced or not", () => {
@@ -12,46 +13,91 @@ describe("inArmamentChart", () => {
   });
 });
 
-describe("inView", () => {
-  const kd88 = { chartName: "KD-88", kind: "AGM" as const, guidance: "tv+IOG+GNSS", damageValue: 2064 };
-  const aim9 = { chartName: "AIM-9B", kind: "AAM" as const, guidance: "ir", damageValue: null };
-  const mk82 = { chartName: "Mk 82", kind: "GP" as const, damageValue: 2464 };
-  const bullpup = { chartName: "AGM-12B", kind: "AGM" as const, damageValue: 1500 };
-  const b61 = { chartName: "☢B61", kind: "GP" as const, damageValue: 1200000 };
-
-  it("shows what can hurt a base against bases", () => {
-    expect(inView(kd88, "bases")).toBe(true);
-    expect(inView(mk82, "bases")).toBe(true);
-    expect(inView(aim9, "bases")).toBe(false);
-    expect(inView({ chartName: "X", kind: "GP", damageValue: 0 }, "bases")).toBe(false);
+describe("inTab", () => {
+  const row = (category: WeaponCategory, damageValue: number | null = 2464, chartName = "X", tags: WeaponTag[] = []) => ({
+    chartName,
+    category,
+    damageValue,
+    tags,
   });
 
-  it("leaves a nuclear bomb out against bases — a killstreak's, not a battle's — but not out of everything", () => {
-    expect(inView(b61, "bases")).toBe(false);
-    expect(inView(b61, "all")).toBe(true);
+  it("shows what can hurt a base on the bases tab, a nuclear bomb not — a killstreak's, not a battle's", () => {
+    expect(inTab(row("agm", 2064), "bases")).toBe(true);
+    expect(inTab(row("bomb"), "bases")).toBe(true);
+    expect(inTab(row("aam", null), "bases")).toBe(false);
+    expect(inTab(row("bomb", 0), "bases")).toBe(false);
+    expect(inTab(row("bomb", 1200000, "☢B61"), "bases")).toBe(false);
+    expect(inTab(row("bomb", 1200000, "☢B61"), "bomb")).toBe(true);
   });
 
-  it("shows what steers itself at the ground as guided — a hand-flown missile too, an air-to-air one not", () => {
-    expect(inView(kd88, "guided")).toBe(true);
-    expect(inView(bullpup, "guided")).toBe(true);
-    expect(inView(aim9, "guided")).toBe(false);
-    expect(inView(mk82, "guided")).toBe(false);
-    expect(inView({ chartName: "APKWS", kind: "ROCKET", guidance: "laser", damageValue: 400 }, "guided")).toBe(true);
+  it("files each row under its category's tab, and torpedoes, mines and gun pods under other", () => {
+    const tabsOf = (category: WeaponCategory, tags: WeaponTag[] = []) =>
+      TABS.filter((tab) => tab !== "bases" && tab !== "all" && inTab(row(category, null, "X", tags), tab));
+    expect(tabsOf("bomb")).toEqual(["bomb"]);
+    expect(tabsOf("rocket")).toEqual(["rocket"]);
+    expect(tabsOf("agm")).toEqual(["agm"]);
+    for (const category of ["torpedo", "mine", "gun"] as const) expect(tabsOf(category)).toEqual(["other"]);
   });
 
-  it("shows everything under everything", () => {
-    for (const row of [kd88, aim9, mk82]) expect(inView(row, "all")).toBe(true);
+  it("splits air-to-air missiles by seeker: radar on one tab, IR on another, one flown by hand under other", () => {
+    const tabsOf = (tags: WeaponTag[]) => TABS.filter((tab) => tab !== "bases" && tab !== "all" && inTab(row("aam", null, "X", tags), tab));
+    expect(tabsOf(["sarh"])).toEqual(["aamRadar"]);
+    expect(tabsOf(["arh", "iog", "datalink"])).toEqual(["aamRadar"]);
+    expect(tabsOf(["ir", "allAspect", "irccm"])).toEqual(["aamIr"]);
+    // X-4: a wire to the launching aircraft, neither radar nor IR.
+    expect(tabsOf(["mclos"])).toEqual(["other"]);
+  });
+
+  it("shows everything under all", () => {
+    for (const category of ["bomb", "aam", "gun"] as const) expect(inTab(row(category, null), "all")).toBe(true);
   });
 });
 
-describe("kindsOf", () => {
-  it("files a seeker on satellite-aided INS under GNSS as well", () => {
-    expect(kindsOf({ kind: "LAS", guidance: "laser+IOG+GNSS" })).toEqual(["LAS", "GNSS"]);
+describe("the tabs' filter groups", () => {
+  const ids = (tab: ChartTab) => TAB_GROUPS[tab].map((group) => group.id);
+
+  it("offers every tag on some tab", () => {
+    const offered = new Set(Object.values(TAB_GROUPS).flatMap((groups) => groups.flatMap((g) => (g.axis === "tag" ? g.values : []))));
+    for (const tag of WEAPON_TAGS) expect(offered, tag).toContain(tag);
   });
 
-  it("files INS alone, or no navigation, under the seeker only", () => {
-    expect(kindsOf({ kind: "IR", guidance: "ir+IOG" })).toEqual(["IR"]);
-    expect(kindsOf({ kind: "LAS" })).toEqual(["LAS"]);
-    expect(kindsOf({ kind: "GNSS" })).toEqual(["GNSS"]);
+  it("never lists one tag in two groups of a tab", () => {
+    for (const tab of TABS) {
+      const tags = TAB_GROUPS[tab].flatMap((g) => (g.axis === "tag" ? g.values : []));
+      expect(new Set(tags).size, tab).toBe(tags.length);
+    }
+  });
+
+  it("gives radar missiles SARH and ARH, and IOG, a data link and GNSS together", () => {
+    expect(ids("aamRadar")).toEqual(["guidance", "features"]);
+    const [guidance, features] = TAB_GROUPS.aamRadar;
+    expect(guidance).toMatchObject({ mode: "any", values: ["sarh", "arh"] });
+    expect(features).toMatchObject({ mode: "all", values: ["iog", "datalink", "gnssAid"] });
+  });
+
+  it("gives IR missiles their aspect, and IRCCM among what they have besides", () => {
+    expect(ids("aamIr")).toEqual(["aspect", "features"]);
+    const [aspect, features] = TAB_GROUPS.aamIr;
+    expect(aspect).toMatchObject({ mode: "any", values: ["rearAspect", "allAspect"] });
+    expect(features.mode).toBe("all");
+    expect(features.values[0]).toBe("irccm");
+  });
+
+  it("gives bombs their type, rockets their warhead, and every tab with a mix its category", () => {
+    expect(ids("bomb")).toEqual(["type", "guidance", "features"]);
+    expect(ids("rocket")).toEqual(["guidance", "warhead"]);
+    expect(ids("agm")).toEqual(["guidance", "features", "warhead"]);
+    for (const tab of ["bases", "other", "all"] as const) expect(ids(tab)[0]).toBe("category");
+  });
+});
+
+describe("groupValues", () => {
+  const row = { category: "aam" as const, tags: ["ir", "allAspect", "irccm"] as WeaponTag[] };
+
+  it("reads a row's category, or the tags the group lists", () => {
+    const [category] = TAB_GROUPS.all;
+    expect(groupValues(row, category)).toEqual(["aam"]);
+    const [aspect] = TAB_GROUPS.aamIr;
+    expect(groupValues(row, aspect)).toEqual(["allAspect"]);
   });
 });

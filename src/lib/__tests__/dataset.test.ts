@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import statsData from "../../data/armament-stats.json";
-import { rewardDamageOf } from "../../domain/bomb-chart";
+import { inTab, rewardDamageOf, TABS } from "../../domain/bomb-chart";
 import { NATIONS } from "../../domain/constants";
 import type { BaseLoadout, WeaponStats } from "../../domain/types";
 import { bombsIn, buildFor, carriedWithin, variantOf, violationsOf } from "../../domain/loadout";
@@ -146,6 +146,15 @@ describe("the armament chart's rows", () => {
 
   it("give an unguided rocket no guidance time: its timer is the self-destruct's", () => {
     expect(chartRowsFor("en").find((row) => row.id === "rz-65")?.guidanceTimeS).toBeUndefined();
+  });
+
+  it("carry each weapon's category and tags, and sit on exactly one category's tab", () => {
+    const rows = chartRowsFor("en");
+    expect(rows.find((row) => row.id === "kd-88")).toMatchObject({ category: "agm", tags: ["tv", "iog", "gnssAid", "aphe"] });
+    for (const row of rows) {
+      const tabs = TABS.filter((tab) => tab !== "bases" && tab !== "all" && inTab(row, tab));
+      expect(tabs, row.id).toHaveLength(1);
+    }
   });
 });
 
