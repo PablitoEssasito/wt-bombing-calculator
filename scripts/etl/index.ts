@@ -36,6 +36,7 @@ async function main() {
 
   const aircraft: Aircraft[] = [];
   const unresolved: UnresolvedName[] = [];
+  const notInChart: UnresolvedName[] = [];
   const orphanRows: string[] = [];
   const nationNotes: Record<string, string> = {};
   const misaligned: string[] = [];
@@ -56,6 +57,7 @@ async function main() {
     if (result.nationNote) nationNotes[nation] = result.nationNote;
     aircraft.push(...result.aircraft);
     unresolved.push(...result.unresolved);
+    notInChart.push(...result.notInChart);
     orphanRows.push(...result.orphanRows);
 
     const options = result.aircraft.reduce((n, a) => n + a.options.length, 0);
@@ -87,7 +89,7 @@ async function main() {
     );
   }
 
-  const problems = validate(index, aircraft, unresolved, orphanRows);
+  const problems = validate(index, aircraft, unresolved, notInChart, orphanRows);
 
   // usedByNations starts empty here (see scripts/etl/parse-bombs.ts and
   // aliases.ts) — `npm run armament` fills it in once it has both the sheet's
@@ -114,6 +116,7 @@ function validate(
   index: BombIndex,
   aircraft: Aircraft[],
   unresolved: UnresolvedName[],
+  notInChart: UnresolvedName[],
   orphanRows: string[],
 ): number {
   const bombs = index.bombs;
@@ -133,6 +136,18 @@ function validate(
     }
   } else {
     console.log("ok    every loadout entry resolves to a known bomb");
+  }
+
+  // Not blocking here: `npm run armament` places these among what each
+  // aircraft hangs in the game, and fails on any it cannot.
+  if (notInChart.length > 0) {
+    const grouped = new Map<string, number>();
+    for (const u of notInChart) grouped.set(u.name, (grouped.get(u.name) ?? 0) + 1);
+    console.log(`note  ${notInChart.length} loadout name(s) the bomb chart has no row for, left to the game's files:`);
+    for (const [name, count] of [...grouped].sort((a, b) => b[1] - a[1])) {
+      const example = notInChart.find((u) => u.name === name)!;
+      console.log(`        ${name} x${count}  (e.g. ${example.nation}/${example.aircraft})`);
+    }
   }
 
   if (orphanRows.length > 0) {

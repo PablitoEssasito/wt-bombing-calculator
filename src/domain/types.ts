@@ -166,6 +166,12 @@ export type LoadoutItem = {
    * sheet's own figures for the plan were.
    */
   sheetBombId?: string;
+  /**
+   * A name the sheet's bomb chart has no row for, left for the game's files to
+   * place among what the aircraft hangs (scripts/armament/rebind.ts). Only
+   * between the sheet's import and the armament one; never in the site's data.
+   */
+  sheetName?: string;
 };
 
 export type BaseLoadout = { items: LoadoutItem[] };

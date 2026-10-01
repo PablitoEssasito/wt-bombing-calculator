@@ -14,6 +14,7 @@ import {
   BOMB_ALIASES,
   BOMB_ID_ALIASES,
   normalizeBombName,
+  slugifyBomb,
 } from "./aliases";
 import { NATION_COL } from "./config";
 import { cell, flatten, parseCsv } from "./csv";
@@ -43,7 +44,14 @@ export type NationParseResult = {
   aircraft: Aircraft[];
   /** The source's commentary on the nation as a whole, if it has any. */
   nationNote: string | null;
+  /** Names several nations' blocks define differently, none of them this nation's. */
   unresolved: UnresolvedName[];
+  /**
+   * Names the bomb chart has no row for at all — a missile, say, which it
+   * never prices. Kept in the plan by name for the game's files to place
+   * (`sheetName`, see scripts/armament/rebind.ts).
+   */
+  notInChart: UnresolvedName[];
   /** Schedule rows that continued an option without one ever being opened. */
   orphanRows: string[];
 };
@@ -197,6 +205,7 @@ export function parseNation(
   const noteAt = (row: number, column: number) => notes?.get(noteKey(row, column)) ?? null;
   const aircraft: Aircraft[] = [];
   const unresolved: UnresolvedName[] = [];
+  const notInChart: UnresolvedName[] = [];
   const orphanRows: string[] = [];
   const usedIds = new Set<string>();
 
@@ -214,10 +223,14 @@ export function parseNation(
    * nation's block first, and by exact spelling before normalised. Falling back
    * to the shared index then covers the common case of, say, Israeli aircraft
    * carrying American bombs.
+   *
+   * A name the chart has no row for at all stays in the plan by that name, for
+   * the game's files to place; one several blocks define, none of them this
+   * nation's, cannot be read and is left out.
    */
-  const resolve = (name: string, owner: string): string | null => {
+  const resolve = (name: string, owner: string, count: number): LoadoutItem | null => {
     const pinned = BOMB_ID_ALIASES[name];
-    if (pinned && bombs.bombs.some((b) => b.id === pinned)) return pinned;
+    if (pinned && bombs.bombs.some((b) => b.id === pinned)) return { bombId: pinned, count };
     const spelling = BOMB_ALIASES[name] ?? name;
     const key = normalizeBombName(spelling);
     const own = bombs.byNation.get(nation);
@@ -232,11 +245,14 @@ export function parseNation(
       preferred?.exact.get(spelling) ??
       preferred?.normalized.get(key);
 
-    if (!id) {
-      unresolved.push({ nation, aircraft: owner, name, candidates: bombs.ambiguous.get(key) });
+    if (id) return { bombId: id, count };
+    const candidates = bombs.ambiguous.get(key);
+    if (candidates) {
+      unresolved.push({ nation, aircraft: owner, name, candidates });
       return null;
     }
-    return id;
+    notInChart.push({ nation, aircraft: owner, name });
+    return { bombId: slugifyBomb(name), count, sheetName: name };
   };
 
   for (const [rowIndex, row] of rows.entries()) {
@@ -260,8 +276,8 @@ export function parseNation(
 
       const items: LoadoutItem[] = [];
       for (const item of parsed.items) {
-        const bombId = resolve(item.name, owner);
-        if (bombId) items.push({ bombId, count: item.count });
+        const placed = resolve(item.name, owner, item.count);
+        if (placed) items.push(placed);
       }
       if (items.length > 0) bases.push({ items });
     }
@@ -336,5 +352,5 @@ export function parseNation(
       .map((_, rowIndex) => noteAt(rowIndex, NATION_COL.nationNote))
       .find((note) => note !== null) ?? null;
 
-  return { aircraft, nationNote, unresolved, orphanRows };
+  return { aircraft, nationNote, unresolved, notInChart, orphanRows };
 }

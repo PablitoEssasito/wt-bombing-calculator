@@ -14,24 +14,49 @@ import { normalizeBombName } from "../etl/aliases";
  * the sheet names). A bomb with no counterpart at all, by name or by kind and
  * mass, leaves the plan. A replaced item keeps the sheet's bomb in
  * `sheetBombId`, which is what the sheet's own figures are.
+ *
+ * A weapon the sheet's chart has no row for at all (`sheetName`, a missile
+ * it never prices) is the one carried weapon going by that name. One the
+ * aircraft hangs nothing of that name for — or several — leaves the plan and
+ * is reported in `unplaced`, for the import to stop on.
  */
 export function rebindPlans(
   aircraft: Aircraft[],
   bombs: Bomb[],
   carriedBy: (planeId: string) => ReadonlySet<string> | undefined,
-): { aircraft: Aircraft[]; changes: string[] } {
+): { aircraft: Aircraft[]; changes: string[]; unplaced: string[] } {
   const byId = new Map(bombs.map((bomb) => [bomb.id, bomb]));
   const changes: string[] = [];
+  const unplaced: string[] = [];
   const nameOf = (bomb: Bomb) => bomb.chartName || bomb.fullName;
 
   const rebound = aircraft.map((plane) => {
     const carried = carriedBy(plane.id);
-    // No flight model read for it: nothing to hold the plan against.
-    if (!carried) return plane;
-    const choices = [...carried].flatMap((id) => byId.get(id) ?? []);
+    const choices = [...(carried ?? [])].flatMap((id) => byId.get(id) ?? []);
     const seen = new Set<string>();
 
+    /** A name the sheet's chart has no row for: the one carried weapon going by it, by its whole name else part of it. */
+    const place = (item: LoadoutItem, name: string): LoadoutItem | null => {
+      const wanted = normalizeBombName(name);
+      let matches = choices.filter((choice) => keysOf(choice).includes(wanted));
+      if (matches.length === 0 && wanted.length >= 3) {
+        matches = choices.filter((choice) => keysOf(choice).some((key) => key.includes(wanted)));
+      }
+      if (matches.length !== 1) {
+        const line = `${plane.name}: ${name}`;
+        if (!unplaced.includes(line)) unplaced.push(line);
+        return null;
+      }
+      const line = `${plane.name}: ${name} (no row in the sheet's chart) → ${nameOf(matches[0])}`;
+      if (!seen.has(line)) changes.push(line);
+      seen.add(line);
+      return { bombId: matches[0].id, count: item.count };
+    };
+
     const rebindItem = (item: LoadoutItem): LoadoutItem | null => {
+      if (item.sheetName !== undefined) return place(item, item.sheetName);
+      // No flight model read for it: nothing to hold the plan against.
+      if (!carried) return item;
       const bomb = byId.get(item.bombId);
       const sheetBombId = item.sheetBombId ?? item.bombId;
       const note = (to: string) => {
@@ -67,7 +92,7 @@ export function rebindPlans(
       })),
     };
   });
-  return { aircraft: rebound, changes };
+  return { aircraft: rebound, changes, unplaced };
 }
 
 const keysOf = (bomb: Bomb) => [bomb.chartName, bomb.fullName].filter(Boolean).map(normalizeBombName);

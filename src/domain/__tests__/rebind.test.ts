@@ -18,7 +18,7 @@ const BOMBS = [
   bomb("g-p-500", "G.P.500", "GP", 226),
 ];
 
-const plane = (items: { bombId: string; count: number }[]): Aircraft =>
+const plane = (items: { bombId: string; count: number; sheetName?: string }[]): Aircraft =>
   ({
     id: "p",
     name: "Plane",
@@ -64,6 +64,36 @@ describe("rebindPlans", () => {
   it("leaves an aircraft with no flight model read alone", () => {
     const result = rebindPlans([plane([{ bombId: "m8", count: 10 }])], BOMBS, () => undefined);
     expect(itemsOf(result)).toEqual([{ bombId: "m8", count: 10 }]);
+  });
+
+  it("places a weapon the sheet's chart has no row for among what the aircraft hangs, by its name", () => {
+    const missiles = [...BOMBS, bomb("agm-65f", "AGM-65F", "AGM", 303), bomb("agm-65e", "AGM-65E", "AGM", 293)];
+    const result = rebindPlans(
+      [plane([{ bombId: "sc50", count: 2 }, { bombId: "agm-65f", count: 2, sheetName: "AGM-65F" }])],
+      missiles,
+      () => new Set(["sc50", "agm-65e", "agm-65f"]),
+    );
+    expect(itemsOf(result)).toEqual([
+      { bombId: "sc50", count: 2 },
+      { bombId: "agm-65f", count: 2 },
+    ]);
+    expect(result.unplaced).toEqual([]);
+  });
+
+  it("drops and reports a name neither the sheet's chart nor the aircraft's weapons know", () => {
+    const result = rebindPlans(
+      [plane([{ bombId: "sc50", count: 2 }, { bombId: "agm-999", count: 2, sheetName: "AGM-999" }])],
+      BOMBS,
+      () => new Set(["sc50"]),
+    );
+    expect(itemsOf(result)).toEqual([{ bombId: "sc50", count: 2 }]);
+    expect(result.unplaced).toEqual(["Plane: AGM-999"]);
+  });
+
+  it("reports such a name on an aircraft with no flight model read, rather than keep it", () => {
+    const result = rebindPlans([plane([{ bombId: "agm-65f", count: 2, sheetName: "AGM-65F" }])], BOMBS, () => undefined);
+    expect(itemsOf(result)).toEqual([]);
+    expect(result.unplaced).toEqual(["Plane: AGM-65F"]);
   });
 });
 

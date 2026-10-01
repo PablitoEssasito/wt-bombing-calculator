@@ -240,13 +240,25 @@ async function main() {
   for (const [bombId, planes] of carriers) {
     for (const plane of planes) planesCarrying.set(plane, (planesCarrying.get(plane) ?? new Set()).add(bombId));
   }
-  const { aircraft: reboundPlans, changes: rebound } = rebindPlans(aircraft, bombs, (plane) => planesCarrying.get(plane));
+  const {
+    aircraft: reboundPlans,
+    changes: rebound,
+    unplaced,
+  } = rebindPlans(aircraft, bombs, (plane) => planesCarrying.get(plane));
   console.log(
     rebound.length === 0
       ? "ok    every bomb in the sheet's plans is one its aircraft hangs in the game"
       : `note  ${rebound.length} bomb(s) in the sheet's plans swapped for what the aircraft hangs in the game:`,
   );
   for (const line of rebound) console.log(`        ${line}`);
+  if (unplaced.length > 0) {
+    // Written all the same, as the sheet's import does with a name it can't read — but the import stops on it.
+    console.error(
+      `FAIL  ${unplaced.length} name(s) in the sheet's plans that neither its bomb chart nor the aircraft's weapons in the game know — left out:`,
+    );
+    for (const line of unplaced) console.error(`        ${line}`);
+    process.exitCode = 1;
+  }
   const plans = fitPlans(
     reboundPlans,
     unitIds,

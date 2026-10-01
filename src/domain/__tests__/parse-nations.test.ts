@@ -102,6 +102,29 @@ describe("parseNation", () => {
     expect(schedule.bases[0].items.map((i) => i.count)).toEqual([2, 2]);
   });
 
+  it("keeps a weapon the bomb chart has no row for, by the sheet's name, for the game's files to place", () => {
+    // The AV-8B (NA)'s Mavericks: the chart prices no missile, the game has them.
+    const csv = csvOf([
+      rankRow("I"),
+      aircraftRow({
+        name: "Test Plane",
+        br: 1.3,
+        bases: { 0: "AN-M57 × 2\nAGM-65F × 2" },
+        basesDestroyed: "1",
+        rewardMultiplier: "5",
+      }),
+    ]);
+
+    const usa = parseNation(csv, "usa", fixtureBombs());
+
+    expect(usa.aircraft[0].options[0].schedules[0].bases[0].items).toEqual([
+      { bombId: "an-m57", count: 2 },
+      { bombId: "agm-65f", count: 2, sheetName: "AGM-65F" },
+    ]);
+    expect(usa.unresolved).toEqual([]);
+    expect(usa.notInChart).toEqual([{ nation: "usa", aircraft: "Test Plane", name: "AGM-65F" }]);
+  });
+
   it("does not read the overflow marker past ten bases as a bomb", () => {
     const csv = csvOf([
       rankRow("I"),
