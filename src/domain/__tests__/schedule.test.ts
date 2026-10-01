@@ -52,9 +52,9 @@ describe("buildPlan under the conditions the source assumes", () => {
   });
 
   it("counts a base the game's figures leave standing as standing, whatever the sheet counts", () => {
-    // The AV-8B (NA)'s ten GBU-38s: the sheet counts the base down; at the
+    // The AV-8B Plus's ten GBU-38s: the sheet counts the base down; at the
     // game's 2072 each they come to 20 720 of the 23 357 it takes.
-    const schedule = find("usa-av-8b-na")
+    const schedule = find("usa-av-8b-plus")
       .options.flatMap((option) => option.schedules)
       .find((s) => shortfallOf(s, bombs).length > 0)!;
     const plan = buildPlan(schedule, bombs, { baseHp: 25900, mode: "rb", baseCount: 4 });
@@ -309,40 +309,40 @@ describe("planPayload with rockets", () => {
 });
 
 describe("shortfallOf", () => {
-  const gbu38 = bombs.get("gbu-38-v")!;
+  const brab = bombs.get("brab-500-l")!;
   const schedule = (count: number, basesDestroyed: number | null) => ({
     bracket: null,
     baseHp: 25900 as const,
-    bases: [{ items: [{ bombId: gbu38.id, count }] }],
+    bases: [{ items: [{ bombId: brab.id, count }] }],
     basesDestroyed,
     bracketNote: null,
   });
 
   it("flags a base the sheet counts down that the game's figures leave standing, and says how many would do", () => {
-    // Ten GBU-38s: 23 720 at the sheet's 2372 each, 20 720 at the game's 2072 — against 23 357.
-    const [short] = shortfallOf(schedule(10, 1), bombs);
-    expect(short).toMatchObject({ base: 0, damage: 20720, sheetDamage: 23720 });
-    expect(short.needed).toMatchObject({ count: 12, sheetCount: 10 });
-    expect(short.needed?.bomb.id).toBe("gbu-38-v");
+    // Seven BRAB-500 (1938)s: 24 913 at the sheet's 3559 each, 21 329 at the game's 3047 — against 23 357.
+    const [short] = shortfallOf(schedule(7, 1), bombs);
+    expect(short).toMatchObject({ base: 0, damage: 21329, sheetDamage: 24913 });
+    expect(short.needed).toMatchObject({ count: 8, sheetCount: 7 });
+    expect(short.needed?.bomb.id).toBe("brab-500-l");
   });
 
   it("leaves a base the game's figures still flatten alone", () => {
-    expect(shortfallOf(schedule(12, 1), bombs)).toEqual([]);
+    expect(shortfallOf(schedule(8, 1), bombs)).toEqual([]);
   });
 
   it("flags a base short even by the sheet's own numbers — the game decides — but not a schedule with no count", () => {
-    expect(shortfallOf(schedule(9, 1), bombs)).toHaveLength(1);
-    expect(shortfallOf(schedule(10, null), bombs)).toEqual([]);
+    expect(shortfallOf(schedule(6, 1), bombs)).toHaveLength(1);
+    expect(shortfallOf(schedule(7, null), bombs)).toEqual([]);
   });
 
-  it("finds the AV-8Bs' ten GBU-38s among the sheet's own loadouts, and few others", () => {
+  it("finds the AV-8B Plus's ten GBU-38s among the sheet's own loadouts, and few others", () => {
     const flagged = aircraft.flatMap((plane) =>
       plane.options.flatMap((option) =>
         option.schedules.flatMap((s) => (shortfallOf(s, bombs).length > 0 ? [`${plane.id}@${s.baseHp}`] : [])),
       ),
     );
     expect(flagged).toEqual(
-      expect.arrayContaining(["usa-av-8b-na@25900", "usa-av-8b-plus@25900", "ussr-su-6-m-71f@10000"]),
+      expect.arrayContaining(["usa-av-8b-plus@25900", "ussr-su-6-m-71f@10000"]),
     );
     // The plain Su-6's plan weighs more than it lifts, so the import put one it carries in its place.
     expect(flagged).not.toContain("ussr-su-6@10000");

@@ -165,9 +165,9 @@ describe("what the planner offers first, against the real sheet", () => {
       }
     }
 
-    // The AV-8Bs' starred ten GBU-38s come to 20 720 of 23 357 at the game's
-    // 2072 each, so the four Mk 77s that do bring a base down lead instead.
-    expect(overridden).toEqual(["AV-8B (NA) @ 25900 HP", "AV-8B Plus @ 25900 HP"]);
+    // The AV-8B Plus's starred ten GBU-38s come to 20 720 of 23 357 at the
+    // game's 2072 each, so the four Mk 77s that do bring a base down lead instead.
+    expect(overridden).toEqual(["AV-8B Plus @ 25900 HP"]);
   });
 
   it("gives the F-15A the light loadout the author points at, not the incendiaries", () => {

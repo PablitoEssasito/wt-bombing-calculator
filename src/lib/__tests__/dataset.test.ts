@@ -219,11 +219,9 @@ describe("the armament table, the game's files over the sheet", () => {
   const stats = statsData as unknown as Record<string, WeaponStats>;
 
   it("takes the game's price where the sheet's is out of date, keeping the sheet's beside it", () => {
-    // The Navy's GBU-38(V): the game prices it at 2072, the sheet at 2372.
-    expect(bombsById.get("gbu-38-v")).toMatchObject({ damageValue: 2072, damageSource: "game" });
-    expect(bombsById.get("gbu-38-v")!.sheet?.damageValue).toBe(2372);
-    // The BRAB-500 (1938): 162 kg of TNT, which the game prices at 3047.
+    // The BRAB-500 (1938): 162 kg of TNT, which the game prices at 3047, the sheet at 3559.
     expect(bombsById.get("brab-500-l")).toMatchObject({ damageValue: 3047, damageSource: "game" });
+    expect(bombsById.get("brab-500-l")!.sheet?.damageValue).toBe(3559);
   });
 
   it("prices a bomb only a fixed setup hangs by that setup's price", () => {
