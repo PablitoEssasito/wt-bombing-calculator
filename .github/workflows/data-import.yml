@@ -5,9 +5,10 @@ name: Daily data import
 # with no new patch leaves only meta.json's timestamp behind, which is ignored.
 #
 # Setup, once:
-# - Secret GOOGLE_SHEETS_API_KEY (Settings > Secrets and variables > Actions).
-#   Without it the sheet's notes drop out and every loadout reads as changed,
-#   so the job stops instead.
+# - Secret GOOGLE_SHEETS_API_KEY in the "data-import" environment
+#   (Settings > Environments), deployable from main only — so a workflow pushed
+#   on any other branch never sees it. Without it the sheet's notes drop out
+#   and every loadout reads as changed, so the job stops instead.
 # - Settings > Actions > General > "Allow GitHub Actions to create and approve
 #   pull requests".
 # - Optional: variable AUTO_MERGE_DATA_IMPORTS = true merges the pull request
@@ -29,6 +30,7 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
+    environment: data-import
     steps:
       - uses: actions/checkout@v7
 
