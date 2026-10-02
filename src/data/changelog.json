@@ -1,5 +1,53 @@
 [
  {
+  "date": "2026-10-02",
+  "gameVersion": "2.59.0.45",
+  "aircraft": {
+   "added": [],
+   "removed": [],
+   "br": [],
+   "loadouts": []
+  },
+  "bombs": {
+   "added": [],
+   "removed": [],
+   "changed": [
+    {
+     "id": "mk-m2-540",
+     "name": "Mk.M2 540 lb",
+     "fields": [
+      {
+       "field": "massKg",
+       "from": 213.1,
+       "to": 254.9
+      }
+     ]
+    },
+    {
+     "id": "h-e-540",
+     "name": "H.E. M.C. Mk.1 No.118",
+     "fields": [
+      {
+       "field": "damageValue",
+       "from": 2960,
+       "to": 2898
+      },
+      {
+       "field": "tntKg",
+       "from": 155.2,
+       "to": 150.4
+      },
+      {
+       "field": "explosiveMassKg",
+       "from": 97,
+       "to": 94
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
   "date": "2026-09-24",
   "gameVersion": "2.59.0.33",
   "aircraft": {
