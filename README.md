@@ -5,18 +5,25 @@
 
 **Live at [pablitoessasito.github.io/wt-bombing-calculator](https://pablitoessasito.github.io/wt-bombing-calculator/).**
 
-A faster way to read [LEGION's Loadouts](https://docs.google.com/spreadsheets/d/1oNwp_MXszU5J2dcaz5IoCtSAQ-infPdOWhwtJXqtrwU/edit) —
-the community spreadsheet that works out how many bombs it takes to flatten a base in
-War Thunder — plus a loadout creator built straight from the game's own data files, for
-building any pylon combination the spreadsheet does not spell out.
+A bombing planner for War Thunder: how many bombs each base takes, for every aircraft,
+at any match BR, game mode and map size — built on the game's own data files.
 
-Pick an aircraft and the site tells you what to drop on each base, how many bases the
-payload covers, and which of its loadouts earns the most while still doing the job. All
-648 aircraft and 348 bombs and rockets from the source, searchable, and reacting to your
-match BR, game mode and map size.
+- **Planner** for all 648 aircraft: what to carry, how many to drop on each base, how many
+  bases the payload covers, and which loadout earns the most while still doing the job.
+- **Loadout creator** on 486 of them: any pylon combination the game allows, with its mass
+  limits and exclusions, priced the same way.
+- **Armament section**: all 659 bombs, rockets, missiles, torpedoes, mines and gun pods the
+  game's aircraft carry, filtered by category, seeker, aspect or warhead, each with its own
+  page and a side-by-side comparison of up to six.
+- **Rewards**: the game's own reward multipliers, and what a sortie pays in Air RB.
+- **Changelog** of what each game patch changed, imported daily.
+- English, Polish and Russian; Ctrl+K search, favourites, works on a phone.
 
-**The loadout data is LEGION's work.** This repo only reformats it, and adds a second,
-independent way to build a loadout from the game's own files.
+Every figure — damage to a base, mass, TNT, base health, reward — is read from the game's
+files in the [War Thunder datamine](https://github.com/gszabi99/War-Thunder-Datamine).
+The hand-tuned drop plans start from [LEGION's Loadouts](https://docs.google.com/spreadsheets/d/1oNwp_MXszU5J2dcaz5IoCtSAQ-infPdOWhwtJXqtrwU/edit),
+the community spreadsheet that first worked them out, and are checked against the game
+before they reach the site (see [Drop plans](#drop-plans)).
 
 ## Running it
 
@@ -27,48 +34,52 @@ npm run dev          # http://localhost:3000
 
 ```bash
 npm run build         # static export into out/
-npm test              # domain tests, including the golden test below
+npm test              # vitest: domain logic and checks on the committed data
 npm run lint           # eslint
 
-npm run data           # every import below in order, as the daily workflow runs it (then changelog)
+npm run data           # every import below in order, as the daily workflow runs it
 npm run data:cache     # the same from cached responses, without hitting the network
-
-npm run etl            # re-import from the spreadsheet
-npm run etl:cache      # re-parse cached responses without hitting the network
-npm run images         # re-match and re-download aircraft renders and tech-tree icons
-npm run stores         # re-catalogue every weapon the game's hardpoints can hang
-npm run armament       # re-derive the loadout creator's data from the datamine
-npm run armament:fetch # only pull the flight models, which stores reads — see below
-npm run bomb-icons     # re-match the bomb chart's own weapon-selector icons
-npm run battle-ratings # every mode's BR and the reward figures from the game's files; overwrites the sheet's Air RB
-npm run localize       # Polish and Russian aircraft and weapon names, from the game's own lang files
-npm run bases          # base HP from the game's mission templates, checked against the site's
 npm run changelog      # record what this import changed, for /changelog — run last
+
+npm run etl            # re-import the drop plans from the spreadsheet
+npm run images         # re-match and re-download aircraft renders and tech-tree icons
+npm run armament:fetch # pull the flight models, which stores reads
+npm run stores         # catalogue every weapon the game's hardpoints can hang, and price it
+npm run armament       # the loadout creator's data, and the plans checked against the game
+npm run bomb-icons     # each weapon's icon as the game's loadout menu draws it
+npm run battle-ratings # every mode's BR and the reward figures from the game's files
+npm run localize       # Polish and Russian aircraft and weapon names, from the game's lang files
+npm run bases          # base HP from the game's mission templates, checked against the site's
 
 npm run reward-logs    # local only: reward samples from this machine's War Thunder logs — see Rewards
 ```
 
-After an import, run the steps in order — `etl`, `images`, `armament:fetch`, `stores`,
-`armament:cache`, `bomb-icons`, `battle-ratings`, `localize`, `changelog` — since each reads what the one before it wrote. `changelog` compares the data
-on disk against its last commit, so it belongs after everything else and before committing;
-running it again before the commit rewrites the same entry rather than adding another, and an
-import within a patch that already has an entry folds into it.
+Each step reads what the one before it wrote, so run them in the order `npm run data`
+does. Each but `armament:fetch` has a `:cache` variant that reuses what it already pulled. `changelog`
+compares the data on disk against its last commit, so it goes after everything else and
+before committing; running it again before the commit rewrites the same entry rather than
+adding another, and an import within a patch that already has an entry folds into it.
 
-`.github/workflows/data-import.yml` runs that whole import every morning and opens (or
-refreshes) one pull request when the game or the sheet changed anything; its header lists the
-one-time setup. With the repo variable `AUTO_MERGE_DATA_IMPORTS=true` it also merges and
-deploys, but only when lint, tests and build pass on the new data.
+### The daily import
 
-The ETL reads an optional `GOOGLE_SHEETS_API_KEY` from `.env.local`. Without it
-everything still imports, minus the source's cell notes — see [Notes](#notes). Every
-script above also takes a `:cache` variant that reuses whatever it already pulled instead
-of hitting the network again.
+`.github/workflows/data-import.yml` runs `npm run data` and `changelog` every morning and
+opens (or refreshes) one pull request when the game or the sheet changed anything; its
+header lists the one-time setup. With the repo variable `AUTO_MERGE_DATA_IMPORTS=true` it
+also merges and deploys, but only when lint, tests and build pass on the new data. The
+Sheets API key lives in the `data-import` environment, which only `main` can use.
 
-The site is fully static: `out/` is 654 prerendered pages that can be dropped on any
-host. Nothing is fetched at runtime. Set `NEXT_PUBLIC_SITE_URL` to the real deployment
-origin before building for production — it is what the sitemap, `robots.txt` and every
-Open Graph tag use to build an absolute URL; unset, it falls back to `localhost:3000`,
-which is only ever right for `next dev`.
+### Configuration
+
+The ETL reads an optional `GOOGLE_SHEETS_API_KEY` from `.env.local`. Without it everything
+still imports, minus the sheet's cell notes — see [Notes](#notes).
+
+The site is fully static: `out/` is about 5 000 prerendered pages that can be dropped on
+any host. The only data fetched at runtime is static too: `/search-index.json` when the
+Ctrl+K palette first opens, and `/armament-data.json` on the comparison page.
+
+Set `NEXT_PUBLIC_SITE_URL` to the real deployment origin before building for production — it is what the sitemap, `robots.txt` and every Open Graph tag
+use to build an absolute URL; unset, it falls back to `localhost:3000`, which is only ever
+right for `next dev`.
 
 Set `NEXT_PUBLIC_GA_ID` to a GA4 measurement id (`G-XXXXXXXXXX`) to load Google
 Analytics (`@next/third-parties`); unset, the site ships with no analytics script at
@@ -77,9 +88,15 @@ reads this from a `NEXT_PUBLIC_GA_ID` repository variable (Settings → Secrets 
 variables → Actions → Variables) rather than a hardcoded id — a measurement id isn't
 sensitive, but there is no reason to commit one either.
 
-## How the drop schedule works
+## Damage to a base
 
-Two numbers carry the whole thing, both recovered from the source spreadsheet:
+A weapon's damage to a base is the game's own price for it, `weaponDamage` in
+`wpcost.blkx` — for a bomber's fixed setup, the setup's price split over its rounds.
+Where the game prices nothing, the site estimates it with the game's own explosion
+model: `weaponDamage` is an exact function of TNT (piecewise linear, its corners read off
+the game's prices, every one reproduced), with the zone's 25 mm armour threshold. An
+estimate is marked `≈` and, as in the game, adds nothing to the reward multiplier.
+Nothing is priced by the sheet's numbers.
 
 ```
 bombs per base = ceil(base health × 0.9018 ÷ bomb damage)
@@ -100,31 +117,39 @@ bombs per base = ceil(base health × 0.9018 ÷ bomb damage)
 Arcade bases carry double health. Three-base maps (Kursk, Norway and the other missions
 built on the game's `destroy_bomb_areas_template.blk`) set their own, by the same brackets:
 6 000, 8 000, 10 000, then 12 000 from BR 5.0 up — and in arcade ×2.5, ×3.2, ×3.2 and ×4.2
-of that. The source spreadsheet halves the payload instead; real battles side with the
-game's file (a BR 3.7 Kursk base paid for a 1000 lb bomb exactly as a 10 000 HP one does).
+of that. Real battles side with the game's file (a BR 3.7 Kursk base paid for a 1000 lb
+bomb exactly as a 10 000 HP one does). `npm run bases` reads these from the mission
+templates, and a test keeps them in step.
 
-### Why the drop schedules are imported rather than computed
+## Drop plans
 
-The counts in the source are not a plain `ceil()`. The Pe-8 needs seven FAB-100s per
-10 000 HP base, but the sheet says eight — because the aircraft can only take those
-bombs as one fixed block of forty, and spreading the surplus beats wasting it. Those
-judgements depend on which loadouts the game actually offers, which is not in the
-spreadsheet.
+The sheet's plans are not a plain `ceil()`. The Pe-8 needs seven FAB-100s per 10 000 HP
+base, but the sheet says eight — because the aircraft can only take those bombs as one
+fixed block of forty, and spreading the surplus beats wasting it. Judgements like that
+depend on which loadouts the game actually offers, so the plans are imported rather than
+computed — and then held to the game (`scripts/armament/rebind.ts`, `src/domain/fit.ts`):
 
-So under the conditions the source assumes (realistic battles, four-base map, the
-schedule's own BR bracket) its hand-tuned numbers are shown untouched, and its own count
-is what marks a base as destroyed. Three schedules count a higher total than they have
-cells to describe — the sheet runs out of columns and writes the rest as `"+ 2"`, or
-simply undercounts by one — and the site says so on the page rather than either dropping
-the extra bases or inventing a load for them.
+- **Each bomb is one the aircraft really hangs.** A plan naming a bomb the game does not
+  put on that aircraft takes the one it does — by name first (`M8` → the Soviet M-8 on
+  the Su-6, `Mk 77` → mod 4), else the same family at the nearest mass. What the game
+  does not have, the plan does not have.
+- **Each plan fits the pylons.** Where the sheet's plan breaks the game's mass limit or
+  exclusions, the site takes the part of it the hardpoints hang exactly that destroys the
+  most bases — never a bomb or a count the sheet did not give. A bomber with fixed
+  setups gets the game's setup that destroys the most; another setup destroying as many
+  is listed beside it. The sheet's plan is kept in `sheetPlan`, and every import starts
+  from it.
+- **A base counts only if the game's damage destroys it.** Where a patch has nerfed a
+  bomb below what the sheet counted on, the planner says so on the base and stops
+  counting it.
 
-Change the mode, the map or the bracket and the same payload gets redistributed against
-the new base health instead, labelled as recalculated.
+Change the mode, the map or the bracket and the same payload is redistributed against
+the new base health, labelled as recalculated.
 
 ## The loadout creator
 
 The spreadsheet is one hand-picked answer per aircraft. Underneath it, the game itself
-offers pylon-by-pylon choice on 487 of the 648 aircraft — mass limits, mutual
+offers pylon-by-pylon choice on 486 of the 648 aircraft — mass limits, mutual
 exclusions, dependent stores — none of which the spreadsheet states. The creator reads
 that structure straight from the [War Thunder datamine](https://github.com/gszabi99/War-Thunder-Datamine)
 and lets you build any combination the game would actually let you fly, priced the same
@@ -151,25 +176,55 @@ exclusions — and flags what they only imply — an unmet dependency — withou
 it. What it cannot check: the per-wing and balance limits the game also states, since
 nothing in the flight model says which wing a hardpoint sits on.
 
+## The armament section
+
+`/armament/` lists every weapon the game's aircraft carry, not only the ones that hurt a
+base. `scripts/armament/stores.ts` catalogues them; `reconcile.ts` files each under a
+category (bomb, rocket, air-to-ground missile, air-to-air missile, torpedo, mine, gun pod)
+and tags it, every tag read off the weapon's own file the way the game's tooltip
+(`weaponryinfo.nut`) reads it — a bomb's type, the seeker, an IR seeker's aspect, IOG,
+data link, IRCCM, a warhead. Nothing is guessed from a name. A missile is air-to-air or
+air-to-ground by the trigger an aircraft fires it with, as the tooltip has it.
+
+The page groups its tabs in two tiers (`SECTIONS` in `src/domain/bomb-chart.ts`): two
+views of the whole — what can bring a base down, and everything — then the categories,
+air-to-ground split into bombs, rockets, missiles and nuclear bombs, air-to-air into radar
+and IR. Each tab has its own columns and order (`src/domain/chart-columns.ts`): what it
+takes to destroy a base where that is the point; a missile's seeker, reach, speed and
+G-load where it is not. Its filter chips are three-state (in, out, off), and every
+setting lives in the URL, so a link shares the view.
+
+Each weapon has a page (`/armament/<id>/`): the game's tooltip stats, how many it takes
+per base at every BR, every aircraft that carries it — with a page here or without — and
+similar weapons. `/armament/compare/?ids=…` sets up to six side by side. The old
+`/bombs/<id>/` addresses redirect to the new ones.
+
 ## Layout
 
 ```
-scripts/etl/         import from the spreadsheet; run by hand, never during a build
+scripts/etl/          import the drop plans from the spreadsheet; run by hand, never during a build
   parse-bombs.ts        the bomb chart, including its unlabelled nation blocks
   parse-nations.ts      ten nation tabs into aircraft and loadouts
-  rockets.ts             rocket damage, checked by hand against the game's own stats
-  aliases.ts              names the sheet spells differently from the chart, or misspells outright
-scripts/armament/     the loadout creator's data, read from the datamine
-scripts/bomb-icons/   the bomb chart's own weapon-selector icons
+  aliases.ts            names the sheet spells differently from the chart, or misspells outright
+scripts/armament/     the game's weapons and hardpoints, read from the datamine
+  stores.ts             every weapon any aircraft can hang, priced and described
+  reconcile.ts          the game's weapons onto the chart's rows: figures, category, tags
+  rebind.ts             each plan's bombs onto those its aircraft really hangs
+  parse.ts, index.ts    hardpoints, mass limits and rules for the loadout creator
+scripts/bomb-icons/   each weapon's icon as the game's loadout menu draws it
 scripts/images/       aircraft renders and tech-tree icons, matched off the wiki
 scripts/localize/     Polish and Russian names, from the game's own localisation files
 scripts/battle-ratings/  BRs, reward multipliers and constants, from wpcost/warpoints/rank/items
+scripts/bases/        base HP from the game's mission templates
+scripts/changelog/    what an import changed, for /changelog
 scripts/reward-logs/  local only: in-battle rewards read out of the game's own logs
 src/data/             the committed output — the app reads only this
-src/domain/           the formula and the redistribution logic, free of React
+src/domain/           the formulas, plans, tabs and rewards, free of React
+src/lib/              data access, URL state, analytics, shared helpers
+src/components/       the interface
 src/i18n/             languages: the dictionaries, plural rules and number formats
 src/views/            each page, once, taking the language it renders in
-src/app/               routes: (en)/ at the site's own addresses, pl/ and ru/ under their prefix
+src/app/              routes: (en)/ at the site's own addresses, pl/ and ru/ under their prefix
 ```
 
 ### Re-importing
@@ -178,10 +233,11 @@ src/app/               routes: (en)/ at the site's own addresses, pl/ and ru/ un
 `src/data/{aircraft,bombs,meta}.json`, and checks its own work before you commit the
 diff:
 
-- every bomb named in a loadout resolves to a chart entry;
+- every bomb named in a loadout resolves to a chart entry — or, where the chart has no
+  row for it, to exactly one weapon the aircraft hangs in the game;
 - the bomb chart still splits into exactly ten nation blocks, and each one is
   carried mostly by the nation it was assigned to;
-- the formula reproduces all 1 158 counts the chart prints;
+- the formula reproduces all 1 170 counts the chart prints;
 - every base the sheet calls destroyed carries enough damage to destroy it.
 
 The first three are blocking. The last reports a handful of bases at 94–100% of the
@@ -209,16 +265,12 @@ that tab at all, because a note pinned to the wrong aircraft is worse than no no
 
 ## Rocket damage
 
-The spreadsheet's own Bomb Chart prices bombs only — no base-damage figure for rockets
-is published anywhere, not the current wiki, the old community wiki, or any surviving
-community chart. `scripts/etl/rockets.ts` fills in all 61 unguided rocket types actually
-flyable in the game by hand, checked a batch at a time against the game's own "Estimated
-damage to bases" hangar stat. A handful of kinetic rounds with no explosive filler (AP Mk
-I/II, TBA Multi-Dart 100 AB) are priced at zero rather than left unchecked — real
-numbers, not a placeholder for "unknown." Guided munitions the datamine files under the
-same "rocket" store kind — the Kh-23M, the Nord AA/AS series, AGM-12, HS 293 — are
-deliberately left out, being air-to-air or already-guided weapons rather than the
-unguided rockets this table is about.
+The spreadsheet's Bomb Chart prices bombs only, and no base-damage figure for rockets is
+published anywhere. `scripts/etl/rockets.ts` once filled in all 61 unguided rocket types
+by hand, checked against the game's hangar stat. It now supplies their names and ids; the
+figures come from the game like every other weapon's — its price where it has one, else
+the explosion model's estimate. Kinetic rounds with no explosive filler (AP Mk I/II, TBA
+Multi-Dart 100 AB) come to zero.
 
 ## Aircraft renders
 
@@ -262,9 +314,8 @@ silently matching nothing.
 `npm run bomb-icons` fills `public/bombs/icons/` with the game's own weapon-selector
 icon for each bomb and rocket — the same small round renders (glossy orange for GP,
 silver for mines, red for incendiary, olive for guided) the source spreadsheet itself
-pastes into its cells. 65 distinct icon keys across the bomb chart, part of the 342 the
-site ships in total once the loadout creator's own icons — missiles, gun pods, tanks —
-are added on top.
+pastes into its cells. The site ships 349 of them, the loadout creator's own — missiles,
+gun pods, tanks — included.
 
 These come from a different part of the datamine than the aircraft renders: the actual
 game data at `aces.vromfs.bin_u/gamedata/weapons/`, one `.blkx` file per weapon, each
@@ -285,8 +336,9 @@ Matching a chart bomb to its weapon file is a three-signal problem, in
 3. **Name.** Only used to break a tie once the field is already this narrow, checking
    whether one name's core letters sit inside the other's.
 
-Most of the chart matches directly. What is left — mostly guided munitions whose exact
-mass is not in this slice of the datamine — falls back to the plain bomb-family icon
+A weapon that comes from the game alone takes its own file's icon; the matching above is
+for the sheet's rows. A torpedo always gets the torpedo icon: no torpedo file names one,
+and the game draws them all alike. The three rows left over fall back to the plain bomb-family icon
 whose *typical* mass sits closest to theirs (nearest-median classification, not a
 cutoff: the icon a bomb gets also reads its length and calibre, not mass alone, so
 "small" and "middle" bombs overlap in mass across their entire range rather than sitting
@@ -392,13 +444,16 @@ The page says how close the amounts are in one line under them. Other modes are 
 
 ## Known gaps
 
-- **Loadout availability.** Recalculated schedules assume any mix of the carried bombs
-  can be taken, which the game does not always allow; the loadout creator's own mass and
-  exclusion rules do not have that problem, but check per-wing/balance limits, which
-  nothing in the flight model attributes to a specific wing.
+- **Per-wing and balance limits.** The loadout creator enforces the game's mass limits
+  and exclusions, but not the per-wing limits it also states: nothing in the flight
+  model says which wing a hardpoint sits on.
+- **Base bleed.** The mission template says 0.9; the site keeps the sheet's 0.9018 until a
+  battle settles it (it would change 196 of 3 012 counts).
+- **Rewards outside Air RB.** The per-sortie amount is fitted to Air RB battles only, and
+  the B-25J-30 pays 14–19% above the model (see [Rewards](#rewards)).
 
 ## License
 
-The code is [MIT](LICENSE). The loadout data is LEGION's own work (see above), and the
+The code is [MIT](LICENSE). The hand-tuned drop plans start from LEGION's work (see above), and the
 aircraft renders, icons and weapon artwork are War Thunder's, owned by Gaijin
 Entertainment — this is a fan tool, not affiliated with or endorsed by them.
