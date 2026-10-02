@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, SlidersHorizontal, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { memo, useCallback, useDeferredValue, useEffect, useMemo } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { AnimatedNumber } from "@/components/animated-number";
 import { BombIcon } from "@/components/bomb-glyph";
 import { Count } from "@/components/filter-count";
@@ -51,6 +52,7 @@ import {
 } from "@/domain/weapon-tags";
 import type { ClientMessages } from "@/i18n/messages";
 import { Flag } from "@/components/flag";
+import { SectionTabs } from "@/components/section-tabs";
 import { Segmented } from "@/components/segmented";
 import { ShareButton } from "@/components/share-button";
 import { TriChip } from "@/components/tri-chip";
@@ -69,15 +71,26 @@ import {
   writeUrlState,
 } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { MAX_COMPARED } from "@/lib/weapon-figures";
 
+const FilterSheet = dynamic(() => import("@/components/filter-sheet").then((mod) => mod.FilterSheet));
+
 const SORTS = ["name", ...COLUMN_IDS] as const satisfies readonly Sort[];
+
+function without<T>(set: ReadonlySet<T>, value: T): Set<T> {
+  const next = new Set(set);
+  next.delete(value);
+  return next;
+}
 
 /** Below which width a column gives way, so a phone keeps the name and what matters most. */
 function hideOf(column: ColumnId, tab: ChartTab): string {
   // The seeker is what a radar missile is picked by, a phone too; an air-to-ground one's, from a tablet up.
   if (column === "kind") return tab === "aamRadar" ? "" : tab === "agm" ? "hidden sm:table-cell" : "hidden lg:table-cell";
-  if (column === "mass" || column === "seeker") return "hidden sm:table-cell";
+  // Torpedoes and the odds and ends have little else to show: their weight stays on a phone.
+  if (column === "mass") return tab === "torpedo" || tab === "other" ? "" : "hidden sm:table-cell";
+  if (column === "seeker") return "hidden sm:table-cell";
   // A phone has room beside the name for what sets a tab apart, not a missile's reach too —
   // unless it was asked for as an extra column.
   if (column === "range" && TAB_COLUMNS[tab].includes("range")) return "hidden sm:table-cell";
@@ -164,6 +177,13 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   const [dmgMax, setDmgMax] = useUrlState("dmgMax", urlOptionalInteger());
 
   const deferred = useDeferredValue(query);
+  const narrow = useMediaQuery("(max-width: 639px)");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // How many each tab holds before any filter — the counts beside a section's tabs.
+  const tabCounts = useMemo(
+    () => Object.fromEntries(TABS.map((each) => [each, bombs.filter((b) => inTab(b, each)).length])) as Record<ChartTab, number>,
+    [bombs],
+  );
 
   // Debounced so a full search term is what lands in GA4, not one event per
   // keystroke.
@@ -372,8 +392,6 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
     track("filter_applied", { surface: "bombs", filter: "column", value: column });
   };
 
-  const rangesActive =
-    massMin !== null || massMax !== null || tntMin !== null || tntMax !== null || dmgMin !== null || dmgMax !== null;
   const clearRanges = () => {
     setMassMin(null);
     setMassMax(null);
@@ -383,15 +401,6 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
     setDmgMax(null);
   };
 
-  const filtersActive =
-    query.trim() !== "" ||
-    nation !== "all" ||
-    cats.size > 0 ||
-    notCats.size > 0 ||
-    tags.size > 0 ||
-    notTags.size > 0 ||
-    source !== "all" ||
-    rangesActive;
   const clearFilters = () => {
     setQuery("");
     setNation("all");
@@ -399,6 +408,75 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
     setSource("all");
     clearRanges();
   };
+
+  // Every filter in force, as a chip that lifts it: what the filters hold while their panel is shut.
+  const activeFilters: { key: string; label: React.ReactNode; name: string; clear: () => void }[] = [];
+  if (nation !== "all") {
+    activeFilters.push({
+      key: "nation",
+      label: (
+        <>
+          <Flag nation={nation} /> {m.nations[nation]}
+        </>
+      ),
+      name: m.nations[nation],
+      clear: () => selectNation("all"),
+    });
+  }
+  for (const group of TAB_GROUPS[tab]) {
+    for (const value of group.values) {
+      const state = stateOf(group, value);
+      if (state === "off") continue;
+      const word = group.axis === "category" ? m.weaponCategories[value as WeaponCategory] : m.weaponTags[value as WeaponTag];
+      const name = state === "out" ? fill(m.bombChart.without, { name: word }) : word;
+      const clear = () => {
+        if (group.axis === "category") {
+          setCats(without(cats, value as WeaponCategory));
+          setNotCats(without(notCats, value as WeaponCategory));
+        } else {
+          setTags(without(tags, value as WeaponTag));
+          setNotTags(without(notTags, value as WeaponTag));
+        }
+        track("filter_applied", { surface: "bombs", filter: group.axis, value, state: FACET_TRACKED.off });
+      };
+      activeFilters.push({ key: `${group.id}:${value}`, label: name, name, clear });
+    }
+  }
+  const span = (min: number | null, max: number | null) =>
+    `${min !== null ? number(min) : "…"}–${max !== null ? number(max) : "…"}`;
+  const ranges = [
+    { key: "mass", label: m.bombChart.massKg, min: massMin, max: massMax, setMin: setMassMin, setMax: setMassMax },
+    { key: "tnt", label: m.bombChart.tntKg, min: tntMin, max: tntMax, setMin: setTntMin, setMax: setTntMax },
+    ...(bounds.priced
+      ? [{ key: "damage", label: m.bombChart.damage, min: dmgMin, max: dmgMax, setMin: setDmgMin, setMax: setDmgMax }]
+      : []),
+  ];
+  for (const range of ranges) {
+    if (range.min === null && range.max === null) continue;
+    activeFilters.push({
+      key: range.key,
+      label: `${range.label}: ${span(range.min, range.max)}`,
+      name: range.label,
+      clear: () => {
+        range.setMin(null);
+        range.setMax(null);
+      },
+    });
+  }
+  if (bounds.estimated && source === "game") {
+    activeFilters.push({
+      key: "source",
+      label: m.bombChart.gameOnly,
+      name: m.bombChart.gameOnly,
+      clear: () => {
+        setSource("all");
+        track("filter_applied", { surface: "bombs", filter: "source", value: "all" });
+      },
+    });
+  }
+
+  // What filters this tab: the search and the chips — not a value left in a link that no chip here shows.
+  const filtersActive = query.trim() !== "" || activeFilters.length > 0;
 
   const extraHeaders: Record<ExtraColumn, string> = m.bombChart.extraColumns;
   const headerOf = (column: ColumnId, onTab: ChartTab): string => {
@@ -435,8 +513,91 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
   }, []);
   const shownSources = new Set(listed.map(({ bomb }) => bomb.damageSource));
 
+  // The filters themselves: under the bar on a wide screen, in a sheet from the bottom on a phone.
+  const filterControls = (
+    <>
+      <div className="space-y-1.5">
+        <div className="text-xs uppercase tracking-wider text-ink-faint">{m.common.nation}</div>
+        <div className="flex flex-wrap gap-1.5">
+          <FilterChip active={nation === "all"} onClick={() => selectNation("all")}>
+            <span aria-hidden>🌐</span> {m.common.allNations}
+            <Count>{nationCount("all")}</Count>
+          </FilterChip>
+          {NATIONS.map((n: Nation) => (
+            <FilterChip key={n} active={nation === n} onClick={() => selectNation(n)}>
+              <Flag nation={n} /> {m.nations[n]}
+              <Count>{nationCount(n)}</Count>
+            </FilterChip>
+          ))}
+        </div>
+      </div>
+
+      {groups.map(({ group, values }, index) => (
+        <div key={group.id} className="space-y-1.5">
+          <div className="text-xs text-ink-faint">
+            <span className="uppercase tracking-wider">{m.bombChart.groups[group.id]}</span>
+            {index === 0 ? ` · ${m.common.excludeHint}` : null}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {values.map((value) => (
+              <TriChip key={value} state={stateOf(group, value)} onClick={() => toggleValue(group, value)}>
+                {group.axis === "category"
+                  ? m.weaponCategories[value as WeaponCategory]
+                  : m.weaponTags[value as WeaponTag]}
+                <Count>{valueCount(group, value)}</Count>
+              </TriChip>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div className={cn("grid gap-4", bounds.priced ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+        <RangeField
+          label={m.bombChart.massKg}
+          bounds={bounds.mass}
+          min={massMin}
+          max={massMax}
+          onMinChange={setMassMin}
+          onMaxChange={setMassMax}
+        />
+        <RangeField
+          label={m.bombChart.tntKg}
+          bounds={bounds.tnt}
+          min={tntMin}
+          max={tntMax}
+          onMinChange={setTntMin}
+          onMaxChange={setTntMax}
+        />
+        {bounds.priced ? (
+          <RangeField
+            label={m.bombChart.damage}
+            bounds={bounds.damage}
+            min={dmgMin}
+            max={dmgMax}
+            onMinChange={setDmgMin}
+            onMaxChange={setDmgMax}
+          />
+        ) : null}
+      </div>
+
+      {bounds.estimated ? (
+        <CheckChip
+          checked={source === "game"}
+          onClick={() => {
+            setSource(source === "game" ? "all" : "game");
+            track("filter_applied", { surface: "bombs", filter: "source", value: source === "game" ? "all" : "game" });
+          }}
+        >
+          {m.bombChart.gameOnly}
+        </CheckChip>
+      ) : null}
+    </>
+  );
+
   return (
     <div className="space-y-6">
+      <SectionTabs tab={tab} counts={tabCounts} onSelect={selectTab} />
+
       <section className={cn("card p-4 grid gap-5 sm:grid-cols-3", !againstBases && "hidden")}>
         <Segmented
           label={m.conditions.matchBr}
@@ -468,100 +629,80 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
         />
       </section>
 
-      <section className="card p-4 space-y-4">
-        <Segmented
-          label={m.bombChart.show}
-          value={tab}
-          onChange={selectTab}
-          options={TABS.map((t) => ({ value: t, label: m.bombChart.tabs[t] }))}
-        />
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={m.bombChart.filterPlaceholder}
+            aria-label={m.bombChart.filterLabel}
+            className="card min-w-0 basis-full px-3 py-2 outline-none placeholder:text-ink-faint focus:border-accent transition-colors sm:max-w-72 sm:flex-1 sm:basis-auto"
+          />
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            aria-expanded={filtersOpen}
+            aria-controls={!narrow && filtersOpen ? "armament-filters" : undefined}
+            className={cn(
+              "card inline-flex items-center gap-2 px-3 py-2 text-sm transition-colors",
+              filtersOpen || activeFilters.length > 0 ? "border-accent text-accent" : "text-ink-dim hover:text-ink",
+            )}
+          >
+            <SlidersHorizontal size={15} aria-hidden /> {m.bombChart.filters}
+            {activeFilters.length > 0 ? (
+              <span className="nums rounded-full bg-accent-dim px-1.5 text-xs">{activeFilters.length}</span>
+            ) : null}
+          </button>
+          {filtersActive ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm text-ink-faint hover:text-accent transition-colors underline underline-offset-4"
+            >
+              {m.common.clearFilters}
+            </button>
+          ) : null}
+          <p className="nums w-full text-sm text-ink-dim sm:ml-auto sm:w-auto">
+            <Filled
+              template={againstBases ? m.bombChart.summary : m.bombChart.summaryCount}
+              slots={{ count: <AnimatedNumber value={listed.length} />, hp: <AnimatedNumber value={effectiveHp} /> }}
+            />
+          </p>
+        </div>
 
-        <div className="space-y-1.5">
-          <div className="text-xs uppercase tracking-wider text-ink-faint">{m.common.nation}</div>
+        {activeFilters.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
-            <FilterChip active={nation === "all"} onClick={() => selectNation("all")}>
-              <span aria-hidden>🌐</span> {m.common.allNations}
-              <Count>{nationCount("all")}</Count>
-            </FilterChip>
-            {NATIONS.map((n: Nation) => (
-              <FilterChip key={n} active={nation === n} onClick={() => selectNation(n)}>
-                <Flag nation={n} /> {m.nations[n]}
-                <Count>{nationCount(n)}</Count>
-              </FilterChip>
+            {activeFilters.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={filter.clear}
+                aria-label={fill(m.bombChart.removeFilter, { name: filter.name })}
+                className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-dim transition-colors hover:border-line-bright hover:text-ink"
+              >
+                {filter.label}
+                <X size={12} aria-hidden />
+              </button>
             ))}
           </div>
-        </div>
-
-        {groups.map(({ group, values }, index) => (
-          <div key={group.id} className="space-y-1.5">
-            <div className="text-xs text-ink-faint">
-              <span className="uppercase tracking-wider">{m.bombChart.groups[group.id]}</span>
-              {index === 0 ? ` · ${m.common.excludeHint}` : null}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {values.map((value) => (
-                <TriChip key={value} state={stateOf(group, value)} onClick={() => toggleValue(group, value)}>
-                  {group.axis === "category"
-                    ? m.weaponCategories[value as WeaponCategory]
-                    : m.weaponTags[value as WeaponTag]}
-                  <Count>{valueCount(group, value)}</Count>
-                </TriChip>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div className={cn("grid gap-4", bounds.priced ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
-          <RangeField
-            label={m.bombChart.massKg}
-            bounds={bounds.mass}
-            min={massMin}
-            max={massMax}
-            onMinChange={setMassMin}
-            onMaxChange={setMassMax}
-          />
-          <RangeField
-            label={m.bombChart.tntKg}
-            bounds={bounds.tnt}
-            min={tntMin}
-            max={tntMax}
-            onMinChange={setTntMin}
-            onMaxChange={setTntMax}
-          />
-          {bounds.priced ? (
-            <RangeField
-              label={m.bombChart.damage}
-              bounds={bounds.damage}
-              min={dmgMin}
-              max={dmgMax}
-              onMinChange={setDmgMin}
-              onMaxChange={setDmgMax}
-            />
-          ) : null}
-        </div>
-
-        {bounds.estimated ? (
-          <CheckChip
-            checked={source === "game"}
-            onClick={() => {
-              setSource(source === "game" ? "all" : "game");
-              track("filter_applied", { surface: "bombs", filter: "source", value: source === "game" ? "all" : "game" });
-            }}
-          >
-            {m.bombChart.gameOnly}
-          </CheckChip>
         ) : null}
-      </section>
 
-      <div className="space-y-3">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={m.bombChart.filterPlaceholder}
-          aria-label={m.bombChart.filterLabel}
-          className="card px-3 py-2 outline-none placeholder:text-ink-faint focus:border-accent transition-colors w-full sm:w-72"
-        />
+        {!narrow && filtersOpen ? (
+          <section id="armament-filters" className="card space-y-4 p-4">
+            {filterControls}
+          </section>
+        ) : null}
+        {narrow ? (
+          <FilterSheet
+            open={filtersOpen}
+            onOpenChange={setFiltersOpen}
+            title={m.bombChart.filters}
+            done={fill(m.bombChart.showResults, { count: number(rows.length) })}
+          >
+            {filterControls}
+          </FilterSheet>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs uppercase tracking-wider text-ink-faint">{m.bombChart.moreColumns}</span>
@@ -574,35 +715,18 @@ export function ArmamentChart({ bombs, guidanceLabels }: { bombs: ChartRow[]; gu
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs uppercase tracking-wider text-ink-faint">{m.bombChart.massShownIn}</span>
-              <div role="group" aria-label={m.bombChart.massUnit} className="flex gap-1">
-                {MASS_UNITS.map((u) => (
-                  <FilterChip key={u} active={massUnit === u} onClick={() => setMassUnit(u)}>
-                    {u === "original" ? m.bombChart.original : u}
-                  </FilterChip>
-                ))}
-              </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs uppercase tracking-wider text-ink-faint">{m.bombChart.massShownIn}</span>
+            <div role="group" aria-label={m.bombChart.massUnit} className="flex gap-1">
+              {MASS_UNITS.map((u) => (
+                <FilterChip key={u} active={massUnit === u} onClick={() => setMassUnit(u)}>
+                  {u === "original" ? m.bombChart.original : u}
+                </FilterChip>
+              ))}
             </div>
-            {filtersActive ? (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-sm text-ink-faint hover:text-accent transition-colors underline underline-offset-4"
-              >
-                {m.common.clearFilters}
-              </button>
-            ) : null}
-            <ShareButton surface="bomb_chart" />
           </div>
-          <p className="nums text-sm text-ink-dim">
-            <Filled
-              template={againstBases ? m.bombChart.summary : m.bombChart.summaryCount}
-              slots={{ count: <AnimatedNumber value={listed.length} />, hp: <AnimatedNumber value={effectiveHp} /> }}
-            />
-          </p>
+          <ShareButton surface="bomb_chart" />
         </div>
       </div>
 

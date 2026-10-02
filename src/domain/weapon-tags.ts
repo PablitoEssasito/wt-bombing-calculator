@@ -59,6 +59,8 @@ export const WARHEADS = ["he", "heat", "tandem", "aphe", "ap", "multidart", "smo
 export type RoundFacts = {
   /** The tooltip's own sort — a guided bomb is a bomb here. */
   category: WeaponCategory | "guidedBomb";
+  /** The game's short name, which marks a nuclear weapon ("☢B61") whether or not its file gives a yield. */
+  short: string | null;
   stats: Pick<WeaponStats, "guidance" | "aiming" | "allAspect" | "irccm" | "warhead" | "nuclearYieldKt">;
   incendiary: boolean;
   drag: boolean;
@@ -101,7 +103,7 @@ export function tagsOf(round: RoundFacts): WeaponTag[] {
   const tags: WeaponTag[] = [];
 
   if (category === "bomb") {
-    if (stats.nuclearYieldKt) tags.push("nuclear");
+    if (stats.nuclearYieldKt || round.short?.startsWith("☢")) tags.push("nuclear");
     else if (round.incendiary) tags.push("incendiary");
     else if (round.drag) tags.push("drag");
     else tags.push(round.armourPiercing ?? "gp");

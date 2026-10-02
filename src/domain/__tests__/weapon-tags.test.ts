@@ -3,6 +3,7 @@ import { categoryOfKind, tagsOf, tagsOfKind, type RoundFacts } from "../weapon-t
 
 const round = (over: Partial<RoundFacts>): RoundFacts => ({
   category: "bomb",
+  short: null,
   stats: {},
   incendiary: false,
   drag: false,
@@ -19,6 +20,8 @@ describe("tagsOf", () => {
     expect(tagsOf(round({ incendiary: true }))).toEqual(["incendiary", "unguided"]);
     // The RDS-37: its yield is what it is.
     expect(tagsOf(round({ stats: { nuclearYieldKt: 1600 } }))).toEqual(["nuclear", "unguided"]);
+    // Mark 6: no yield in its file, but the game marks it nuclear by name.
+    expect(tagsOf(round({ short: "☢Mark 6" }))).toEqual(["nuclear", "unguided"]);
   });
 
   it("gives a guided bomb its seeker and what helps it, beside its type", () => {

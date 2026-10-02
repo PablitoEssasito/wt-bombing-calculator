@@ -153,7 +153,7 @@ describe("the armament chart's rows", () => {
     const rows = chartRowsFor("en");
     expect(rows.find((row) => row.id === "kd-88")).toMatchObject({ category: "agm", tags: ["tv", "iog", "gnssAid", "aphe"] });
     for (const row of rows) {
-      const tabs = TABS.filter((tab) => tab !== "bases" && tab !== "all" && inTab(row, tab));
+      const tabs = TABS.filter((tab) => tab !== "bases" && tab !== "ground" && tab !== "all" && inTab(row, tab));
       expect(tabs, row.id).toHaveLength(1);
     }
   });
@@ -347,6 +347,15 @@ describe("categories and tags, off the game's files", () => {
     expect(tagsOf("spice-1k")).not.toContain("drag");
     expect(tagsOf("rds-37")).toEqual(["nuclear", "unguided"]);
     expect(tagsOf("500-lb-mk-82-snake-eye")).toEqual(["drag", "unguided"]);
+  });
+
+  it("calls every bomb the game marks ☢ nuclear, and prices none by the token charge its file holds", () => {
+    const nuclear = bombs.filter((b) => b.chartName.startsWith("☢"));
+    expect(nuclear.length).toBeGreaterThan(0);
+    for (const bomb of nuclear) expect(bomb.tags, bomb.id).toEqual(["nuclear", "unguided"]);
+    // Mark 6: the killstreak B-29's bomb, 10 g of tritonal in its file and no yield.
+    expect(bombsById.get("mark-6")!.damageValue).toBeNull();
+    expect(bombsById.get("b61")!.damageValue).toBe(1200000);
   });
 
   it("splits air-to-air missiles the way the game's tooltip does", () => {

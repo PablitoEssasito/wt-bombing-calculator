@@ -21,7 +21,7 @@ const row = (over: Partial<ChartRow>): ChartRow => ({
 
 describe("the columns a tab shows", () => {
   it("gives the tabs against a base what it takes to bring one down", () => {
-    for (const tab of ["bases", "bomb", "rocket", "all"] as const) {
+    for (const tab of ["bases", "ground", "bomb", "rocket", "all"] as const) {
       expect(TAB_COLUMNS[tab]).toEqual(["needed", "damage", "mass", "tnt", "efficiency", "kind"]);
     }
     expect(TAB_COLUMNS.agm).toEqual(["needed", "damage", "kind", "range", "mass", "tnt"]);
@@ -30,6 +30,11 @@ describe("the columns a tab shows", () => {
   it("gives air-to-air missiles no damage to a base, and what a pilot picks one by instead", () => {
     expect(TAB_COLUMNS.aamRadar).toEqual(["kind", "seeker", "range", "speed", "loadFactor", "mass"]);
     expect(TAB_COLUMNS.aamIr).toEqual(["aspect", "irccm", "seeker", "range", "speed", "loadFactor", "mass"]);
+  });
+
+  it("gives nuclear bombs what their blast is worth and their weight, heaviest blast first", () => {
+    expect(TAB_COLUMNS.nuclear).toEqual(["damage", "mass"]);
+    expect(sortFor("nuclear", "needed", "asc")).toEqual({ sort: "damage", dir: "desc" });
   });
 
   it("offers as extra only the columns a tab does not show already, and adds the ones ticked after its own", () => {
@@ -48,6 +53,7 @@ describe("sortFor", () => {
   it("falls back to the tab's own order where it does not: reach for air-to-air missiles", () => {
     expect(sortFor("aamRadar", "needed", "asc")).toEqual({ sort: "range", dir: "desc" });
     expect(sortFor("other", "needed", "asc")).toEqual({ sort: "name", dir: "asc" });
+    expect(sortFor("ground", "range", "desc")).toEqual({ sort: "needed", dir: "asc" });
   });
 });
 

@@ -7,7 +7,7 @@ import { Flag } from "@/components/flag";
 import { PageTransition } from "@/components/page-transition";
 import { VehicleTypeIcon } from "@/components/vehicle-type-icon";
 import { bombsNeeded, effectiveBaseHp } from "@/domain/base-hp";
-import { familyOf } from "@/domain/bomb-chart";
+import { familyOf, isNuclear } from "@/domain/bomb-chart";
 import { BASE_HP_TIERS, type BaseCount, type GameMode, type Nation } from "@/domain/constants";
 import type { Bomb } from "@/domain/types";
 import { fill, formatNumber, plural } from "@/i18n/format";
@@ -97,6 +97,9 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
 
   const damage = bomb.damageValue;
   const estimated = bomb.damageSource === "estimate";
+  // A nuclear bomb whose file gives no yield: its blast is not in the file, so
+  // there is nothing to say per base — not that it does nothing to one.
+  const perBase = damage !== null || !isNuclear(bomb);
   const figures = [
     { label: m.bombPage.stats.mass, value: bomb.massLabel || (bomb.massKg !== null ? `${Math.round(bomb.massKg)} kg` : null) },
     { label: m.bombPage.stats.tnt, value: bomb.tntKg !== null ? `${Math.round(bomb.tntKg)} kg` : null },
@@ -172,63 +175,65 @@ export function WeaponPageView({ locale, id }: { locale: Locale; id: string }) {
           ))}
         </dl>
 
-        <section className="space-y-3" aria-labelledby="per-base">
-          <div className="space-y-1">
-            <h2 id="per-base" className="text-lg font-semibold tracking-tight">
-              {m.bombPage.perBase}
-            </h2>
+        {perBase ? (
+          <section className="space-y-3" aria-labelledby="per-base">
+            <div className="space-y-1">
+              <h2 id="per-base" className="text-lg font-semibold tracking-tight">
+                {m.bombPage.perBase}
+              </h2>
+              {damage !== null && damage > 0 ? (
+                <>
+                  <p className="text-sm text-ink-dim">{m.bombPage.perBaseHint}</p>
+                  {estimated ? <p className="text-sm text-ink-dim">≈ {m.bombPage.estimated}</p> : null}
+                </>
+              ) : (
+                <p className="text-sm text-ink-dim">{m.bombPage.noDamage}</p>
+              )}
+            </div>
             {damage !== null && damage > 0 ? (
-              <>
-                <p className="text-sm text-ink-dim">{m.bombPage.perBaseHint}</p>
-                {estimated ? <p className="text-sm text-ink-dim">≈ {m.bombPage.estimated}</p> : null}
-              </>
-            ) : (
-              <p className="text-sm text-ink-dim">{m.bombPage.noDamage}</p>
-            )}
-          </div>
-          {damage !== null && damage > 0 ? (
-            <div className="card overflow-x-auto max-w-2xl">
-              <table className="w-full text-sm whitespace-nowrap">
-                <thead className="text-ink-faint">
-                  <tr>
-                    <th rowSpan={2} className="px-2 sm:px-3 py-2 text-left font-normal align-bottom">
-                      {m.conditions.matchBr}
-                    </th>
-                    <th colSpan={2} className="px-2 sm:px-3 pt-2 text-center font-normal whitespace-normal">
-                      {m.conditions.realistic}
-                    </th>
-                    <th colSpan={2} className="px-2 sm:px-3 pt-2 text-center font-normal whitespace-normal">
-                      {m.conditions.arcade}
-                    </th>
-                  </tr>
-                  <tr>
-                    {LAYOUTS.map(({ mode, bases }) => (
-                      <th key={`${mode}-${bases}`} className="px-2 sm:px-3 pb-2 text-right font-normal text-xs">
-                        {bases === 4 ? m.bombPage.fourBases : m.bombPage.threeBases}
+              <div className="card overflow-x-auto max-w-2xl">
+                <table className="w-full text-sm whitespace-nowrap">
+                  <thead className="text-ink-faint">
+                    <tr>
+                      <th rowSpan={2} className="px-2 sm:px-3 py-2 text-left font-normal align-bottom">
+                        {m.conditions.matchBr}
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {BASE_HP_TIERS.map((tier) => (
-                    <tr key={tier} className="border-t border-line">
-                      <td className="nums px-2 sm:px-3 py-2 text-ink-dim">{m.conditions.brRanges[tier]}</td>
+                      <th colSpan={2} className="px-2 sm:px-3 pt-2 text-center font-normal whitespace-normal">
+                        {m.conditions.realistic}
+                      </th>
+                      <th colSpan={2} className="px-2 sm:px-3 pt-2 text-center font-normal whitespace-normal">
+                        {m.conditions.arcade}
+                      </th>
+                    </tr>
+                    <tr>
                       {LAYOUTS.map(({ mode, bases }) => (
-                        <td
-                          key={`${mode}-${bases}`}
-                          className="nums px-2 sm:px-3 py-2 text-right text-accent font-semibold text-base"
-                        >
-                          {estimated ? <span className="font-normal text-ink-faint">≈ </span> : null}
-                          {bombsNeeded(effectiveBaseHp(tier, mode, bases), damage)}
-                        </td>
+                        <th key={`${mode}-${bases}`} className="px-2 sm:px-3 pb-2 text-right font-normal text-xs">
+                          {bases === 4 ? m.bombPage.fourBases : m.bombPage.threeBases}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
+                  </thead>
+                  <tbody>
+                    {BASE_HP_TIERS.map((tier) => (
+                      <tr key={tier} className="border-t border-line">
+                        <td className="nums px-2 sm:px-3 py-2 text-ink-dim">{m.conditions.brRanges[tier]}</td>
+                        {LAYOUTS.map(({ mode, bases }) => (
+                          <td
+                            key={`${mode}-${bases}`}
+                            className="nums px-2 sm:px-3 py-2 text-right text-accent font-semibold text-base"
+                          >
+                            {estimated ? <span className="font-normal text-ink-faint">≈ </span> : null}
+                            {bombsNeeded(effectiveBaseHp(tier, mode, bases), damage)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {groups.length > 0 ? (
           <section className="space-y-3" aria-labelledby="figures">

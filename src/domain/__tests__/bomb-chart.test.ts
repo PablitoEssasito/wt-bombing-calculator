@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { familyOf, groupValues, inArmamentChart, inTab, TAB_GROUPS, TABS, type ChartTab } from "../bomb-chart";
+import { familyOf, groupValues, inArmamentChart, inTab, SECTIONS, sectionOf, TAB_GROUPS, TABS, type ChartTab } from "../bomb-chart";
 import { WEAPON_TAGS, type WeaponCategory, type WeaponTag } from "../weapon-tags";
 
 describe("inArmamentChart", () => {
@@ -12,6 +12,9 @@ describe("inArmamentChart", () => {
     expect(inArmamentChart({ kind: "INC", damageValue: null })).toBe(false);
   });
 });
+
+/** The tabs that gather several categories rather than file one. */
+const GATHERING: readonly ChartTab[] = ["bases", "ground", "all"];
 
 describe("inTab", () => {
   const row = (category: WeaponCategory, damageValue: number | null = 2464, chartName = "X", tags: WeaponTag[] = []) => ({
@@ -27,20 +30,24 @@ describe("inTab", () => {
     expect(inTab(row("aam", null), "bases")).toBe(false);
     expect(inTab(row("bomb", 0), "bases")).toBe(false);
     expect(inTab(row("bomb", 1200000, "☢B61"), "bases")).toBe(false);
-    expect(inTab(row("bomb", 1200000, "☢B61"), "bomb")).toBe(true);
+    expect(inTab(row("bomb", 1200000, "☢B61"), "nuclear")).toBe(true);
   });
 
-  it("files each row under its category's tab, and torpedoes, mines and gun pods under other", () => {
+  it("files each row under its category's tab, torpedoes on their own, and mines and gun pods under other", () => {
     const tabsOf = (category: WeaponCategory, tags: WeaponTag[] = []) =>
-      TABS.filter((tab) => tab !== "bases" && tab !== "all" && inTab(row(category, null, "X", tags), tab));
+      TABS.filter((tab) => !GATHERING.includes(tab) && inTab(row(category, null, "X", tags), tab));
     expect(tabsOf("bomb")).toEqual(["bomb"]);
+    expect(TABS.filter((tab) => !GATHERING.includes(tab) && inTab(row("bomb", 1200000, "☢B61", ["nuclear"]), tab))).toEqual([
+      "nuclear",
+    ]);
     expect(tabsOf("rocket")).toEqual(["rocket"]);
     expect(tabsOf("agm")).toEqual(["agm"]);
-    for (const category of ["torpedo", "mine", "gun"] as const) expect(tabsOf(category)).toEqual(["other"]);
+    expect(tabsOf("torpedo")).toEqual(["torpedo"]);
+    for (const category of ["mine", "gun"] as const) expect(tabsOf(category)).toEqual(["other"]);
   });
 
   it("splits air-to-air missiles by seeker: radar on one tab, IR on another, one flown by hand under other", () => {
-    const tabsOf = (tags: WeaponTag[]) => TABS.filter((tab) => tab !== "bases" && tab !== "all" && inTab(row("aam", null, "X", tags), tab));
+    const tabsOf = (tags: WeaponTag[]) => TABS.filter((tab) => !GATHERING.includes(tab) && inTab(row("aam", null, "X", tags), tab));
     expect(tabsOf(["sarh"])).toEqual(["aamRadar"]);
     expect(tabsOf(["arh", "iog", "datalink"])).toEqual(["aamRadar"]);
     expect(tabsOf(["ir", "allAspect", "irccm"])).toEqual(["aamIr"]);
@@ -48,8 +55,39 @@ describe("inTab", () => {
     expect(tabsOf(["mclos"])).toEqual(["other"]);
   });
 
+  it("gathers everything air-to-ground under ground: bombs, rockets and air-to-ground missiles", () => {
+    for (const category of ["bomb", "rocket", "agm"] as const) expect(inTab(row(category, null), "ground")).toBe(true);
+    expect(inTab(row("bomb", 1200000, "☢B61", ["nuclear"]), "ground")).toBe(true);
+    for (const category of ["aam", "torpedo", "mine", "gun"] as const) expect(inTab(row(category, null, "X", ["ir"]), "ground")).toBe(false);
+  });
+
   it("shows everything under all", () => {
     for (const category of ["bomb", "aam", "gun"] as const) expect(inTab(row(category, null), "all")).toBe(true);
+  });
+});
+
+describe("the sections", () => {
+  it("hold every tab exactly once", () => {
+    expect(SECTIONS.flatMap((section) => section.tabs).sort()).toEqual([...TABS].sort());
+  });
+
+  it("put the two views before the categories", () => {
+    expect(SECTIONS.map((section) => `${section.kind}:${section.id}`)).toEqual([
+      "view:bases",
+      "view:all",
+      "category:ground",
+      "category:air",
+      "category:torpedo",
+      "category:other",
+    ]);
+  });
+
+  it("open a section on its whole, and find the section a tab is in", () => {
+    expect(SECTIONS.find((section) => section.id === "ground")!.tabs).toEqual(["ground", "bomb", "rocket", "agm", "nuclear"]);
+    expect(sectionOf("bomb").id).toBe("ground");
+    expect(sectionOf("nuclear").id).toBe("ground");
+    expect(sectionOf("aamIr").id).toBe("air");
+    expect(sectionOf("all").id).toBe("all");
   });
 });
 
@@ -98,6 +136,12 @@ describe("familyOf", () => {
     expect(familyOf(row("bomb", ["gp", "laser"]))).toBe(familyOf(row("bomb", ["sap", "tv", "iog"])));
     expect(familyOf(row("bomb", ["drag", "unguided"]))).toBe(familyOf(row("bomb", ["gp", "unguided"])));
     expect(familyOf(row("bomb", ["gp", "laser"]))).not.toBe(familyOf(row("bomb", ["gp", "unguided"])));
+  });
+
+  it("keeps a nuclear bomb with nuclear ones, apart from iron bombs", () => {
+    const nuclear = { ...row("bomb", ["nuclear", "unguided"]), chartName: "☢B61" };
+    expect(familyOf(nuclear)).toBe(familyOf({ ...nuclear, chartName: "☢RDS-4" }));
+    expect(familyOf(nuclear)).not.toBe(familyOf(row("bomb", ["gp", "unguided"])));
   });
 
   it("keeps an air-to-air missile with those on its own tab, radar or IR", () => {

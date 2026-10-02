@@ -827,6 +827,13 @@ async function main() {
   const rounds = roundsOf(stores, coreOf, bodies, names, wpcost, explosives, onPylon, carriers, setupShares);
   const model = buildModel(pricedBlasts([...rounds.values()]), zone);
   for (const round of rounds.values()) {
+    // A nuclear bomb whose file gives no yield holds a token charge (10 g on the
+    // Mark 6), and its price is that charge's: the blast is not in the file.
+    if (round.short?.startsWith("☢") && !round.stats.nuclearYieldKt) {
+      round.damage = null;
+      round.damageSource = null;
+      continue;
+    }
     if (round.damage !== null || !ESTIMATED.has(round.category) || round.incendiary) continue;
     if (round.stats.nuclearYieldKt) {
       round.damage = Math.round(readCurve(explosives.nuclearDamage, round.stats.nuclearYieldKt));

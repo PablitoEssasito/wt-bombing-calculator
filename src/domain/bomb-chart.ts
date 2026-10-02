@@ -67,12 +67,47 @@ export type ChartRow = Pick<
 };
 
 /**
- * The armament chart's tabs: what can hit a base, each category of weapon on
- * its own — air-to-air missiles split by seeker, radar and IR — torpedoes,
- * mines, gun pods and a missile flown by hand together, or everything.
+ * The armament chart's tabs: what can hit a base, everything air-to-ground,
+ * each category of weapon on its own — nuclear bombs apart from the rest,
+ * air-to-air missiles split by seeker, radar and IR — torpedoes on theirs,
+ * mines, gun pods and a missile flown by hand together under other, or
+ * everything.
  */
-export const TABS = ["bases", "bomb", "rocket", "agm", "aamRadar", "aamIr", "other", "all"] as const;
+export const TABS = [
+  "bases",
+  "ground",
+  "bomb",
+  "rocket",
+  "agm",
+  "nuclear",
+  "aamRadar",
+  "aamIr",
+  "torpedo",
+  "other",
+  "all",
+] as const;
 export type ChartTab = (typeof TABS)[number];
+
+/**
+ * The tabs as the page lays them out: two views of the whole first — what
+ * brings a base down, everything — then the categories, broadest first. A
+ * section with several tabs opens on its first, the one gathering the rest.
+ */
+export const SECTIONS = [
+  { id: "bases", kind: "view", tabs: ["bases"] },
+  { id: "all", kind: "view", tabs: ["all"] },
+  { id: "ground", kind: "category", tabs: ["ground", "bomb", "rocket", "agm", "nuclear"] },
+  { id: "air", kind: "category", tabs: ["aamRadar", "aamIr"] },
+  { id: "torpedo", kind: "category", tabs: ["torpedo"] },
+  { id: "other", kind: "category", tabs: ["other"] },
+] as const satisfies readonly { id: string; kind: "view" | "category"; tabs: readonly ChartTab[] }[];
+export type ChartSection = (typeof SECTIONS)[number];
+
+/** The section a tab sits in. */
+export const sectionOf = (tab: ChartTab): ChartSection =>
+  SECTIONS.find((section) => (section.tabs as readonly ChartTab[]).includes(tab))!;
+
+const GROUND: readonly WeaponCategory[] = ["bomb", "rocket", "agm"];
 
 const RADAR_SEEKERS: readonly WeaponTag[] = ["sarh", "arh"];
 
@@ -85,7 +120,7 @@ export const isNuclear = (bomb: Pick<Bomb, "chartName">) => bomb.chartName.start
 /**
  * Whether a row belongs on a tab. "Against bases" is what an ordinary battle
  * can bring to one — so not a nuclear bomb, whose one-per-base would top the
- * list; it stays with the bombs.
+ * list; it has a tab of its own.
  */
 export function inTab(row: Pick<ChartRow, "category" | "damageValue" | "chartName" | "tags">, tab: ChartTab): boolean {
   const radar = row.category === "aam" && row.tags.some((tag) => RADAR_SEEKERS.includes(tag));
@@ -93,12 +128,18 @@ export function inTab(row: Pick<ChartRow, "category" | "damageValue" | "chartNam
   switch (tab) {
     case "bases":
       return (row.damageValue ?? 0) > 0 && !isNuclear(row);
+    case "ground":
+      return GROUND.includes(row.category);
+    case "bomb":
+      return row.category === "bomb" && !isNuclear(row);
+    case "nuclear":
+      return isNuclear(row);
     case "aamRadar":
       return radar;
     case "aamIr":
       return ir;
     case "other":
-      return ["torpedo", "mine", "gun"].includes(row.category) || (row.category === "aam" && !radar && !ir);
+      return ["mine", "gun"].includes(row.category) || (row.category === "aam" && !radar && !ir);
     case "all":
       return true;
     default:
@@ -108,14 +149,17 @@ export function inTab(row: Pick<ChartRow, "category" | "damageValue" | "chartNam
 
 /**
  * What makes two weapons alike for "similar weapons": the same category, and
- * steered alike — a guided bomb beside guided bombs, not iron ones; an
- * air-to-air missile beside those on its own tab, radar or IR.
+ * steered alike — a guided bomb beside guided bombs, not iron ones; a
+ * nuclear bomb beside nuclear ones; an air-to-air missile beside those on its
+ * own tab, radar or IR.
  */
 export function familyOf(row: Pick<ChartRow, "category" | "damageValue" | "chartName" | "tags">): string {
   const steering =
     row.category === "aam"
       ? ((["aamRadar", "aamIr"] as const).find((tab) => inTab(row, tab)) ?? "other")
-      : row.tags.includes("unguided")
+      : isNuclear(row)
+        ? "nuclear"
+        : row.tags.includes("unguided")
         ? "unguided"
         : "guided";
   return `${row.category}:${steering}`;
@@ -151,11 +195,14 @@ const WARHEAD: FilterGroup = { id: "warhead", axis: "tag", values: WARHEADS, mod
 /** The chip rows each tab offers, in order. A chip shows only for a value that splits the tab's rows. */
 export const TAB_GROUPS: Record<ChartTab, readonly FilterGroup[]> = {
   bases: [CATEGORY, GUIDANCE],
+  ground: [CATEGORY, GUIDANCE],
   bomb: [TYPE, GUIDANCE, FEATURES],
   rocket: [GUIDANCE, WARHEAD],
   agm: [GUIDANCE, FEATURES, WARHEAD],
+  nuclear: [],
   aamRadar: [RADAR_GUIDANCE, RADAR_FEATURES],
   aamIr: [ASPECT, IR_FEATURES],
+  torpedo: [],
   other: [CATEGORY],
   all: [CATEGORY, GUIDANCE],
 };

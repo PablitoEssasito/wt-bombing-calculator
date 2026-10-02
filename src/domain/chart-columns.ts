@@ -36,12 +36,17 @@ const AGAINST_BASES: readonly ColumnId[] = ["needed", "damage", "mass", "tnt", "
 
 export const TAB_COLUMNS: Record<ChartTab, readonly ColumnId[]> = {
   bases: AGAINST_BASES,
+  ground: AGAINST_BASES,
   bomb: AGAINST_BASES,
   rocket: AGAINST_BASES,
   all: AGAINST_BASES,
   agm: ["needed", "damage", "kind", "range", "mass", "tnt"],
+  // One to a base, whatever the base: what tells them apart is the blast.
+  nuclear: ["damage", "mass"],
   aamRadar: ["kind", "seeker", "range", "speed", "loadFactor", "mass"],
   aamIr: ["aspect", "irccm", "seeker", "range", "speed", "loadFactor", "mass"],
+  // Every row a torpedo: nothing to tell them apart by but weight and charge.
+  torpedo: ["mass", "tnt"],
   other: ["mass", "tnt", "kind"],
 };
 
@@ -83,12 +88,15 @@ export const DEFAULT_DIR: Record<Sort, SortDir> = {
 /** A tab's own order, where the page's sort names a column it does not show. */
 const TAB_SORT: Record<ChartTab, Sort> = {
   bases: "needed",
+  ground: "needed",
   bomb: "needed",
   rocket: "needed",
   all: "needed",
   agm: "needed",
+  nuclear: "damage",
   aamRadar: "range",
   aamIr: "range",
+  torpedo: "name",
   other: "name",
 };
 
