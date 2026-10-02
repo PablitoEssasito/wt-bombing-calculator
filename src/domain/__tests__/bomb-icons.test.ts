@@ -77,6 +77,12 @@ describe("matchBombIcons", () => {
     expect(matches.get("a")).toEqual({ iconType: "air_mines", confidence: "matched" });
   });
 
+  it("gives a torpedo the torpedo icon, never a bomb's at the same mass", () => {
+    // Torpedo files carry no iconType of their own, and none sits among these.
+    const { matches } = matchBombIcons([bomb({ id: "a", chartName: "Mk.13", kind: "TORPEDO", massKg: 240.9 })], DEFS);
+    expect(matches.get("a")).toEqual({ iconType: "air_torpedo", confidence: "matched" });
+  });
+
   it("matches a rocket by mass and kind exactly like a bomb", () => {
     const { matches } = matchBombIcons([bomb({ id: "a", chartName: "HVAR", kind: "ROCKET", massKg: 62.8 })], DEFS);
     expect(matches.get("a")).toEqual({ iconType: "rockets_he_small", confidence: "matched" });
@@ -244,6 +250,14 @@ describe("the imported bomb icon map", () => {
         // bombs_guided is the Fritz X's own, fins and all.
         if (icons[b.id]) expect(`${b.id} ${icons[b.id]}`).toMatch(/ (guided_|glide_|missile_|bombs_guided$)/);
       }
+    }
+  });
+
+  it("draws every torpedo as a torpedo, on any aircraft", () => {
+    const torpedoes = bombs.filter((b) => b.kind === "TORPEDO");
+    const maps = [bombIcons, ...Object.values(aircraftBombIcons as Record<string, Record<string, string>>)];
+    for (const b of torpedoes) {
+      for (const icons of maps) if (icons[b.id]) expect(`${b.id} ${icons[b.id]}`).toMatch(/ air_torpedo/);
     }
   });
 

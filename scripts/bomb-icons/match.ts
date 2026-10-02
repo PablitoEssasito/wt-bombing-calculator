@@ -235,6 +235,13 @@ export function matchBombIcons(
       }
     }
 
+    // A torpedo's file names no icon, and none of the files here is a torpedo:
+    // the game draws every one alike, so a bomb of the same mass is no stand-in.
+    if (bomb.kind === "TORPEDO") {
+      matches.set(bomb.id, { iconType: "air_torpedo", confidence: "matched" });
+      continue;
+    }
+
     if (bomb.massKg === null) {
       // The two chart entries with neither a real weight nor a datamine file at
       // all — a plain per-kind default beats leaving the tile blank.
