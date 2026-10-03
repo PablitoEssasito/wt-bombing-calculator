@@ -1,6 +1,52 @@
 [
  {
   "date": "2026-10-02",
+  "gameVersion": "2.59.0.46",
+  "aircraft": {
+   "added": [],
+   "removed": [],
+   "br": [],
+   "loadouts": [
+    {
+     "id": "britain-beaufighter-x",
+     "name": "Beaufighter X",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-beaufighter-21",
+     "name": "Beaufighter 21",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-lancaster-i",
+     "name": "Lancaster I",
+     "nation": "britain"
+    },
+    {
+     "id": "britain-lancaster-iii",
+     "name": "Lancaster III",
+     "nation": "britain"
+    },
+    {
+     "id": "france-lancaster-7",
+     "name": "Lancaster 7",
+     "nation": "france"
+    }
+   ]
+  },
+  "bombs": {
+   "added": [],
+   "removed": [
+    {
+     "id": "1000-lb-m-c-mk-ii",
+     "name": "1000 lb M.C. Mk.II bomb"
+    }
+   ],
+   "changed": []
+  }
+ },
+ {
+  "date": "2026-10-02",
   "gameVersion": "2.59.0.45",
   "aircraft": {
    "added": [],
